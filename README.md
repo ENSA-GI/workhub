@@ -149,7 +149,7 @@ workhub/
 ### Démarrage Rapide (Local)
 1. **Cloner le repository** :
    ```bash
-   git clone https://github.com/votre-compte/workhub.git
+   git clone https://github.com/ENSA-GI/workhub.git
    cd workhub
    ```
 
