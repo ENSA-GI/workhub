@@ -11,7 +11,7 @@
 
 ---
 
-## 🚀 Vision du Projet
+##  Vision du Projet
 Le projet vise à transformer la gestion RH traditionnelle (Excel, papier) en un écosystème intelligent, automatisé et conforme à la législation marocaine.
 
 ### Points Forts :
@@ -29,16 +29,7 @@ WorkHub repose sur une architecture moderne, orientée services et pilotée par 
 ### 1. Modèle Multi-Tenant
 La plateforme utilise une isolation **logique** au niveau de la base de données. Chaque requête est interceptée pour injecter le `tenant_id` (ID de l'organisation) via Clerk.
 
-```mermaid
-graph TD
-    User((Utilisateur)) --> Clerk[Clerk Auth / Organization context]
-    Clerk --> API[API Gateway / Spring Boot]
-    API --> DB[(PostgreSQL Shared DB)]
-    subgraph "Logical Separation"
-        DB --- OrgA[Tenant A Data]
-        DB --- OrgB[Tenant B Data]
-    end
-```
+![Schéma Architecture Multi-Tenant](./Workhub-Dg-architecture.png)
 
 ### 2. Flux Événementiel (Kafka)
 Les processus lourds (Calculs de paie, IA) sont gérés de manière asynchrone pour garantir la réactivité de l'interface.
@@ -184,13 +175,13 @@ workhub/
 
 ## 🗺 Roadmap du Projet
 
-### Phase 1 : MVP (Mois 1-3)
+### Phase 1 : MVP 
 - [ ] Socle Multi-tenant & Auth (Clerk).
 - [ ] Module Employés & Congés.
 - [ ] Paie v1 (Législation marocaine de base).
 - [ ] Recrutement basique.
 
-### Phase 2 : Intelligence & Optimisation (Mois 4-5)
+### Phase 2 : Intelligence & Optimisation 
 - [ ] Microservice IA (CV Parsing & Matching).
 - [ ] Dashboard Analytics avancé & Prédiction Turnover.
 - [ ] Notifications temps réel (WebSockets).
@@ -209,7 +200,6 @@ Le système respecte scrupuleusement :
 ## 📧 Contact & Support
 **Auteur** : [Votre Nom / Équipe WorkHub]  
 **Projet** : Projet de Fin d'Études (PFE)  
-**Date de Soutenance** : 10 Avril 2026
 
 ---
 *WorkHub - Simplifier les RH, Amplifier la Performance.*
