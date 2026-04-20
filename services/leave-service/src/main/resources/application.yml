@@ -1,0 +1,39 @@
+server:
+  port: 8083
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: always
+spring:
+  application:
+    name: leave-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/leave_db
+    username: workhub
+    password: workhub
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+  kafka:
+    bootstrap-servers: localhost:9094
+    consumer:
+      group-id: leave-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+    properties:
+      spring.json.trusted.packages: "*"
+      spring.json.value.default.type: com.workhub.leave.kafka.event.EmployeeCreatedEvent
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

@@ -5,32 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b4db57eb-9ea9-47a6-865a-2550c11ac740" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/infra/postgres/init-multiple-dbs.sql" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.github/workflows/ci-cd.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Workhub-Dg-architecture.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/ai-service/Dockerfile" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/.gitattributes" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/.mvn/wrapper/maven-wrapper.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/Dockerfile" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/mvnw" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/mvnw.cmd" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/pom.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/KafkaTestController.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/config/KafkaConfig.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/kafka/consumer/LeaveEventConsumer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/kafka/event/AiEvent.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/kafka/event/EmployeeEvent.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/kafka/event/LeaveEvent.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/kafka/event/PayrollEvent.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/kafka/producer/LeaveEventProducer.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/java/com/workhub/workhub_backend/WorkhubBackendApplication.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/main/resources/application.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/src/test/java/com/workhub/workhub_backend/WorkhubBackendApplicationTests.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker/pg-init/init.sql" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/Dockerfile" beforeDir="false" />
+      <change afterPath="$PROJECT_DIR$/services/api-gateway/src/main/resources/application.yml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/services/org-service/src/main/resources/db/migration/V1__init.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/infra/kafka/init-topics.sh" beforeDir="false" afterPath="$PROJECT_DIR$/infra/kafka/init-topics.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/org-service/src/main/java/com/workhub/org/OrgServiceApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/services/org-service/src/main/java/com/workhub/org/OrgServiceApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/org-service/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/services/org-service/src/main/resources/application.yml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

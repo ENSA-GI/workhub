@@ -1,0 +1,25 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: recruitment-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/recruitment_db
+    username: workhub
+    password: workhub
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
