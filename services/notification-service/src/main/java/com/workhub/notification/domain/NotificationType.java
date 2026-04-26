@@ -1,0 +1,14 @@
+package com.workhub.notification.domain;
+
+public enum NotificationType {
+    PAYROLL_GENERATED,
+    LEAVE_REQUEST,
+    LEAVE_APPROVED,
+    LEAVE_REJECTED,
+    NEW_APPLICATION,
+    INTERVIEW_SCHEDULED,
+    EMPLOYEE_CREATED,
+    DOCUMENT_UPLOADED,
+    PROFILE_UPDATED,
+    SALARY_CHANGED
+}

@@ -1,0 +1,9 @@
+﻿CREATE DATABASE org_db;
+CREATE DATABASE identity_db;
+CREATE DATABASE employee_db;
+CREATE DATABASE leave_db;
+CREATE DATABASE payroll_db;
+CREATE DATABASE recruitment_db;
+CREATE DATABASE document_db;
+CREATE DATABASE notification_db;
+CREATE DATABASE audit_db;

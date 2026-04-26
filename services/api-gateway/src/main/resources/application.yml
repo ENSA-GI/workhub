@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: https://feasible-vervet-9.clerk.accounts.dev/.well-known/jwks.json
+
+workhub:
+  gateway:
+    org: http://localhost:8081
+    employee: http://localhost:8082
+    identity: http://localhost:8088
+    leave: http://localhost:8083
+    notifications: http://localhost:8087
+    payroll: http://localhost:8084
+    recruitment: http://localhost:8085
+    documents: http://localhost:8086
+    audit: http://localhost:8089
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

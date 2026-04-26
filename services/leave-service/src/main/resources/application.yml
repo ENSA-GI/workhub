@@ -1,0 +1,37 @@
+server:
+  port: 8083
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: always
+
+spring:
+  application:
+    name: leave-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/leave_db
+    username: workhub
+    password: workhub
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+
+  kafka:
+    bootstrap-servers: localhost:9094
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.springframework.kafka: INFO
+    com.workhub: DEBUG

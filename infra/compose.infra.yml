@@ -1,0 +1,83 @@
+﻿services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: workhub
+      POSTGRES_PASSWORD: workhub
+    ports: ["5432:5432"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/init-multiple-dbs.sql:/docker-entrypoint-initdb.d/init.sql
+    networks: [workhub]
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: [redis_data:/data]
+    networks: [workhub]
+
+  kafka:
+    image: apache/kafka:latest
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks: [workhub]
+
+  kafka-init:
+    image: apache/kafka:latest
+    depends_on: [kafka]
+    entrypoint:
+      - /bin/bash
+      - -c
+      - "tr -d '\r' < /init-topics.sh > /tmp/init-topics.sh && bash /tmp/init-topics.sh"
+    volumes:
+      - ./kafka/init-topics.sh:/init-topics.sh:ro
+    networks: [workhub]
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on: [kafka]
+    ports: ["8090:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: workhub
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    networks: [workhub]
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000","9001:9001"]
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+    volumes: [minio_data:/data]
+    networks: [workhub]
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports: ["1025:1025","8025:8025"]
+    networks: [workhub]
+
+networks:
+  workhub:
+    name: workhub
+    driver: bridge
+
+volumes:
+  pg_data: {}
+  redis_data: {}
+  kafka_data: {}
+  minio_data: {}
