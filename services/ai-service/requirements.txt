@@ -6,3 +6,7 @@ spacy
 PyPDF2
 python-dotenv
 requests
+aiokafka
+groq
+langchain-community
+langchain-openai
