@@ -27,4 +27,7 @@ public class Application {
 
     @Column(name="applied_at")
     private Instant appliedAt;
+
+    @Column(name="ai_matching_score")
+    private Double aiMatchingScore;
 }

@@ -1,0 +1,17 @@
+# Fichiers de compilation Maven
+target/
+*.class
+*.jar
+*.war
+
+# Fichiers de configuration IDE (IntelliJ IDEA, Eclipse...)
+.idea/
+*.iml
+.vscode/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Variables d'environnement
+.env
