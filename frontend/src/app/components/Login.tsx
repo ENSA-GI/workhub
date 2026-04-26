@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import logo from '../../imports/Capture_d_écran_2026-04-20_183125-removebg-preview.png';
 
 interface LoginProps {
   onLogin: () => void;
@@ -42,7 +43,7 @@ export default function Login({ onLogin, role, onBack }: LoginProps) {
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/src/imports/Capture_d_écran_2026-04-20_183125-removebg-preview.png" alt="WorkHub" className="h-16 mx-auto mb-4" />
+          <img src={logo} alt="WorkHub" className="h-16 mx-auto mb-4" />
           <h1 className="text-2xl font-semibold text-gray-900">Connexion - {getRoleTitle(role)}</h1>
           <p className="text-sm text-gray-600 mt-2">Smart HR. Stronger Organizations.</p>
         </div>

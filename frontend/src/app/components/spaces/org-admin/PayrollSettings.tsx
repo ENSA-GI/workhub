@@ -1,5 +1,6 @@
 import { Settings, Save, Upload, FileText, DollarSign, Percent, Calendar, AlertCircle, Plus, Edit2, Trash2, History } from 'lucide-react';
 import { useState } from 'react';
+import logo from '../../../../imports/Capture_d_écran_2026-04-20_183125-removebg-preview.png';
 
 export default function PayrollSettings() {
   const [activeTab, setActiveTab] = useState('charges');
@@ -330,7 +331,7 @@ export default function PayrollSettings() {
                     <p className="text-xs text-gray-500 mb-2">Logo actuel :</p>
                     <div className="flex items-center">
                       <img
-                        src="/src/imports/Capture_d_écran_2026-04-20_183125-removebg-preview.png"
+                        src={logo}
                         alt="Logo"
                         className="h-12"
                       />

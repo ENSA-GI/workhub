@@ -8,8 +8,7 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_CLERK_PUBLISHABLE_KEY
-ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+# VITE_CLERK_PUBLISHABLE_KEY is loaded from .env file during build
 
 RUN npm run build
 
