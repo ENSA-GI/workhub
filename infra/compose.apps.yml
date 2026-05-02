@@ -5,7 +5,7 @@ services:
     environment:
       SERVER_PORT: 8080
 
-      WORKHUB_GATEWAY_ORG: http://org-service:8080
+      WORKHUB_GATEWAY_ORG: http://org-service:8081
       WORKHUB_GATEWAY_EMPLOYEE: http://employee-service:8080
       WORKHUB_GATEWAY_IDENTITY: http://identity-service:8088
       WORKHUB_GATEWAY_LEAVE: http://leave-service:8080
@@ -26,8 +26,9 @@ services:
 
   org-service:
     build: { context: ../services/org-service }
+    ports: [ "8081:8081" ]
     environment:
-      SERVER_PORT: 8080
+      SERVER_PORT: 8081
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/org_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
