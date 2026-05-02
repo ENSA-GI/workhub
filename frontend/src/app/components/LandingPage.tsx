@@ -1,4 +1,6 @@
 import { Building2, Users, Briefcase, UserCircle, Shield, CheckCircle, BarChart3, Globe, TrendingUp, Zap, Lock, CloudCog, Brain, Award, ChevronRight, Play } from 'lucide-react';
+import logo from '../../imports/Capture_d_écran_2026-04-20_183125-removebg-preview.png';
+import footerLogo from '../../imports/Capture_d_écran_2026-04-20_185048-removebg-preview.png';
 
 interface LandingPageProps {
   onSelectRole: (role: string) => void;
@@ -47,7 +49,7 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
             {/* Logo */}
             <div className="flex items-center">
               <img
-                src="/src/imports/Capture_d_écran_2026-04-20_183125-removebg-preview.png"
+                src={logo}
                 alt="WorkHub"
                 className="h-16"
               />
@@ -427,7 +429,7 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             <div>
               <img
-                src="/src/imports/Capture_d_écran_2026-04-20_185048-removebg-preview.png"
+                src={footerLogo}
                 alt="WorkHub"
                 className="h-12 mb-4"
               />

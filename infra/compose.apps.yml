@@ -1,13 +1,13 @@
 services:
   api-gateway:
     build: { context: ../services/api-gateway }
-    ports: ["8080:8080"]
+    ports: [ "8080:8080" ]
     environment:
       SERVER_PORT: 8080
 
       WORKHUB_GATEWAY_ORG: http://org-service:8080
       WORKHUB_GATEWAY_EMPLOYEE: http://employee-service:8080
-      WORKHUB_GATEWAY_IDENTITY: http://identity-service:8080
+      WORKHUB_GATEWAY_IDENTITY: http://identity-service:8088
       WORKHUB_GATEWAY_LEAVE: http://leave-service:8080
       WORKHUB_GATEWAY_NOTIFICATIONS: http://notification-service:8080
       WORKHUB_GATEWAY_PAYROLL: http://payroll-service:8080
@@ -22,7 +22,7 @@ services:
       - identity-service
       - leave-service
       - notification-service
-    networks: [workhub]
+    networks: [ workhub ]
 
   org-service:
     build: { context: ../services/org-service }
@@ -31,18 +31,20 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/org_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
-    depends_on: [postgres]
-    networks: [workhub]
+    depends_on: [ postgres ]
+    networks: [ workhub ]
 
   identity-service:
     build: { context: ../services/identity-service }
+    ports: [ "8088:8088" ]
     environment:
-      SERVER_PORT: 8080
+      SERVER_PORT: 8088
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/identity_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
-    depends_on: [postgres]
-    networks: [workhub]
+      CLERK_WEBHOOK_SECRET: ${CLERK_WEBHOOK_SECRET:-whsec_dGVzdF9zZWNyZXRfMTIz}
+    depends_on: [ postgres ]
+    networks: [ workhub ]
 
   employee-service:
     build: { context: ../services/employee-service }
@@ -52,8 +54,8 @@ services:
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    depends_on: [postgres, kafka]
-    networks: [workhub]
+    depends_on: [ postgres, kafka ]
+    networks: [ workhub ]
 
   leave-service:
     build: { context: ../services/leave-service }
@@ -63,8 +65,8 @@ services:
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    depends_on: [postgres, kafka]
-    networks: [workhub]
+    depends_on: [ postgres, kafka ]
+    networks: [ workhub ]
 
   payroll-service:
     build: { context: ../services/payroll-service }
@@ -73,8 +75,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payroll_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
-    depends_on: [postgres]
-    networks: [workhub]
+    depends_on: [ postgres ]
+    networks: [ workhub ]
 
   recruitment-service:
     build: { context: ../services/recruitment-service }
@@ -83,8 +85,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/recruitment_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
-    depends_on: [postgres]
-    networks: [workhub]
+    depends_on: [ postgres ]
+    networks: [ workhub ]
 
   document-service:
     build: { context: ../services/document-service }
@@ -93,8 +95,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/document_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
-    depends_on: [postgres]
-    networks: [workhub]
+    depends_on: [ postgres ]
+    networks: [ workhub ]
 
   notification-service:
     build: { context: ../services/notification-service }
@@ -105,8 +107,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: workhub
       SPRING_MAIL_HOST: mailhog
       SPRING_MAIL_PORT: 1025
-    depends_on: [postgres, mailhog]
-    networks: [workhub]
+    depends_on: [ postgres, mailhog ]
+    networks: [ workhub ]
 
   audit-service:
     build: { context: ../services/audit-service }
@@ -115,15 +117,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/audit_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
-    depends_on: [postgres]
-    networks: [workhub]
-
+    depends_on: [ postgres ]
+    networks: [ workhub ]
 
   frontend:
     build:
       context: ../frontend
-      args:
-        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
     ports:
       - "3000:80"
     depends_on:

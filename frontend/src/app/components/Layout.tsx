@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { LayoutDashboard, Users, DollarSign, Calendar, Briefcase, Bell, Search, Home, Building2, FileText, AlertTriangle, Settings, BarChart3, UserCog, Download, User, Folder, TrendingUp, Receipt } from 'lucide-react';
+import logo from '../../imports/Capture_d_écran_2026-04-20_185048-removebg-preview.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -124,7 +125,7 @@ export default function Layout({ children, userRole, onBackToHome, isSimpleLayou
         {/* Logo */}
         <div className="h-20 flex items-center justify-center px-6 border-b border-white/10">
           <img
-            src="/src/imports/Capture_d_écran_2026-04-20_185048-removebg-preview.png"
+            src={logo}
             alt="WorkHub"
             className="h-14 w-auto"
           />

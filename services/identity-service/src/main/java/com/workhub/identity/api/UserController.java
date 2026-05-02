@@ -57,9 +57,11 @@ public class UserController {
         return repo.save(u);
     }
 
-    @GetMapping("/by-clerk/{clerkId}")
-    public User byClerk(@PathVariable String clerkId) {
-        return repo.findByClerkId(clerkId).orElseThrow();
+    @GetMapping("/me")
+    public User getCurrentUser(@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt) {
+        String clerkId = jwt.getSubject();
+        return repo.findByClerkId(clerkId)
+                .orElseThrow(() -> new RuntimeException("User not found in local database for clerkId: " + clerkId));
     }
 
     @PostMapping("/provision")
@@ -71,9 +73,27 @@ public class UserController {
                     existing.setLastName(req.lastName());
                     existing.setPhone(req.phone());
                     existing.setAvatarUrl(req.avatarUrl());
-                    existing.setRole(req.role());
+                    // On ne change pas le rôle lors d'un provisionnement automatique sauf s'il est vide
+                    if (existing.getRole() == null) existing.setRole(req.role());
+                    existing.setLastLogin(java.time.Instant.now());
                     return repo.save(existing);
                 })
-                .orElseGet(() -> create(req));
+                .orElseGet(() -> {
+                    User u = User.builder()
+                            .id(UUID.randomUUID())
+                            .clerkId(req.clerkId())
+                            .organizationId(req.organizationId())
+                            .email(req.email())
+                            .firstName(req.firstName())
+                            .lastName(req.lastName())
+                            .phone(req.phone())
+                            .avatarUrl(req.avatarUrl())
+                            .role(req.role())
+                            .active(true)
+                            .emailVerified(false)
+                            .lastLogin(java.time.Instant.now())
+                            .build();
+                    return repo.save(u);
+                });
     }
 }

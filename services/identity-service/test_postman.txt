@@ -1,0 +1,34 @@
+POST :
+http://localhost:8088/api/webhooks/clerk
+{
+  "type": "user.created",
+  "data": {
+    "id": "user_2P9v1...",
+    "email_addresses": [{"email_address": "test@example.com"}],
+    "first_name": "John",
+    "last_name": "Doe",
+    "image_url": "https://example.com/avatar.png"
+  }
+}
+
+
+pre-request:
+const crypto = require('crypto-js');
+
+// 1. Le secret (doit correspondre à celui du .env, sans le préfixe whsec_)
+const secret = "dGVzdF9zZWNyZXRfMTIz"; 
+
+// 2. Préparation des données
+const payload = pm.request.body.raw;
+const svix_id = "msg_" + Math.random().toString(36).substring(7);
+const svix_timestamp = Math.floor(Date.now() / 1000).toString();
+
+// 3. Calcul de la signature (id + timestamp + payload)
+const toSign = `${svix_id}.${svix_timestamp}.${payload}`;
+const hmac = crypto.HmacSHA256(toSign, crypto.enc.Base64.parse(secret));
+const signature = crypto.enc.Base64.stringify(hmac);
+
+// 4. Ajout des headers requis par Svix/Clerk
+pm.request.headers.add({key: 'svix-id', value: svix_id});
+pm.request.headers.add({key: 'svix-timestamp', value: svix_timestamp});
+pm.request.headers.add({key: 'svix-signature', value: `v1,${signature}`});

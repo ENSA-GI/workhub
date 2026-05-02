@@ -7,5 +7,5 @@ build
 Dockerfile
 Dockerfile.dev
 *.log
-.env
-.env.*
+# .env
+# .env.*
