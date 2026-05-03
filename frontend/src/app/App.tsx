@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
 
@@ -46,10 +46,28 @@ import MonProfilCandidat from "./components/spaces/candidate/MonProfilCandidat";
 import MesDocumentsCandidat from "./components/spaces/candidate/MesDocumentsCandidat";
 import NotificationsCandidat from "./components/spaces/candidate/NotificationsCandidat";
 
+// ✅ RH Manager Employees (nouvelle page)
+import EmployeesListRH from "./components/spaces/rh-manager/EmployeesListRH";
+
+const STORAGE_KEY = "workhub.selectedRole";
+
 export default function App() {
-    const [selectedRole, setSelectedRole] = useState<string | null>(null);
+    // ✅ PERSISTENCE : récupère le rôle depuis localStorage au refresh / redirect Clerk
+    const [selectedRole, setSelectedRole] = useState<string | null>(() => {
+        return localStorage.getItem(STORAGE_KEY);
+    });
+
+    // ✅ PERSISTENCE : sauvegarde/supprime dans localStorage
+    useEffect(() => {
+        if (selectedRole) localStorage.setItem(STORAGE_KEY, selectedRole);
+        else localStorage.removeItem(STORAGE_KEY);
+    }, [selectedRole]);
 
     const handleSelectRole = (role: string) => setSelectedRole(role);
+
+    const handleBackToHome = () => {
+        setSelectedRole(null); // => efface aussi localStorage via useEffect
+    };
 
     // landing publique
     if (!selectedRole) {
@@ -60,14 +78,15 @@ export default function App() {
         <>
             <SignedOut>
                 <div style={{ maxWidth: 420, margin: "40px auto" }}>
-                    <SignIn />
+                    {/* ✅ IMPORTANT : forcer Clerk à revenir sur "/" après login/register */}
+                    <SignIn afterSignInUrl="/" afterSignUpUrl="/" />
                 </div>
             </SignedOut>
 
             <SignedIn>
                 {/* Candidate */}
                 {selectedRole === "candidate" && (
-                    <Layout userRole={selectedRole} onBackToHome={() => setSelectedRole(null)}>
+                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                         <Routes>
                             <Route path="/" element={<OffresPubliques />} />
                             <Route path="/candidatures" element={<MesCandidatures />} />
@@ -81,7 +100,7 @@ export default function App() {
 
                 {/* Employee */}
                 {selectedRole === "employee" && (
-                    <Layout userRole={selectedRole} onBackToHome={() => setSelectedRole(null)}>
+                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                         <Routes>
                             <Route path="/" element={<DashboardEmployee />} />
                             <Route path="/profil" element={<MonProfilEmployee />} />
@@ -96,7 +115,7 @@ export default function App() {
 
                 {/* Manager */}
                 {selectedRole === "manager" && (
-                    <Layout userRole={selectedRole} onBackToHome={() => setSelectedRole(null)}>
+                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                         <Routes>
                             <Route path="/" element={<ManagerSpace />} />
                             <Route path="/leave" element={<LeaveManagementEnhanced />} />
@@ -107,7 +126,7 @@ export default function App() {
 
                 {/* Recruiter */}
                 {selectedRole === "recruiter" && (
-                    <Layout userRole={selectedRole} onBackToHome={() => setSelectedRole(null)} isSimpleLayout>
+                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome} isSimpleLayout>
                         <Routes>
                             <Route path="/" element={<RecruiterSpace />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
@@ -117,7 +136,7 @@ export default function App() {
 
                 {/* Org admin */}
                 {selectedRole === "org-admin" && (
-                    <Layout userRole={selectedRole} onBackToHome={() => setSelectedRole(null)}>
+                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                         <Routes>
                             <Route path="/" element={<DashboardOrgAdmin />} />
                             <Route path="/employees" element={<EmployeesView />} />
@@ -137,10 +156,10 @@ export default function App() {
 
                 {/* RH manager */}
                 {selectedRole === "rh-manager" && (
-                    <Layout userRole={selectedRole} onBackToHome={() => setSelectedRole(null)}>
+                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                         <Routes>
                             <Route path="/" element={<DashboardRHManager />} />
-                            <Route path="/employees" element={<EmployeesEnhanced />} />
+                            <Route path="/employees" element={<EmployeesListRH />} />
                             <Route path="/payroll" element={<PayrollEnhanced />} />
                             <Route path="/payroll-generation" element={<PayrollGeneration />} />
                             <Route path="/payroll-bulletins" element={<PayslipsManagement />} />
@@ -155,7 +174,7 @@ export default function App() {
 
                 {/* Super admin */}
                 {selectedRole === "super-admin" && (
-                    <Layout userRole={selectedRole} onBackToHome={() => setSelectedRole(null)}>
+                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                         <Routes>
                             <Route path="/" element={<DashboardSuperAdmin />} />
                             <Route path="/organizations" element={<OrganizationsView />} />
@@ -170,8 +189,8 @@ export default function App() {
                 )}
 
                 {/* fallback */}
-                {!["candidate","employee","manager","recruiter","org-admin","rh-manager","super-admin"].includes(selectedRole) && (
-                    <Layout userRole={selectedRole} onBackToHome={() => setSelectedRole(null)}>
+                {!["candidate", "employee", "manager", "recruiter", "org-admin", "rh-manager", "super-admin"].includes(selectedRole) && (
+                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                         <Routes>
                             <Route path="/" element={<Dashboard />} />
                             <Route path="/employees" element={<EmployeesEnhanced />} />

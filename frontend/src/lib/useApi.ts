@@ -22,6 +22,7 @@ export function useApi() {
         }
 
         const ct = res.headers.get("content-type") || "";
+        // @ts-ignore
         return ct.includes("application/json") ? res.json() : res.text();
     };
 }

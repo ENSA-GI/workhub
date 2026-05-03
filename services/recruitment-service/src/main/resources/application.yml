@@ -6,9 +6,9 @@ spring:
     name: recruitment-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/recruitment_db
-    username: workhub
-    password: workhub
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/recruitment_db}
+    username: ${SPRING_DATASOURCE_USERNAME:workhub}
+    password: ${SPRING_DATASOURCE_PASSWORD:workhub}
 
   jpa:
     hibernate:
@@ -23,8 +23,10 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
     consumer:
-      group-id: recruitment-group
+      group-id: recruitment-service
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
