@@ -25,4 +25,7 @@ public class Candidate {
     private String email;
 
     private String phone;
+
+    @Column(name="linkedin_url")
+    private String linkedinUrl;
 }

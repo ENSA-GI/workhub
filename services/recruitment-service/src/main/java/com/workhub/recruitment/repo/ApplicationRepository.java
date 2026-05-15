@@ -8,4 +8,6 @@ import java.util.UUID;
 
 public interface ApplicationRepository extends JpaRepository<Application, UUID> {
     List<Application> findByJobOfferId(UUID jobOfferId);
+    List<Application> findByCandidateId(UUID candidateId);
+    boolean existsByJobOfferIdAndCandidateId(UUID jobOfferId, UUID candidateId);
 }
