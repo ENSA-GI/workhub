@@ -6,9 +6,20 @@ spring:
     name: recruitment-service
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/recruitment_db}
-    username: ${SPRING_DATASOURCE_USERNAME:workhub}
-    password: ${SPRING_DATASOURCE_PASSWORD:workhub}
+    url: jdbc:postgresql://localhost:5432/recruitment_db?stringtype=unspecified
+    username: workhub
+    password: workhub
+  storage:
+    minio:
+      endpoint: http://localhost:9000
+      access-key: minioadmin
+      secret-key: minioadminpassword
+      bucket: cv-bucket
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 15MB
 
   jpa:
     hibernate:
@@ -26,12 +37,14 @@ spring:
       properties:
         spring.json.add.type.headers: false
     consumer:
-      group-id: recruitment-service
+      group-id: recruitment-group-v2
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "*"
+        spring.json.value.default.type: com.workhub.recruitment.dto.CvAnalysisResult
+        spring.json.use.type.headers: false
 
 management:
   endpoints:

@@ -3,6 +3,7 @@ package com.workhub.recruitment.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -21,6 +22,21 @@ public class JobOffer {
 
     @Column(nullable=false)
     private String description;
+
+    @Column(name = "required_skills", columnDefinition = "jsonb")
+    private String requiredSkills;
+
+    @Column(name = "min_experience")
+    private Integer minExperience;
+
+    @Column(name = "salary_range")
+    private String salaryRange;
+
+    @Column(name = "location")
+    private String location;
+
+    @Column(name = "deadline")
+    private LocalDate deadline;
 
     @Enumerated(EnumType.STRING)
     @Column(name="contract_type", nullable=false)

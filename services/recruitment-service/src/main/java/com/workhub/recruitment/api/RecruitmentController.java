@@ -1,77 +1,80 @@
 package com.workhub.recruitment.api;
 
-import com.workhub.recruitment.domain.*;
-import com.workhub.recruitment.repo.ApplicationRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.workhub.recruitment.domain.JobOffer;
+import com.workhub.recruitment.domain.JobOfferStatus;
+import com.workhub.recruitment.dto.*;
 import com.workhub.recruitment.repo.JobOfferRepository;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import com.workhub.recruitment.service.ApplicationService;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
 public class RecruitmentController {
 
     private final JobOfferRepository offerRepo;
-    private final ApplicationRepository appRepo;
+    private final ApplicationService applicationService;
+    private final ObjectMapper objectMapper;
 
-    public RecruitmentController(JobOfferRepository offerRepo, ApplicationRepository appRepo) {
+    public RecruitmentController(JobOfferRepository offerRepo, ApplicationService applicationService, ObjectMapper objectMapper) {
         this.offerRepo = offerRepo;
-        this.appRepo = appRepo;
+        this.applicationService = applicationService;
+        this.objectMapper = objectMapper;
     }
 
-    public record CreateOfferRequest(
-            @NotNull UUID organizationId,
-            @NotBlank String title,
-            @NotBlank String description,
-            @NotNull ContractType contractType,
-            @NotNull UUID createdBy
-    ) {}
-
-    public record CreateApplicationRequest(
-            @NotNull UUID jobOfferId,
-            @NotNull UUID candidateId,
-            @NotBlank String cvUrl
-    ) {}
-
-    @GetMapping("/job-offers")
-    public List<JobOffer> listOffers(@RequestParam UUID organizationId) {
-        return offerRepo.findByOrganizationId(organizationId);
+    @GetMapping("/job-offers/public")
+    public List<JobOfferPublicResponse> listPublicOffers() {
+        return offerRepo.findByStatus(JobOfferStatus.PUBLISHED).stream()
+                .map(this::mapToPublicDto)
+                .collect(Collectors.toList());
     }
 
-    @PostMapping("/job-offers")
-    public JobOffer createOffer(@RequestBody @Valid CreateOfferRequest req) {
-        JobOffer o = JobOffer.builder()
-                .id(UUID.randomUUID())
-                .organizationId(req.organizationId())
-                .title(req.title())
-                .description(req.description())
-                .contractType(req.contractType())
-                .status(JobOfferStatus.DRAFT)
-                .createdBy(req.createdBy())
+    @GetMapping("/job-offers/{id}")
+    public JobOfferPublicResponse getOfferById(@PathVariable UUID id) {
+        return applicationService.getJobOffer(id);
+    }
+
+    @PostMapping(value = "/applications/apply", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApplicationResponse applyToOffer(
+            @RequestPart("data") String dataJson,
+            @RequestPart("cv") MultipartFile cvFile) {
+        ApplicationRequest req;
+        try {
+            req = objectMapper.readValue(dataJson, ApplicationRequest.class);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Format JSON invalide dans la partie 'data'", e);
+        }
+        return applicationService.apply(req, cvFile);
+    }
+
+    @GetMapping("/applications/my")
+    public List<ApplicationResponse> myApplications(@RequestParam UUID candidateId) {
+        return applicationService.getByCandidate(candidateId);
+    }
+
+    private JobOfferPublicResponse mapToPublicDto(JobOffer o) {
+        return JobOfferPublicResponse.builder()
+                .id(o.getId())
+                .title(o.getTitle())
+                .description(o.getDescription())
+                .contractType(o.getContractType())
+                .salaryRange(o.getSalaryRange())
+                .location(o.getLocation())
+                .minExperience(o.getMinExperience())
+                .publishedAt(o.getPublishedAt())
+                .deadline(o.getDeadline())
+                .status(o.getStatus())
+                .applications(o.getApplications() != null ? 
+                    o.getApplications().stream().map(ApplicationResponse::from).toList() : java.util.Collections.emptyList())
                 .build();
-        return offerRepo.save(o);
-    }
-
-    @GetMapping("/applications")
-    public List<Application> listApplications(@RequestParam UUID jobOfferId) {
-        return appRepo.findByJobOfferId(jobOfferId);
-    }
-
-    @PostMapping("/applications")
-    public Application apply(@RequestBody @Valid CreateApplicationRequest req) {
-        Application a = Application.builder()
-                .id(UUID.randomUUID())
-                .jobOfferId(req.jobOfferId())
-                .candidateId(req.candidateId())
-                .cvUrl(req.cvUrl())
-                .status(ApplicationStatus.NEW)
-                .appliedAt(Instant.now())
-                .build();
-        return appRepo.save(a);
     }
 }
