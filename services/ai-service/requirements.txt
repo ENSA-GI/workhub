@@ -10,3 +10,4 @@ aiokafka
 groq
 langchain-community
 langchain-openai
+minio

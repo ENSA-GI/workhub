@@ -18,7 +18,12 @@ public class KafkaConsumerService {
 
     private final ApplicationRepository applicationRepo;
 
-    @KafkaListener(topics = "workhub.ai.events.v1", groupId = "recruitment-group")
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        log.info("KafkaConsumerService initialized and listening to workhub.recruitment.analysis.v1");
+    }
+
+    @KafkaListener(topics = "workhub.recruitment.analysis.v1", groupId = "recruitment-group-v3")
     @Transactional
     public void consumeCvAnalysisResult(CvAnalysisResult result) {
         log.info("Received CV analysis result for application: {} with score: {}", result.getApplicationId(), result.getScore());
@@ -30,5 +35,10 @@ public class KafkaConsumerService {
             applicationRepo.save(app);
             log.info("Updated application {} with AI score and summary.", result.getApplicationId());
         });
+    }
+
+    @KafkaListener(topics = "workhub.recruitment.analysis.v1", groupId = "recruitment-debug-group")
+    public void listenRaw(String rawMessage) {
+        log.info("RAW KAFKA MESSAGE RECEIVED: {}", rawMessage);
     }
 }

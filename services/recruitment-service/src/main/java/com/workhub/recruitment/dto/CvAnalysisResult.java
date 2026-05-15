@@ -10,7 +10,6 @@ import java.util.List;
 @AllArgsConstructor
 public class CvAnalysisResult {
     private UUID applicationId;
-    private Double score;
-    private List<String> extractedSkills;
+    private Integer score;
     private String summary;
 }

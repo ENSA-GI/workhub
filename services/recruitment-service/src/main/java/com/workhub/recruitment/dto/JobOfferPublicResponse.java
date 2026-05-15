@@ -23,4 +23,5 @@ public class JobOfferPublicResponse {
     private Instant publishedAt;
     private LocalDate deadline;
     private JobOfferStatus status;
+    private java.util.List<ApplicationResponse> applications;
 }

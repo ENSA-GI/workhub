@@ -6,6 +6,7 @@ import com.workhub.recruitment.domain.*;
 import com.workhub.recruitment.dto.ApplicationRequest;
 import com.workhub.recruitment.dto.ApplicationResponse;
 import com.workhub.recruitment.dto.CvAnalysisRequest;
+import com.workhub.recruitment.dto.JobOfferPublicResponse;
 import com.workhub.recruitment.repo.ApplicationRepository;
 import com.workhub.recruitment.repo.CandidateRepository;
 import com.workhub.recruitment.repo.JobOfferRepository;
@@ -89,6 +90,28 @@ public class ApplicationService {
                     return mapToResponse(app, offer, null);
                 })
                 .collect(Collectors.toList());
+    }
+
+    public JobOfferPublicResponse getJobOffer(UUID id) {
+        JobOffer offer = jobOfferRepo.findById(id)
+                .orElseThrow(() -> new OfferNotFoundException(id));
+        
+        return JobOfferPublicResponse.builder()
+                .id(offer.getId())
+                .title(offer.getTitle())
+                .description(offer.getDescription())
+                .contractType(offer.getContractType())
+                .salaryRange(offer.getSalaryRange())
+                .location(offer.getLocation())
+                .minExperience(offer.getMinExperience())
+                .publishedAt(offer.getPublishedAt())
+                .deadline(offer.getDeadline())
+                .status(offer.getStatus())
+                .applications(applicationRepo.findByJobOfferId(id).stream().map(app -> {
+                        Candidate c = candidateRepo.findById(app.getCandidateId()).orElse(null);
+                        return mapToResponse(app, offer, c);
+                    }).toList())
+                .build();
     }
 
     private ApplicationResponse mapToResponse(Application app, JobOffer offer, Candidate candidate) {

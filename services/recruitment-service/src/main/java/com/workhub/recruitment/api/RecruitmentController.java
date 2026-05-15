@@ -39,16 +39,20 @@ public class RecruitmentController {
 
     @GetMapping("/job-offers/{id}")
     public JobOfferPublicResponse getOfferById(@PathVariable UUID id) {
-        return offerRepo.findById(id)
-                .map(this::mapToPublicDto)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Offre introuvable"));
+        return applicationService.getJobOffer(id);
     }
 
     @PostMapping(value = "/applications/apply", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public ApplicationResponse applyToOffer(
-            @RequestPart("data") @Valid ApplicationRequest req,
+            @RequestPart("data") String dataJson,
             @RequestPart("cv") MultipartFile cvFile) {
+        ApplicationRequest req;
+        try {
+            req = objectMapper.readValue(dataJson, ApplicationRequest.class);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Format JSON invalide dans la partie 'data'", e);
+        }
         return applicationService.apply(req, cvFile);
     }
 
@@ -69,6 +73,8 @@ public class RecruitmentController {
                 .publishedAt(o.getPublishedAt())
                 .deadline(o.getDeadline())
                 .status(o.getStatus())
+                .applications(o.getApplications() != null ? 
+                    o.getApplications().stream().map(ApplicationResponse::from).toList() : java.util.Collections.emptyList())
                 .build();
     }
 }
