@@ -1,97 +1,74 @@
 package com.workhub.employee.api;
 
-import com.workhub.employee.domain.*;
-import com.workhub.employee.kafka.EmployeeEventsPublisher;
-import com.workhub.employee.kafka.event.EmployeeCreatedEvent;
-import com.workhub.employee.repo.EmployeeRepository;
+import com.workhub.employee.domain.EmployeeStatus;
+import com.workhub.employee.dto.*;
+import com.workhub.employee.service.EmployeeService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/employees")
+@RequiredArgsConstructor
 public class EmployeeController {
 
-    private final EmployeeRepository repo;
-    private final EmployeeEventsPublisher publisher;
-
-    public EmployeeController(EmployeeRepository repo, EmployeeEventsPublisher publisher) {
-        this.repo = repo;
-        this.publisher = publisher;
-    }
-
-    public record CreateEmployeeRequest(
-            @NotNull UUID organizationId,
-            @NotNull UUID userId,
-            @NotBlank String cin,
-            @NotNull LocalDate birthDate,
-            String birthPlace,
-            String address,
-            String city,
-            String postalCode,
-            String personalPhone,
-            String personalEmail,
-            MaritalStatus maritalStatus,
-            Integer childrenCount,
-            @NotNull LocalDate hireDate,
-            @NotNull ContractType contractType,
-            LocalDate contractEndDate,
-            @NotNull UUID departmentId,
-            @NotNull UUID positionId,
-            @NotNull ProfessionalCategory category,
-            @NotNull BigDecimal baseSalary,
-            BigDecimal transportBonus,
-            BigDecimal mealBonus
-    ) {}
-
-    @GetMapping
-    public List<Employee> list(@RequestParam UUID organizationId) {
-        return repo.findByOrganizationId(organizationId);
-    }
+    private final EmployeeService employeeService;
 
     @PostMapping
-    public Employee create(@RequestBody @Valid CreateEmployeeRequest req) {
-        Employee e = Employee.builder()
-                .id(UUID.randomUUID())
-                .organizationId(req.organizationId())
-                .userId(req.userId())
-                .cin(req.cin())
-                .birthDate(req.birthDate())
-                .birthPlace(req.birthPlace())
-                .address(req.address())
-                .city(req.city())
-                .postalCode(req.postalCode())
-                .personalPhone(req.personalPhone())
-                .personalEmail(req.personalEmail())
-                .maritalStatus(req.maritalStatus() == null ? MaritalStatus.SINGLE : req.maritalStatus())
-                .childrenCount(req.childrenCount() == null ? 0 : req.childrenCount())
-                .hireDate(req.hireDate())
-                .contractType(req.contractType())
-                .contractEndDate(req.contractEndDate())
-                .departmentId(req.departmentId())
-                .positionId(req.positionId())
-                .category(req.category())
-                .baseSalary(req.baseSalary())
-                .transportBonus(req.transportBonus() == null ? BigDecimal.ZERO : req.transportBonus())
-                .mealBonus(req.mealBonus() == null ? BigDecimal.ZERO : req.mealBonus())
-                .status(EmployeeStatus.ACTIVE)
-                .build();
+    public ResponseEntity<EmployeeResponse> create(@Valid @RequestBody CreateEmployeeRequest request,
+                                                   @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        UUID createdBy = userId != null ? UUID.fromString(userId) : null;
+        EmployeeResponse response = employeeService.createEmployee(request, createdBy);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
-        Employee saved = repo.save(e);
+    @PutMapping("/{id}")
+    public ResponseEntity<EmployeeResponse> update(@PathVariable UUID id,
+                                                   @RequestParam UUID organizationId,
+                                                   @Valid @RequestBody UpdateEmployeeRequest request,
+                                                   @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        UUID updatedBy = userId != null ? UUID.fromString(userId) : null;
+        EmployeeResponse response = employeeService.updateEmployee(id, organizationId, request, updatedBy);
+        return ResponseEntity.ok(response);
+    }
 
-        publisher.employeeCreated(new EmployeeCreatedEvent(
-                saved.getId(),
-                saved.getOrganizationId(),
-                saved.getUserId(),
-                saved.getHireDate().toString()
-        ));
+    @PostMapping("/{id}/archive")
+    public ResponseEntity<Void> archive(@PathVariable UUID id,
+                                        @RequestParam UUID organizationId,
+                                        @Valid @RequestBody ArchiveEmployeeRequest request,
+                                        @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        UUID archivedBy = userId != null ? UUID.fromString(userId) : null;
+        employeeService.archiveEmployee(id, organizationId, request, archivedBy);
+        return ResponseEntity.noContent().build();
+    }
 
-        return saved;
+    @GetMapping("/{id}")
+    public ResponseEntity<EmployeeResponse> getById(@PathVariable UUID id,
+                                                    @RequestParam UUID organizationId) {
+        EmployeeResponse response = employeeService.getEmployee(id, organizationId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<EmployeeResponse>> list(@RequestParam UUID organizationId,
+                                                       @RequestParam(defaultValue = "ACTIVE") EmployeeStatus status,
+                                                       Pageable pageable) {
+        Page<EmployeeResponse> response = employeeService.listEmployees(organizationId, status, pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<EmployeeResponse>> search(@RequestParam UUID organizationId,
+                                                         @RequestParam String query,
+                                                         @RequestParam(defaultValue = "ACTIVE") EmployeeStatus status,
+                                                         Pageable pageable) {
+        Page<EmployeeResponse> response = employeeService.searchEmployees(organizationId, query, status, pageable);
+        return ResponseEntity.ok(response);
     }
 }

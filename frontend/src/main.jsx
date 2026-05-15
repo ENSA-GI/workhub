@@ -1,33 +1,50 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, useNavigate } from "react-router-dom";
 import { ClerkProvider } from "@clerk/clerk-react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import "./styles/tailwind.css";
+import App from "./app/App";
+
+// garde uniquement les CSS qui existent réellement chez toi
 import "./styles/index.css";
+import "./styles/tailwind.css";
 import "./styles/theme.css";
 
-import App from "./app/App.tsx";
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: { retry: 1, refetchOnWindowFocus: false },
+    },
+});
 
-if (!publishableKey) {
-    throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY (Clerk publishable key)");
-}
+// IMPORTANT: Clerk doit être rendu *dans* le Router
+function ClerkProviderWithRouter({ children }) {
+    const navigate = useNavigate();
 
-const rootElement = document.getElementById("root");
-if (!rootElement) {
-    throw new Error(
-        "Erreur critique : Impossible de trouver <div id='root'> dans index.html."
+    // Ces props existent dans @clerk/clerk-react (compat React Router)
+    // et évitent les soucis de typage que tu as eu en TS.
+    return (
+        <ClerkProvider
+            publishableKey={clerkPubKey}
+            routerPush={(to) => navigate(to)}
+            routerReplace={(to) => navigate(to, { replace: true })}
+            afterSignOutUrl="/"
+        >
+            {children}
+        </ClerkProvider>
     );
 }
 
-ReactDOM.createRoot(rootElement).render(
+ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
-        <ClerkProvider publishableKey={publishableKey} afterSignOutUrl="/">
-            <BrowserRouter>
-                <App />
-            </BrowserRouter>
-        </ClerkProvider>
+        <BrowserRouter>
+            <ClerkProviderWithRouter>
+                <QueryClientProvider client={queryClient}>
+                    <App />
+                </QueryClientProvider>
+            </ClerkProviderWithRouter>
+        </BrowserRouter>
     </React.StrictMode>
 );

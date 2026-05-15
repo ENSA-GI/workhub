@@ -1,3 +1,5 @@
 package com.workhub.employee.domain;
 
-public enum ProfessionalCategory { CADRE, AGENT_MAITRISE, EMPLOYE, STAGIAIRE }
+public enum ProfessionalCategory {
+    CADRE, AGENT_MAITRISE, EMPLOYE, STAGIAIRE
+}
