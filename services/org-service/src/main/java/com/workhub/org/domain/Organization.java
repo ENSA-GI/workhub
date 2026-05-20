@@ -23,6 +23,7 @@ public class Organization {
 
     private String city;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
 }

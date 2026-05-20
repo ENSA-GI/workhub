@@ -32,6 +32,7 @@ public class Department {
     @Column(name = "manager_employee_id")
     private UUID managerEmployeeId;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
 }
