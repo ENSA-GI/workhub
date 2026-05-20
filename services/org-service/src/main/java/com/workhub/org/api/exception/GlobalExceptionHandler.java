@@ -20,6 +20,22 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<Map<String, String>> handleBusinessRuleException(BusinessRuleException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("error", "Unprocessable Entity");
+        response.put("message", ex.getMessage());
+        return ResponseEntity.status(422).body(response);
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateResourceException(DuplicateResourceException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("error", "Conflict");
+        response.put("message", ex.getMessage());
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();

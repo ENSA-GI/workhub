@@ -10,7 +10,7 @@ import java.util.UUID;
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
-public class Organization {
+public class Organization extends Auditable {
 
     @Id
     private UUID id;
