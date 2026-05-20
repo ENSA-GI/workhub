@@ -1,10 +1,12 @@
 import { DollarSign, Calendar, Users, Calculator, Download, Save, CheckCircle, AlertCircle, Edit2, Plus, Search, Filter, CheckSquare, Square } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useState, ChangeEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 import { saveToLocalStorage, loadFromLocalStorage } from '../../../utils/dataManager';
 
 export default function PayrollGeneration() {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState('2026-04');
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,7 +67,7 @@ export default function PayrollGeneration() {
 
   const toggleSelectEmployee = (id: number) => {
     if (selectedEmployees.includes(id)) {
-      setSelectedEmployees(selectedEmployees.filter(eid => eid !== id));
+      setSelectedEmployees(selectedEmployees.filter((eid: number) => eid !== id));
     } else {
       setSelectedEmployees([...selectedEmployees, id]);
     }
@@ -125,9 +127,64 @@ export default function PayrollGeneration() {
     }
   };
 
-  const handleGeneratePayroll = () => {
-    if (window.confirm(`Générer la paie pour ${filteredEmployees.length} employés ?\n\nTotal Net: MAD ${totalNet.toLocaleString()}`)) {
+  const handleGeneratePayroll = async () => {
+    if (!window.confirm(`Générer la paie pour ${filteredEmployees.length} employés ?\n\nTotal Net: MAD ${totalNet.toLocaleString()}`)) {
+      return;
+    }
+
+    // Demander l'organizationId et generatedBy (si non connus)
+    const defaultOrg = localStorage.getItem('workhub.defaultOrg') || '550e8400-e29b-41d4-a716-446655440000';
+    const defaultGen = localStorage.getItem('workhub.defaultGeneratedBy') || '550e8400-e29b-41d4-a716-446655440001';
+    const orgId = window.prompt('Organization ID (orgId) :', defaultOrg);
+    if (!orgId) { alert('Organization ID requis'); return; }
+    const generatedBy = window.prompt('GeneratedBy (user UUID) :', defaultGen);
+    if (!generatedBy) { alert('generatedBy requis'); return; }
+
+    // Sauvegarder les valeurs par défaut pour réutilisation
+    localStorage.setItem('workhub.defaultOrg', orgId);
+    localStorage.setItem('workhub.defaultGeneratedBy', generatedBy);
+
+    // Extraire mois/année depuis selectedMonth (format YYYY-MM)
+    const [yearStr, monthStr] = selectedMonth.split('-');
+    const month = parseInt(monthStr, 10);
+    const year = parseInt(yearStr, 10);
+
+    try {
+      // Récupérer le token Clerk pour l'authentification
+      const token = await getToken();
+      console.log('Token obtenu:', token ? 'Oui (masqué)' : 'Non');
+      
+      if (!token) {
+        throw new Error('Impossible de récupérer le token d\'authentification. Vérifiez votre connexion Clerk.');
+      }
+      
+      // Appel DIRECT au payroll-service (port 8084) pour éviter les problèmes CORS du gateway
+      const url = `http://localhost:8084/api/payrolls/generate?orgId=${encodeURIComponent(orgId)}&month=${month}&year=${year}&generatedBy=${encodeURIComponent(generatedBy)}`;
+      console.log('Envoi vers:', url);
+      
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      console.log('Réponse:', res.status, res.statusText);
+      
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error('Réponse d\'erreur:', txt);
+        throw new Error(`Erreur ${res.status}: ${txt}`);
+      }
+      const data = await res.json();
+      // Afficher un feedback et sauvegarder localement la paie générée
+      alert('✅ Paie générée avec succès (backend).');
+      // Optionnel: persister une trace simple côté frontend
       savePayroll('Processed');
+      console.log('payroll generated:', data);
+    } catch (err: any) {
+      console.error('Erreur complète:', err);
+      alert('Erreur lors de l\'appel au backend: ' + (err.message || err));
     }
   };
 
@@ -171,7 +228,7 @@ export default function PayrollGeneration() {
               <input
                 type="month"
                 value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setSelectedMonth(e.target.value)}
                 className="px-4 py-2 border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
               />
             </div>
@@ -204,7 +261,7 @@ export default function PayrollGeneration() {
               type="text"
               placeholder="Rechercher par nom ou matricule..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
             />
           </div>
@@ -212,7 +269,7 @@ export default function PayrollGeneration() {
             <Filter className="w-5 h-5 text-gray-500" />
             <select
               value={filterDept}
-              onChange={(e) => setFilterDept(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => setFilterDept(e.target.value)}
               className="flex-1 px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
             >
               {departments.map(dept => (
