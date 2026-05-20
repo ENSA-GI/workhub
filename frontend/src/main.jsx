@@ -19,32 +19,19 @@ const queryClient = new QueryClient({
     },
 });
 
-// IMPORTANT: Clerk doit être rendu *dans* le Router
-function ClerkProviderWithRouter({ children }) {
-    const navigate = useNavigate();
-
-    // Ces props existent dans @clerk/clerk-react (compat React Router)
-    // et évitent les soucis de typage que tu as eu en TS.
-    return (
-        <ClerkProvider
-            publishableKey={clerkPubKey}
-            routerPush={(to) => navigate(to)}
-            routerReplace={(to) => navigate(to, { replace: true })}
-            afterSignOutUrl="/"
-        >
-            {children}
-        </ClerkProvider>
-    );
-}
-
+// ClerkProvider ne doit pas essayer d'utiliser useNavigate() directement
+// au moment du render. On utilise la config simple.
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
         <BrowserRouter>
-            <ClerkProviderWithRouter>
+            <ClerkProvider
+                publishableKey={clerkPubKey}
+                afterSignOutUrl="/"
+            >
                 <QueryClientProvider client={queryClient}>
                     <App />
                 </QueryClientProvider>
-            </ClerkProviderWithRouter>
+            </ClerkProvider>
         </BrowserRouter>
     </React.StrictMode>
 );
