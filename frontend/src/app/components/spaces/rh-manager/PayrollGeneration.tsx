@@ -1,5 +1,5 @@
 import { DollarSign, Calendar, Users, Calculator, Download, Save, CheckCircle, AlertCircle, Edit2, Plus, Search, Filter, CheckSquare, Square } from 'lucide-react';
-import React, { useState, ChangeEvent } from 'react';
+import { useState, ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { saveToLocalStorage, loadFromLocalStorage } from '../../../utils/dataManager';
