@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Download, MoreVertical, ChevronRight } from 'lucide-react';
 import NotificationToast from './NotificationToast';
 import { saveToLocalStorage, loadFromLocalStorage, exportToCSV } from '../utils/dataManager';
@@ -82,7 +82,7 @@ export default function PayrollEnhanced() {
       Statut: payroll.status,
       Date: payroll.date,
     }];
-    exportToCSV(reportData, `payroll_MAD{payroll.month.replace(' ', '_')}`);
+    exportToCSV(reportData, `payroll_${payroll.month.replace(' ', '_')}`);
     showNotification('Rapport de paie téléchargé', 'success');
   };
 
@@ -143,7 +143,7 @@ export default function PayrollEnhanced() {
                   {payrolls.map((payroll) => (
                     <tr
                       key={payroll.id}
-                      className={`hover:bg-gray-50 cursor-pointer MAD{selectedPayroll === payroll.id ? 'bg-blue-50' : ''}`}
+                      className={`hover:bg-gray-50 cursor-pointer ${selectedPayroll === payroll.id ? 'bg-blue-50' : ''}`}
                       onClick={() => setSelectedPayroll(payroll.id)}
                     >
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{payroll.month}</td>
@@ -151,7 +151,7 @@ export default function PayrollEnhanced() {
                       <td className="px-6 py-4 text-sm text-gray-900">MAD{payroll.grossAmount.toLocaleString()}</td>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">MAD{payroll.netAmount.toLocaleString()}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs rounded MAD{
+                        <span className={`inline-flex px-2 py-1 text-xs rounded ${
                           payroll.status === 'Payé'
                             ? 'bg-green-100 text-green-800'
                             : payroll.status === 'Brouillon'
@@ -223,7 +223,7 @@ export default function PayrollEnhanced() {
                 <div className="bg-gray-50 rounded p-3">
                   <p className="text-xs text-gray-600 mb-1">Statut</p>
                   <p className="text-sm">
-                    <span className={`inline-flex px-2 py-1 text-xs rounded MAD{
+                    <span className={`inline-flex px-2 py-1 text-xs rounded ${
                       selectedPayrollData.status === 'Payé' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
                     }`}>
                       {selectedPayrollData.status}
@@ -237,7 +237,7 @@ export default function PayrollEnhanced() {
                 {payrollDetails.map((detail, index) => (
                   <div key={index} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                     <span className="text-sm text-gray-600">{detail.category}</span>
-                    <span className={`text-sm font-medium MAD{detail.isDeduction ? 'text-red-600' : 'text-gray-900'}`}>
+                    <span className={`text-sm font-medium ${detail.isDeduction ? 'text-red-600' : 'text-gray-900'}`}>
                       MAD{Math.abs(detail.amount).toLocaleString()}
                     </span>
                   </div>
