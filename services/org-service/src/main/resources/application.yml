@@ -1,4 +1,4 @@
-﻿server:
+server:
   port: 8081
 
 spring:
@@ -9,6 +9,12 @@ spring:
     url: jdbc:postgresql://localhost:5432/org_db
     username: workhub
     password: workhub
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: https://feasible-vervet-9.clerk.accounts.dev/.well-known/jwks.json
 
   jpa:
     hibernate:
