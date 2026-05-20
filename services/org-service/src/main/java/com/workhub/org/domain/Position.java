@@ -16,7 +16,7 @@ import java.util.UUID;
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
-public class Position {
+public class Position extends Auditable {
 
     @Id
     private UUID id;
