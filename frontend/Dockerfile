@@ -3,12 +3,15 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Build-time variable consumed by Vite (import.meta.env.VITE_*)
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
 
-# VITE_CLERK_PUBLISHABLE_KEY is loaded from .env file during build
 
 RUN npm run build
 
