@@ -48,6 +48,12 @@ public class JobOffer {
     @Column(name="created_by", nullable=false)
     private UUID createdBy;
 
+    @Column(name="created_at")
+    private Instant createdAt;
+
+    @Column(name="updated_at")
+    private Instant updatedAt;
+
     @Column(name="published_at")
     private Instant publishedAt;
 }

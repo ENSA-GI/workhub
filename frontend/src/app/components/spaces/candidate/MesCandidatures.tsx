@@ -1,68 +1,49 @@
-import { Briefcase, Calendar, CheckCircle, Clock, XCircle, MapPin, Eye } from 'lucide-react';
-import { useState } from 'react';
+import { Briefcase, Calendar, CheckCircle, Clock, XCircle, MapPin, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
 
 export default function MesCandidatures() {
-  const [selectedCandidature, setSelectedCandidature] = useState<number | null>(null);
+  const { user } = useUser();
+  const [selectedCandidature, setSelectedCandidature] = useState<string | null>(null);
+  const [candidatures, setCandidatures] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const candidatures = [
-    {
-      id: 1,
-      offre: 'Développeur Full-Stack Senior',
-      departement: 'IT',
-      localisation: 'Casablanca, Maroc',
-      dateCandidature: '2026-04-16',
-      statut: 'En cours',
-      etape: 'Présélection',
-      historique: [
-        { date: '2026-04-16 14:30', action: 'Candidature reçue', details: 'Votre candidature a été enregistrée avec succès' },
-        { date: '2026-04-17 10:00', action: 'CV consulté', details: 'Votre CV a été consulté par l\'équipe RH' },
-        { date: '2026-04-18 15:20', action: 'Présélectionné', details: 'Vous avez été présélectionné pour cette position' },
-      ],
-      entretien: {
-        date: '2026-04-25',
-        heure: '14:00',
-        mode: 'Visio',
-        lien: 'https://meet.techvision.ma/abc123',
-        interviewers: ['Fatima Zahra (RH)', 'Youssef Bennani (Tech Lead)'],
-      },
-    },
-    {
-      id: 2,
-      offre: 'DevOps Engineer',
-      departement: 'IT',
-      localisation: 'Remote',
-      dateCandidature: '2026-04-10',
-      statut: 'En cours',
-      etape: 'Entretien technique',
-      historique: [
-        { date: '2026-04-10 09:15', action: 'Candidature reçue', details: 'Votre candidature a été enregistrée avec succès' },
-        { date: '2026-04-11 16:30', action: 'Présélectionné', details: 'Vous avez été présélectionné' },
-        { date: '2026-04-15 10:00', action: 'Entretien RH réalisé', details: 'Entretien avec Sara Bennani effectué' },
-        { date: '2026-04-18 14:00', action: 'Convocation entretien technique', details: 'Planifié pour le 23 Avril' },
-      ],
-      entretien: {
-        date: '2026-04-23',
-        heure: '10:00',
-        mode: 'Présentiel',
-        adresse: '123 Boulevard Zerktouni, Casablanca',
-        interviewers: ['Mohammed Alami (DevOps Lead)', 'Sara Bennani (RH)'],
-      },
-    },
-    {
-      id: 3,
-      offre: 'Analyste de Données',
-      departement: 'IT',
-      localisation: 'Casablanca, Maroc',
-      dateCandidature: '2026-04-05',
-      statut: 'Refusé',
-      etape: 'Candidature refusée',
-      historique: [
-        { date: '2026-04-05 11:20', action: 'Candidature reçue', details: 'Votre candidature a été enregistrée avec succès' },
-        { date: '2026-04-08 09:00', action: 'CV consulté', details: 'Votre CV a été consulté par l\'équipe RH' },
-        { date: '2026-04-12 16:45', action: 'Candidature refusée', details: 'Profil ne correspond pas aux exigences actuelles' },
-      ],
-    },
-  ];
+  useEffect(() => {
+    const fetchCandidatures = async () => {
+      if (!user?.primaryEmailAddress?.emailAddress) return;
+      
+      try {
+        const email = user.primaryEmailAddress.emailAddress;
+        const response = await fetch(`http://localhost:8085/api/applications/candidate/${email}`);
+        const data = await response.json();
+        
+        const mappedApps = data.map((app: any) => ({
+          id: app.id,
+          offre: app.jobTitle,
+          departement: "IT", // Info non présente dans le DTO pour l'instant
+          localisation: "Casablanca", // Info non présente dans le DTO pour l'instant
+          dateCandidature: app.appliedAt,
+          statut: app.status === 'NEW' ? 'En cours' : app.status,
+          etape: app.aiScore ? `Analyse IA terminée (${app.aiScore}%)` : 'Analyse en cours...',
+          aiScore: app.aiScore,
+          historique: [
+            { date: app.appliedAt, action: 'Candidature reçue', details: 'Votre candidature a été enregistrée avec succès' },
+            { date: new Date().toISOString(), action: 'Analyse IA', details: app.aiScore ? 'L\'IA a terminé l\'évaluation de votre profil.' : 'L\'IA analyse votre CV en ce moment même.' }
+          ]
+        }));
+        
+        setCandidatures(mappedApps);
+      } catch (error) {
+        console.error("Erreur:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (user) {
+      fetchCandidatures();
+    }
+  }, [user]);
 
   const candidatureDetail = selectedCandidature
     ? candidatures.find((c) => c.id === selectedCandidature)
@@ -140,9 +121,17 @@ export default function MesCandidatures() {
                   <h3 className="text-sm font-semibold text-gray-900">{candidature.offre}</h3>
                   <p className="text-xs text-gray-600 mt-1">{candidature.departement}</p>
                 </div>
-                <span className={`inline-flex px-2 py-1 text-xs ${getStatutBadge(candidature.statut)}`}>
-                  {candidature.statut}
-                </span>
+                <div className="flex flex-col items-end">
+                  <span className={`inline-flex px-2 py-1 text-xs mb-1 ${getStatutBadge(candidature.statut)}`}>
+                    {candidature.statut}
+                  </span>
+                  {candidature.aiScore && (
+                    <span className="flex items-center text-[10px] font-bold text-green-600 bg-green-50 px-1 rounded">
+                      <TrendingUp className="w-2 h-2 mr-0.5" />
+                      Score IA: {candidature.aiScore}%
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1 mb-3">

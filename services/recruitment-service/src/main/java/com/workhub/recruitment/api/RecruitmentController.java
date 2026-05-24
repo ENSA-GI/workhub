@@ -32,9 +32,16 @@ public class RecruitmentController {
 
     @GetMapping("/job-offers/public")
     public List<JobOfferPublicResponse> listPublicOffers() {
-        return offerRepo.findByStatus(JobOfferStatus.PUBLISHED).stream()
-                .map(this::mapToPublicDto)
-                .collect(Collectors.toList());
+        return applicationService.getAllPublicOffers();
+    }
+
+    @PostMapping("/job-offers")
+    @ResponseStatus(HttpStatus.CREATED)
+    public JobOffer createJobOffer(@RequestBody JobOffer offer) {
+        if (offer.getId() == null) offer.setId(java.util.UUID.randomUUID());
+        if (offer.getStatus() == null) offer.setStatus(JobOfferStatus.PUBLISHED);
+        offer.setCreatedAt(java.time.Instant.now());
+        return offerRepo.save(offer);
     }
 
     @GetMapping("/job-offers/{id}")
@@ -61,6 +68,32 @@ public class RecruitmentController {
         return applicationService.getByCandidate(candidateId);
     }
 
+    @GetMapping("/applications/candidate/{email}")
+    public List<ApplicationResponse> getApplicationsByEmail(@PathVariable String email) {
+        return applicationService.getByCandidateEmail(email);
+    }
+
+    @DeleteMapping("/job-offers/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteJobOffer(@PathVariable UUID id) {
+        applicationService.deleteJobOffer(id);
+    }
+
+    @PatchMapping("/applications/{id}/status")
+    public ApplicationResponse updateApplicationStatus(
+            @PathVariable UUID id,
+            @RequestParam String status) {
+        com.workhub.recruitment.domain.ApplicationStatus s =
+                com.workhub.recruitment.domain.ApplicationStatus.valueOf(status);
+        return applicationService.updateApplicationStatus(id, s);
+    }
+
+    @GetMapping("/applications/{id}/cv")
+    public org.springframework.http.ResponseEntity<String> viewCv(@PathVariable UUID id) {
+        String presignedUrl = applicationService.getPresignedCvUrl(id);
+        return org.springframework.http.ResponseEntity.ok(presignedUrl);
+    }
+
     private JobOfferPublicResponse mapToPublicDto(JobOffer o) {
         return JobOfferPublicResponse.builder()
                 .id(o.getId())
@@ -73,8 +106,7 @@ public class RecruitmentController {
                 .publishedAt(o.getPublishedAt())
                 .deadline(o.getDeadline())
                 .status(o.getStatus())
-                .applications(o.getApplications() != null ? 
-                    o.getApplications().stream().map(ApplicationResponse::from).toList() : java.util.Collections.emptyList())
+                .applications(java.util.Collections.emptyList())
                 .build();
     }
 }
