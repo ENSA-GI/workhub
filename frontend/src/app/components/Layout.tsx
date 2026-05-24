@@ -9,7 +9,7 @@ interface LayoutProps {
   isSimpleLayout?: boolean;
 }
 
-export default function Layout({ children, userRole, onBackToHome, isSimpleLayout = false }: LayoutProps) {
+export default function Layout({ children, userRole, onBackToHome}: LayoutProps) {
   const location = useLocation();
 
   const getRoleTitle = (role: string) => {

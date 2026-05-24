@@ -16,7 +16,7 @@ import java.util.UUID;
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
-public class Position {
+public class Position extends Auditable {
 
     @Id
     private UUID id;
@@ -29,10 +29,12 @@ public class Position {
 
     private String description;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ProfessionalCategory category = ProfessionalCategory.EMPLOYE;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
 }

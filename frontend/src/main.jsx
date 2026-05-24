@@ -6,12 +6,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import App from "./app/App";
 
-// garde uniquement les CSS qui existent réellement chez toi
 import "./styles/index.css";
 import "./styles/tailwind.css";
 import "./styles/theme.css";
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const clerkPubKey =
+    import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
+    "pk_test_ZmVhc2libGUtdmVydmV0LTkuY2xlcmsuYWNjb3VudHMuZGV2JA";
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -19,12 +20,8 @@ const queryClient = new QueryClient({
     },
 });
 
-// IMPORTANT: Clerk doit être rendu *dans* le Router
-function ClerkProviderWithRouter({ children }) {
+function ClerkWithRouter({ children }) {
     const navigate = useNavigate();
-
-    // Ces props existent dans @clerk/clerk-react (compat React Router)
-    // et évitent les soucis de typage que tu as eu en TS.
     return (
         <ClerkProvider
             publishableKey={clerkPubKey}
@@ -40,11 +37,11 @@ function ClerkProviderWithRouter({ children }) {
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
         <BrowserRouter>
-            <ClerkProviderWithRouter>
+            <ClerkWithRouter>
                 <QueryClientProvider client={queryClient}>
                     <App />
                 </QueryClientProvider>
-            </ClerkProviderWithRouter>
+            </ClerkWithRouter>
         </BrowserRouter>
     </React.StrictMode>
 );

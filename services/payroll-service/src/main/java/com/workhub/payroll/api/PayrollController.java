@@ -1,15 +1,14 @@
 package com.workhub.payroll.api;
 
 import com.workhub.payroll.domain.Payroll;
-import com.workhub.payroll.domain.PayrollStatus;
 import com.workhub.payroll.repo.PayrollRepository;
+import com.workhub.payroll.service.PayrollService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,9 +17,11 @@ import java.util.UUID;
 public class PayrollController {
 
     private final PayrollRepository repo;
+    private final PayrollService payrollService;
 
-    public PayrollController(PayrollRepository repo) {
+    public PayrollController(PayrollRepository repo, PayrollService payrollService) {
         this.repo = repo;
+        this.payrollService = payrollService;
     }
 
     public record CreatePayrollRequest(
@@ -37,15 +38,33 @@ public class PayrollController {
 
     @PostMapping
     public Payroll create(@RequestBody @Valid CreatePayrollRequest req) {
-        Payroll p = Payroll.builder()
-                .id(UUID.randomUUID())
-                .organizationId(req.organizationId())
-                .month(req.month())
-                .year(req.year())
-                .status(PayrollStatus.DRAFT)
-                .generatedBy(req.generatedBy())
-                .generatedAt(Instant.now())
-                .build();
-        return repo.save(p);
+        // Appel du service métier qui :
+        // 1. Récupère les employés actifs
+        // 2. Calcule les salaires avec les règles de paie
+        // 3. Persiste les données
+        // 4. PUBLIE L'ÉVÉNEMENT KAFKA
+        return payrollService.generateMonthlyPayroll(
+                req.organizationId(),
+                req.month(),
+                req.year(),
+                req.generatedBy()
+        );
+    }
+
+    // Added: convenience endpoint to match existing callers that use query params
+    // Example: POST /api/payrolls/generate?orgId=<uuid>&month=5&year=2026&generatedBy=<uuid>
+    @PostMapping("/generate")
+    public Payroll generateFromParams(
+            @RequestParam("orgId") UUID organizationId,
+            @RequestParam("month") int month,
+            @RequestParam("year") int year,
+            @RequestParam("generatedBy") UUID generatedBy
+    ) {
+        return payrollService.generateMonthlyPayroll(
+                organizationId,
+                month,
+                year,
+                generatedBy
+        );
     }
 }
