@@ -205,6 +205,33 @@ export default function MesCongesEmployee() {
     }
   };
 
+  const handleCancelRequest = async (requestId: string) => {
+    if (!window.confirm('Confirmer l annulation de cette demande ?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/leave/leave-requests/${requestId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        await loadData();
+        alert('Demande annulee avec succes');
+      } else {
+        const errorText = await response.text();
+        console.error('Cancel error:', response.status, errorText);
+        alert(`Erreur ${response.status}: ${errorText || 'Annulation impossible'}`);
+      }
+    } catch (err) {
+      console.error('Network error:', err);
+      alert('Erreur reseau. Verifiez que le serveur tourne sur localhost:8080');
+    }
+  };
+
   if (loading) {
     return (
         <div className="flex items-center justify-center h-64">
@@ -379,9 +406,21 @@ export default function MesCongesEmployee() {
                               </p>
                             </div>
                           </div>
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getBadgeClass(request.status)}`}>
-                      {normalizeStatus(request.status)}
-                    </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getBadgeClass(request.status)}`}>
+                              {normalizeStatus(request.status)}
+                            </span>
+                            {request.status === 'PENDING' && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleCancelRequest(request.id)}
+                                    className="inline-flex items-center px-3 py-1 text-xs border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full transition-colors"
+                                    title="Annuler la demande"
+                                >
+                                  Annuler
+                                </button>
+                            )}
+                          </div>
                         </div>
                         <div className="pl-8">
                           <p className="text-sm text-gray-600 mb-1">
