@@ -115,7 +115,8 @@ services:
       SPRING_DATASOURCE_PASSWORD: workhub
       SPRING_MAIL_HOST: mailhog
       SPRING_MAIL_PORT: 1025
-    depends_on: [ postgres, mailhog ]
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [ postgres, mailhog, kafka ]
     networks: [ workhub ]
 
   audit-service:
@@ -138,3 +139,7 @@ services:
     depends_on:
       - api-gateway
     networks: [ workhub ]
+
+networks:
+  workhub:
+    external: true
