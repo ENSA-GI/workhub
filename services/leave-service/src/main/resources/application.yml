@@ -10,9 +10,11 @@ spring:
     name: leave-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/leave_db
+    url: jdbc:postgresql://localhost:5432/leave_db?sslmode=disable&stringtype=unspecified
     username: workhub
     password: workhub
+    hikari:
+      connection-init-sql: "SET search_path TO public"
 
   jpa:
     hibernate:
