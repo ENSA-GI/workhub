@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Plus, Check, X, Clock, Download } from 'lucide-react';
 import LeaveRequestForm from './LeaveRequestForm';
 import NotificationToast from './NotificationToast';
-import { exportToCSV } from '../utils/dataManager';
 
 interface LeaveRequest {
   id: string | number;
@@ -16,16 +15,23 @@ interface LeaveRequest {
   appliedOn: string;
 }
 
-const initialLeaveRequests: LeaveRequest[] = [
-  { id: 1, employee: 'Michael Chen', type: 'Annual Leave', startDate: '2026-05-15', endDate: '2026-05-20', days: 5, status: 'Pending', reason: 'Family vacation', appliedOn: '2026-04-10' },
-  { id: 2, employee: 'Sarah Johnson', type: 'Sick Leave', startDate: '2026-05-08', endDate: '2026-05-09', days: 2, status: 'Approved', reason: 'Medical appointment', appliedOn: '2026-05-05' },
-  { id: 3, employee: 'Emily Rodriguez', type: 'Annual Leave', startDate: '2026-06-01', endDate: '2026-06-05', days: 5, status: 'Pending', reason: 'Personal travel', appliedOn: '2026-04-18' },
-  { id: 4, employee: 'Alex Martinez', type: 'Parental Leave', startDate: '2026-07-01', endDate: '2026-08-01', days: 31, status: 'Approved', reason: 'New baby', appliedOn: '2026-04-01' },
-  { id: 5, employee: 'David Kim', type: 'Annual Leave', startDate: '2026-05-22', endDate: '2026-05-24', days: 3, status: 'Rejected', reason: 'Extended weekend', appliedOn: '2026-04-15' },
-];
-
 interface LeaveManagementEnhancedProps {
   userRole?: string;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  Pending: 'En attente',
+  Approved: 'Approuvee',
+  Rejected: 'Refusee',
+  Cancelled: 'Annulee',
+};
+
+function mapStatus(status: string) {
+  if (status === 'PENDING') return 'Pending';
+  if (status === 'APPROVED') return 'Approved';
+  if (status === 'REJECTED') return 'Rejected';
+  if (status === 'CANCELLED') return 'Cancelled';
+  return status;
 }
 
 export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnhancedProps) {
@@ -43,7 +49,7 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const res = await fetch(`http://localhost:8080/leave/leave-requests/pending`, {
+        const res = await fetch(`http://localhost:8080/leave/leave-requests/all`, {
           headers: { 'Accept': 'application/json' }
         });
         if (res.ok) {
@@ -55,7 +61,7 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
             startDate: d.startDate,
             endDate: d.endDate,
             days: d.requestedDays,
-            status: 'Pending',
+            status: mapStatus(d.status),
             reason: d.reason || '',
             appliedOn: d.createdAt || d.startDate
           }));
@@ -105,18 +111,63 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
   };
 
   const handleExport = () => {
-    exportToCSV(leaveRequests, 'leave_requests');
-    showNotification('Demandes de congé exportées avec succès', 'success');
+    const rows = leaveRequests.map(req => `
+      <tr>
+        <td>${req.employee}</td>
+        <td>${req.type}</td>
+        <td>${new Date(req.startDate).toLocaleDateString('fr-FR')} - ${new Date(req.endDate).toLocaleDateString('fr-FR')}</td>
+        <td>${req.days}</td>
+        <td>${STATUS_LABELS[req.status] || req.status}</td>
+        <td>${req.reason || ''}</td>
+      </tr>
+    `).join('');
+    const printable = window.open('', '_blank');
+    if (!printable) {
+      showNotification('Impossible d ouvrir la fenetre PDF', 'error');
+      return;
+    }
+    printable.document.write(`
+      <html>
+        <head>
+          <title>Demandes de conges</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+            h1 { font-size: 22px; margin-bottom: 4px; }
+            p { color: #4b5563; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+            th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>Rapport des demandes de conges</h1>
+          <p>Export genere le ${new Date().toLocaleString('fr-FR')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Employe</th><th>Type</th><th>Periode</th><th>Jours</th><th>Statut</th><th>Motif</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printable.document.close();
+    printable.focus();
+    printable.print();
+    showNotification('Export PDF pret', 'success');
   };
 
   const employees = Array.from(new Set(leaveRequests.map(req => req.employee)));
 
   const pendingCount = leaveRequests.filter(req => req.status === 'Pending').length;
-  const approvedThisMonth = leaveRequests.filter(req => {
-    const reqDate = new Date(req.appliedOn);
-    const now = new Date();
-    return req.status === 'Approved' && reqDate.getMonth() === now.getMonth();
-  }).length;
+  const approvedCount = leaveRequests.filter(req => req.status === 'Approved').length;
+  const cancelledCount = leaveRequests.filter(req => req.status === 'Cancelled').length;
+  const totalRequests = leaveRequests.length;
+  const averageDays = totalRequests > 0
+    ? (leaveRequests.reduce((sum, req) => sum + Number(req.days || 0), 0) / totalRequests).toFixed(1)
+    : '0.0';
 
   return (
     <div className="p-6">
@@ -209,12 +260,13 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
                           <span className={`inline-flex items-center px-2 py-1 text-xs rounded ${
                             request.status === 'Approved' ? 'bg-green-100 text-green-800' :
                             request.status === 'Pending' ? 'bg-orange-100 text-orange-800' :
+                            request.status === 'Cancelled' ? 'bg-gray-100 text-gray-700' :
                             'bg-red-100 text-red-800'
                           }`}>
                             {request.status === 'Pending' && <Clock className="w-3 h-3 mr-1" />}
                             {request.status === 'Approved' && <Check className="w-3 h-3 mr-1" />}
                             {request.status === 'Rejected' && <X className="w-3 h-3 mr-1" />}
-                            {request.status}
+                            {STATUS_LABELS[request.status] || request.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -235,6 +287,9 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
                                 <X className="w-4 h-4" />
                               </button>
                             </div>
+                          )}
+                          {request.status !== 'Pending' && (
+                            <span className="text-xs text-gray-400">Aucune action</span>
                           )}
                         </td>
                       </tr>
@@ -295,24 +350,33 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
                   <span className="text-sm font-medium text-gray-900">{pendingCount}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-orange-500 h-2 rounded-full" style={{ width: `${(pendingCount / leaveRequests.length) * 100}%` }}></div>
+                  <div className="bg-orange-500 h-2 rounded-full" style={{ width: `${totalRequests ? (pendingCount / totalRequests) * 100 : 0}%` }}></div>
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm text-gray-600">Approuvées ce Mois</span>
-                  <span className="text-sm font-medium text-gray-900">{approvedThisMonth}</span>
+                  <span className="text-sm font-medium text-gray-900">{approvedCount}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-500 h-2 rounded-full" style={{ width: `${(approvedThisMonth / leaveRequests.length) * 100}%` }}></div>
+                  <div className="bg-green-500 h-2 rounded-full" style={{ width: `${totalRequests ? (approvedCount / totalRequests) * 100 : 0}%` }}></div>
                 </div>
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm text-gray-600">Moyenne Jours/Demande</span>
                   <span className="text-sm font-medium text-gray-900">
-                    {(leaveRequests.reduce((sum, req) => sum + req.days, 0) / leaveRequests.length).toFixed(1)}
+                    {averageDays}
                   </span>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-gray-600">Annulees</span>
+                  <span className="text-sm font-medium text-gray-900">{cancelledCount}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-gray-500 h-2 rounded-full" style={{ width: `${totalRequests ? (cancelledCount / totalRequests) * 100 : 0}%` }}></div>
                 </div>
               </div>
             </div>

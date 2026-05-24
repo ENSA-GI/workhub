@@ -6,7 +6,6 @@ import com.workhub.leave.exception.LeaveException;
 import com.workhub.leave.repo.*;
 import com.workhub.leave.kafka.LeaveEventProducer;
 import com.workhub.leave.kafka.event.LeaveEvent;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,7 +15,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class LeaveService {
 
         private final LeaveRequestRepository leaveRequestRepo;
@@ -24,6 +22,19 @@ public class LeaveService {
         private final LeaveTypeRepository leaveTypeRepo;
         private final WorkingDaysCalculator calculator;
         private final LeaveEventProducer leaveEventProducer;
+
+        public LeaveService(
+                LeaveRequestRepository leaveRequestRepo,
+                LeaveBalanceRepository leaveBalanceRepo,
+                LeaveTypeRepository leaveTypeRepo,
+                WorkingDaysCalculator calculator,
+                LeaveEventProducer leaveEventProducer) {
+                this.leaveRequestRepo = leaveRequestRepo;
+                this.leaveBalanceRepo = leaveBalanceRepo;
+                this.leaveTypeRepo = leaveTypeRepo;
+                this.calculator = calculator;
+                this.leaveEventProducer = leaveEventProducer;
+        }
 
         @Transactional
         public LeaveRequestResponse submit(LeaveRequestDTO dto) {
@@ -111,14 +122,10 @@ public class LeaveService {
                         .findByEmployeeIdAndYear(request.getEmployeeId(), request.getStartDate().getYear())
                         .orElseThrow(() -> new LeaveException("Solde introuvable"));
 
-                BigDecimal days = request.getRequestedDays();
                 request.setStatus(LeaveStatus.CANCELLED);
-                balance.setPendingDays(balance.getPendingDays().subtract(days));
-                balance.setRemainingDays(balance.getRemainingDays().add(days));
-                balance.setUpdatedAt(LocalDateTime.now());
 
                 leaveRequestRepo.save(request);
-                leaveBalanceRepo.save(balance);
+                recalculateAndSaveBalance(balance);
         }
 
         @Transactional
@@ -136,24 +143,13 @@ public class LeaveService {
                                 request.getStartDate().getYear())
                         .orElseThrow(() -> new LeaveException("Solde introuvable"));
 
-                BigDecimal days = request.getRequestedDays();
-
                 request.setStatus(dto.decision());
                 request.setReviewedBy(dto.reviewedBy());
                 request.setReviewComment(dto.comment());
 
-                balance.setPendingDays(balance.getPendingDays().subtract(days));
-
-                if (dto.decision() == LeaveStatus.APPROVED) {
-                        balance.setUsedDays(balance.getUsedDays().add(days));
-                } else {
                         // Refusé → remettre les jours
-                        balance.setRemainingDays(balance.getRemainingDays().add(days));
-                }
-
-                balance.setUpdatedAt(LocalDateTime.now());
-                leaveBalanceRepo.save(balance);
                 leaveRequestRepo.save(request);
+                recalculateAndSaveBalance(balance);
 
                 LeaveType type = leaveTypeRepo.findById(request.getLeaveTypeId()).orElseThrow();
 
@@ -199,15 +195,56 @@ public class LeaveService {
                         }).toList();
         }
 
+        public List<LeaveRequestResponse> getAll() {
+                return leaveRequestRepo
+                        .findAllByOrderByStartDateDesc()
+                        .stream()
+                        .map(r -> {
+                                String typeName = leaveTypeRepo.findById(r.getLeaveTypeId())
+                                        .map(LeaveType::getName).orElse("Inconnu");
+                                return toResponse(r, typeName);
+                        }).toList();
+        }
+
         public LeaveBalanceResponse getBalance(UUID employeeId, int year) {
                 LeaveBalance b = leaveBalanceRepo
                         .findByEmployeeIdAndYear(employeeId, year)
                         .orElseThrow(() -> new LeaveException("Solde introuvable"));
+                LeaveBalance recalculated = recalculateAndSaveBalance(b);
 
                 return new LeaveBalanceResponse(
-                        b.getYear(), b.getTotalDays(), b.getUsedDays(),
-                        b.getPendingDays(), b.getRemainingDays(), b.getCarriedOverDays()
+                        recalculated.getYear(), recalculated.getTotalDays(), recalculated.getUsedDays(),
+                        recalculated.getPendingDays(), recalculated.getRemainingDays(), recalculated.getCarriedOverDays()
                 );
+        }
+
+        private LeaveBalance recalculateAndSaveBalance(LeaveBalance balance) {
+                List<LeaveRequest> yearlyRequests = leaveRequestRepo
+                        .findByEmployeeIdOrderByStartDateDesc(balance.getEmployeeId())
+                        .stream()
+                        .filter(r -> r.getStartDate().getYear() == balance.getYear())
+                        .toList();
+
+                BigDecimal usedDays = yearlyRequests.stream()
+                        .filter(r -> r.getStatus() == LeaveStatus.APPROVED)
+                        .map(LeaveRequest::getRequestedDays)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal pendingDays = yearlyRequests.stream()
+                        .filter(r -> r.getStatus() == LeaveStatus.PENDING)
+                        .map(LeaveRequest::getRequestedDays)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                BigDecimal remainingDays = balance.getTotalDays()
+                        .add(balance.getCarriedOverDays())
+                        .subtract(usedDays)
+                        .subtract(pendingDays);
+
+                balance.setUsedDays(usedDays);
+                balance.setPendingDays(pendingDays);
+                balance.setRemainingDays(remainingDays.max(BigDecimal.ZERO));
+                balance.setUpdatedAt(LocalDateTime.now());
+                return leaveBalanceRepo.save(balance);
         }
 
         private LeaveRequestResponse toResponse(LeaveRequest r, String typeName) {
