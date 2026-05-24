@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,12 +58,12 @@ public class ProxyController {
 
     @RequestMapping("/leave/**")
     public ResponseEntity<byte[]> leave(HttpServletRequest req) throws IOException {
-        return forward(leaveBase, "/leave", req, true); // Ajoute le préfixe /api
+        return forward(leaveBase, "/leave", req, true, true); // Ajoute le préfixe /api
     }
 
     @RequestMapping("/notifications/**")
     public ResponseEntity<byte[]> notifications(HttpServletRequest req) throws IOException {
-        return forward(notifBase, "/notifications", req, true); // Ajoute le préfixe /api
+        return forward(notifBase, "/notifications", req, true, true); // Ajoute le préfixe /api
     }
 
     @RequestMapping("/payroll/**")
@@ -96,6 +97,10 @@ public class ProxyController {
      * @throws IOException Si une erreur de lecture de la requête se produit.
      */
     private ResponseEntity<byte[]> forward(String baseUrl, String prefixToRemove, HttpServletRequest req, boolean addApiPrefix) throws IOException {
+        return forward(baseUrl, prefixToRemove, req, addApiPrefix, false);
+    }
+
+    private ResponseEntity<byte[]> forward(String baseUrl, String prefixToRemove, HttpServletRequest req, boolean addApiPrefix, boolean stripAuthorization) throws IOException {
         // 1. Construit l'URL cible
         String incomingUri = req.getRequestURI();
         String subPath = incomingUri.substring(prefixToRemove.length());
@@ -111,7 +116,8 @@ public class ProxyController {
         while (headerNames.hasMoreElements()) {
             String headerName = headerNames.nextElement();
             // L'en-tête Host doit être celui de la cible, pas de la gateway, donc on l'ignore.
-            if (!headerName.equalsIgnoreCase("host")) {
+            if (!headerName.equalsIgnoreCase("host")
+                    && !(stripAuthorization && headerName.equalsIgnoreCase("authorization"))) {
                 headers.add(headerName, req.getHeader(headerName));
             }
         }
@@ -125,11 +131,15 @@ public class ProxyController {
                 .uri(targetUrl)
                 .headers(h -> h.addAll(headers));
 
-        // 5. Gère le corps de la requête et récupère la réponse
-        ResponseEntity<byte[]> responseEntity = (body.length > 0)
-                ? spec.body(body).retrieve().toEntity(byte[].class)
-                : spec.retrieve().toEntity(byte[].class);
-
-        return responseEntity;
+        // 5. Retourne aussi les réponses 4xx/5xx du microservice au front, sans les transformer.
+        RestClient.RequestHeadersSpec<?> requestSpec = body.length > 0 ? spec.body(body) : spec;
+        return requestSpec.exchange((request, response) -> {
+            MediaType contentType = response.getHeaders().getContentType();
+            ResponseEntity.BodyBuilder builder = ResponseEntity.status(response.getStatusCode());
+            if (contentType != null) {
+                builder.contentType(contentType);
+            }
+            return builder.body(StreamUtils.copyToByteArray(response.getBody()));
+        });
     }
 }

@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { Plus, Check, X, Clock, Download } from 'lucide-react';
 import LeaveRequestForm from './LeaveRequestForm';
 import NotificationToast from './NotificationToast';
-import { saveToLocalStorage, loadFromLocalStorage, exportToCSV } from '../utils/dataManager';
+import { exportToCSV } from '../utils/dataManager';
 
 interface LeaveRequest {
-  id: number;
+  id: string | number;
   employee: string;
   type: string;
   startDate: string;
@@ -38,38 +38,70 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
     visible: false,
   });
 
-  useEffect(() => {
-    const saved = loadFromLocalStorage('workhub_leave_requests', initialLeaveRequests);
-    setLeaveRequests(saved);
-  }, []);
+  const rhId = '550e8400-e29b-41d4-a716-446655440000'; // ID Fictif pour le manager
 
   useEffect(() => {
-    if (leaveRequests.length > 0) {
-      saveToLocalStorage('workhub_leave_requests', leaveRequests);
-    }
-  }, [leaveRequests]);
+    const fetchRequests = async () => {
+      try {
+        const res = await fetch(`http://localhost:8080/leave/leave-requests/pending`, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map((d: any) => ({
+            id: d.id,
+            employee: d.employeeName || 'Employé Fictif',
+            type: d.leaveTypeName || 'Congé',
+            startDate: d.startDate,
+            endDate: d.endDate,
+            days: d.requestedDays,
+            status: 'Pending',
+            reason: d.reason || '',
+            appliedOn: d.createdAt || d.startDate
+          }));
+          setLeaveRequests(mapped);
+        }
+      } catch (err) {
+        console.error('Erreur fetch pending leaves:', err);
+      }
+    };
+    fetchRequests();
+  }, []);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type, visible: true });
   };
 
-  const handleApprove = (id: number) => {
-    setLeaveRequests(prev => prev.map(req => req.id === id ? { ...req, status: 'Approved' } : req));
-    showNotification('Demande de congé approuvée', 'success');
+  const handleApprove = async (id: string | number) => {
+    try {
+      const res = await fetch(`http://localhost:8080/leave/leave-requests/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: 'APPROVED', comment: 'Approuvé via UI', reviewedBy: rhId })
+      });
+      if(res.ok) {
+        setLeaveRequests(prev => prev.filter(req => req.id !== id));
+        showNotification('Demande de congé approuvée', 'success');
+      }
+    } catch(err) { console.error(err); }
   };
 
-  const handleReject = (id: number) => {
-    setLeaveRequests(prev => prev.map(req => req.id === id ? { ...req, status: 'Rejected' } : req));
-    showNotification('Demande de congé rejetée', 'info');
+  const handleReject = async (id: string | number) => {
+    try {
+      const res = await fetch(`http://localhost:8080/leave/leave-requests/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: 'REJECTED', comment: 'Rejeté via UI', reviewedBy: rhId })
+      });
+      if(res.ok) {
+        setLeaveRequests(prev => prev.filter(req => req.id !== id));
+        showNotification('Demande de congé rejetée', 'info');
+      }
+    } catch(err) { console.error(err); }
   };
 
   const handleSaveRequest = (requestData: Partial<LeaveRequest>) => {
-    const newRequest = {
-      ...requestData,
-      id: Math.max(...leaveRequests.map(r => r.id), 0) + 1,
-    } as LeaveRequest;
-    setLeaveRequests(prev => [...prev, newRequest]);
-    showNotification('Demande de congé soumise avec succès', 'success');
+    showNotification("Utilisez l'interface employé pour créer une demande.", 'info');
   };
 
   const handleExport = () => {

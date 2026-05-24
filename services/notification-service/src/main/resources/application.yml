@@ -28,6 +28,9 @@ spring:
           starttls:
             enable: false
 
+  kafka:
+    bootstrap-servers: localhost:9094
+
 management:
   endpoints:
     web:
