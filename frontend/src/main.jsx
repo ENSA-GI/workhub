@@ -6,12 +6,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import App from "./app/App";
 
-// garde uniquement les CSS qui existent réellement chez toi
 import "./styles/index.css";
 import "./styles/tailwind.css";
 import "./styles/theme.css";
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const clerkPubKey =
+    import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
+    "pk_test_ZmVhc2libGUtdmVydmV0LTkuY2xlcmsuYWNjb3VudHMuZGV2JA";
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -19,19 +20,28 @@ const queryClient = new QueryClient({
     },
 });
 
-// ClerkProvider ne doit pas essayer d'utiliser useNavigate() directement
-// au moment du render. On utilise la config simple.
+function ClerkWithRouter({ children }) {
+    const navigate = useNavigate();
+    return (
+        <ClerkProvider
+            publishableKey={clerkPubKey}
+            routerPush={(to) => navigate(to)}
+            routerReplace={(to) => navigate(to, { replace: true })}
+            afterSignOutUrl="/"
+        >
+            {children}
+        </ClerkProvider>
+    );
+}
+
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>
         <BrowserRouter>
-            <ClerkProvider
-                publishableKey={clerkPubKey}
-                afterSignOutUrl="/"
-            >
+            <ClerkWithRouter>
                 <QueryClientProvider client={queryClient}>
                     <App />
                 </QueryClientProvider>
-            </ClerkProvider>
+            </ClerkWithRouter>
         </BrowserRouter>
     </React.StrictMode>
 );
