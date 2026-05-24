@@ -17,6 +17,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "*")
 public class NotificationController {
 
     private final NotificationRepository repo;
@@ -69,6 +70,22 @@ public class NotificationController {
         n.setIsRead(true);
         n.setReadAt(Instant.now());
         return repo.save(n);
+    }
+
+    @PostMapping("/notifications/read-all")
+    public List<Notification> markAllRead(@RequestParam UUID userId) {
+        Instant now = Instant.now();
+        List<Notification> unread = repo.findByUserIdAndIsReadFalse(userId);
+        unread.forEach(n -> {
+            n.setIsRead(true);
+            n.setReadAt(now);
+        });
+        return repo.saveAll(unread);
+    }
+
+    @DeleteMapping("/notifications/{id}")
+    public void delete(@PathVariable UUID id) {
+        repo.deleteById(id);
     }
 
     @PostMapping("/notifications/send-test-email")
