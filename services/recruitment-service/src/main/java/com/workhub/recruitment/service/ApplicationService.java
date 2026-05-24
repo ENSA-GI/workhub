@@ -92,6 +92,17 @@ public class ApplicationService {
                 .collect(Collectors.toList());
     }
 
+    public List<ApplicationResponse> getByCandidateEmail(String email) {
+        return candidateRepo.findByEmail(email)
+                .map(candidate -> applicationRepo.findByCandidateId(candidate.getId()).stream()
+                        .map(app -> {
+                            JobOffer offer = jobOfferRepo.findById(app.getJobOfferId()).orElse(null);
+                            return mapToResponse(app, offer, candidate);
+                        })
+                        .collect(Collectors.toList()))
+                .orElse(java.util.Collections.emptyList());
+    }
+
     public JobOfferPublicResponse getJobOffer(UUID id) {
         JobOffer offer = jobOfferRepo.findById(id)
                 .orElseThrow(() -> new OfferNotFoundException(id));
@@ -112,6 +123,39 @@ public class ApplicationService {
                         return mapToResponse(app, offer, c);
                     }).toList())
                 .build();
+    }
+
+    public List<JobOfferPublicResponse> getAllPublicOffers() {
+        return jobOfferRepo.findByStatus(JobOfferStatus.PUBLISHED).stream()
+                .map(offer -> getJobOffer(offer.getId()))
+                .collect(Collectors.toList());
+    }
+
+    public void deleteJobOffer(UUID id) {
+        List<Application> apps = applicationRepo.findByJobOfferId(id);
+        applicationRepo.deleteAll(apps);
+        jobOfferRepo.deleteById(id);
+    }
+
+    public ApplicationResponse updateApplicationStatus(UUID id, ApplicationStatus status) {
+        Application app = applicationRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Application non trouvée"));
+        app.setStatus(status);
+        app.setUpdatedAt(Instant.now());
+        app = applicationRepo.save(app);
+
+        JobOffer offer = jobOfferRepo.findById(app.getJobOfferId()).orElse(null);
+        Candidate candidate = candidateRepo.findById(app.getCandidateId()).orElse(null);
+        return mapToResponse(app, offer, candidate);
+    }
+
+    public String getPresignedCvUrl(UUID applicationId) {
+        Application app = applicationRepo.findById(applicationId)
+                .orElseThrow(() -> new RuntimeException("Application non trouvée"));
+        if (app.getCvUrl() != null && app.getCvUrl().startsWith("minio://")) {
+            return storageService.getPresignedUrl(app.getCvUrl());
+        }
+        return app.getCvUrl();
     }
 
     private ApplicationResponse mapToResponse(Application app, JobOffer offer, Candidate candidate) {

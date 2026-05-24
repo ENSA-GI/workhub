@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Download, MoreVertical, ChevronRight } from 'lucide-react';
 import NotificationToast from './NotificationToast';
 import { saveToLocalStorage, loadFromLocalStorage, exportToCSV } from '../utils/dataManager';
