@@ -189,12 +189,29 @@ export default function MesCongesEmployee() {
   }, [requests, searchTerm, statusFilter, typeFilter, periodFilter]);
 
   const filteredStats = useMemo(() => ({
-    total: filteredRequests.length,
-    pending: filteredRequests.filter(request => request.status === 'PENDING').length,
-    approved: filteredRequests.filter(request => request.status === 'APPROVED').length,
-    rejected: filteredRequests.filter(request => request.status === 'REJECTED').length,
-    cancelled: filteredRequests.filter(request => request.status === 'CANCELLED').length,
+    totalRequests: filteredRequests.length,
+    totalDays: filteredRequests.reduce((sum, request) => sum + Number(request.requestedDays || 0), 0),
+    pendingRequests: filteredRequests.filter(request => request.status === 'PENDING').length,
+    pendingDays: filteredRequests
+        .filter(request => request.status === 'PENDING')
+        .reduce((sum, request) => sum + Number(request.requestedDays || 0), 0),
+    approvedDays: filteredRequests
+        .filter(request => request.status === 'APPROVED')
+        .reduce((sum, request) => sum + Number(request.requestedDays || 0), 0),
   }), [filteredRequests]);
+
+  const balanceSummary = useMemo(() => {
+    if (!balance) return null;
+    const entitlement = Number(balance.totalDays || 0) + Number(balance.carriedOverDays || 0);
+    const used = Number(balance.usedDays || 0);
+    return {
+      entitlement,
+      used,
+      pending: Number(balance.pendingDays || 0),
+      remaining: Number(balance.remainingDays || 0),
+      overused: Math.max(0, used - entitlement),
+    };
+  }, [balance]);
 
   const calculateDays = () => {
     if (!formData.startDate || !formData.endDate) return 0;
@@ -310,20 +327,39 @@ export default function MesCongesEmployee() {
         </div>
 
         {/* Cartes de solde */}
-        {balance && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        {balance && balanceSummary && (
+            <div className="mb-6">
+              <div className="mb-3">
+                <h2 className="text-sm font-semibold text-gray-900">Solde annuel en jours</h2>
+                <p className="text-xs text-gray-500">
+                  Ces cartes affichent des jours de conge, pas le nombre de demandes.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {[
                 { label: 'Année', value: balance.year, color: 'text-gray-900' },
-                { label: 'Jours Acquis', value: balance.totalDays, color: 'text-gray-900' },
-                { label: 'Jours Pris', value: balance.usedDays, color: 'text-gray-900' },
-                { label: 'Jours en Attente', value: balance.pendingDays, color: 'text-orange-600' },
-                { label: 'Jours Restants', value: balance.remainingDays, color: 'text-[#0A6ED1]' },
+                { label: 'Droits disponibles', value: balanceSummary.entitlement, color: 'text-gray-900' },
+                { label: 'Jours approuves', value: balanceSummary.used, color: 'text-gray-900' },
+                { label: 'Jours demandes', value: balanceSummary.pending, color: 'text-orange-600' },
+                {
+                  label: balanceSummary.overused > 0 ? 'Depassement' : 'Jours restants',
+                  value: balanceSummary.overused > 0 ? balanceSummary.overused : balanceSummary.remaining,
+                  color: balanceSummary.overused > 0 ? 'text-red-600' : 'text-[#0A6ED1]'
+                },
               ].map(card => (
                   <div key={card.label} className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
                     <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">{card.label}</h3>
                     <p className={`text-3xl font-semibold ${card.color}`}>{card.value}</p>
                   </div>
               ))}
+              </div>
+              {balanceSummary.overused > 0 && (
+                  <div className="mt-3 border border-red-200 bg-red-50 px-4 py-3 rounded-lg">
+                    <p className="text-sm text-red-800">
+                      Les donnees de test depassent le droit annuel : {balanceSummary.used} jours approuves pour {balanceSummary.entitlement} jours disponibles.
+                    </p>
+                  </div>
+              )}
             </div>
         )}
 
@@ -425,13 +461,16 @@ export default function MesCongesEmployee() {
               <h3 className="text-lg font-semibold text-gray-900">Historique des Demandes</h3>
               <span className="text-sm text-gray-500">{filteredRequests.length} / {requests.length} demande(s)</span>
             </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Ce resume concerne seulement les demandes visibles apres recherche et filtres.
+            </p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
               {[
-                { label: 'Resultats', value: filteredStats.total, color: 'text-gray-900' },
-                { label: 'En attente', value: filteredStats.pending, color: 'text-orange-600' },
-                { label: 'Approuvees', value: filteredStats.approved, color: 'text-green-600' },
-                { label: 'Refusees', value: filteredStats.rejected, color: 'text-red-600' },
-                { label: 'Annulees', value: filteredStats.cancelled, color: 'text-gray-600' },
+                { label: 'Demandes visibles', value: filteredStats.totalRequests, color: 'text-gray-900' },
+                { label: 'Jours visibles', value: filteredStats.totalDays, color: 'text-gray-900' },
+                { label: 'Demandes attente', value: filteredStats.pendingRequests, color: 'text-orange-600' },
+                { label: 'Jours attente', value: filteredStats.pendingDays, color: 'text-orange-600' },
+                { label: 'Jours approuves', value: filteredStats.approvedDays, color: 'text-green-600' },
               ].map(stat => (
                   <div key={stat.label} className="border border-gray-200 rounded-lg bg-gray-50 px-3 py-2">
                     <p className="text-[11px] uppercase text-gray-500">{stat.label}</p>
