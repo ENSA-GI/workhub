@@ -34,7 +34,7 @@ export default function CongesAnalytics() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [periodFilter, setPeriodFilter] = useState('upcoming');
+  const [periodFilter, setPeriodFilter] = useState('all');
 
   useEffect(() => {
     async function loadLeaveAnalytics() {
@@ -127,7 +127,7 @@ export default function CongesAnalytics() {
       globalUsage: [{ departement: 'Organisation', utilisation, total: usedDays }],
       byType,
       byMonth,
-      calendar: activeRequests.slice(0, 12),
+      requestRows: filteredRequests.slice(0, 20),
     };
   }, [filteredRequests, balance]);
 
@@ -298,7 +298,7 @@ export default function CongesAnalytics() {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center">
             <Calendar className="w-5 h-5 text-[#0A6ED1] mr-2" />
-            <h3 className="text-base font-semibold text-gray-900">Calendrier Global des Absences</h3>
+            <h3 className="text-base font-semibold text-gray-900">Suivi Global des Demandes</h3>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -313,7 +313,7 @@ export default function CongesAnalytics() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {analytics.calendar.map((absence) => (
+              {analytics.requestRows.map((absence) => (
                 <tr key={absence.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm text-gray-900">
                     {new Date(absence.startDate).toLocaleDateString('fr-FR')}
@@ -343,8 +343,8 @@ export default function CongesAnalytics() {
               ))}
             </tbody>
           </table>
-          {analytics.calendar.length === 0 && (
-            <div className="py-10 text-center text-sm text-gray-500">Aucune absence ne correspond aux filtres.</div>
+          {analytics.requestRows.length === 0 && (
+            <div className="py-10 text-center text-sm text-gray-500">Aucune demande ne correspond aux filtres.</div>
           )}
         </div>
       </div>
