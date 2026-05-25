@@ -88,6 +88,7 @@ export default function MesCongesEmployee() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [periodFilter, setPeriodFilter] = useState('all');
+  const [formMessage, setFormMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
     typeId: '',
     startDate: '',
@@ -209,7 +210,6 @@ export default function MesCongesEmployee() {
       used,
       pending: Number(balance.pendingDays || 0),
       remaining: Number(balance.remainingDays || 0),
-      overused: Math.max(0, used - entitlement),
     };
   }, [balance]);
 
@@ -224,11 +224,26 @@ export default function MesCongesEmployee() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) {
-      alert('Utilisateur non connecté');
+      setFormMessage({ type: 'error', text: 'Vous devez etre connecte pour envoyer une demande.' });
+      return;
+    }
+
+    const requestedDays = calculateDays();
+    if (requestedDays <= 0) {
+      setFormMessage({ type: 'error', text: 'Veuillez choisir une periode valide.' });
+      return;
+    }
+
+    if (balanceSummary && requestedDays > balanceSummary.remaining) {
+      setFormMessage({
+        type: 'error',
+        text: `Solde insuffisant : il vous reste ${balanceSummary.remaining} jour(s), vous demandez ${requestedDays} jour(s).`,
+      });
       return;
     }
 
     setSubmitting(true);
+    setFormMessage(null);
     try {
       const requestBody = {
         employeeId,
@@ -255,15 +270,26 @@ export default function MesCongesEmployee() {
           endDate: '',
           reason: ''
         });
-        alert('Demande de congé soumise avec succès');
+        setFormMessage({ type: 'success', text: 'Demande de conge soumise avec succes.' });
       } else {
         const errorText = await response.text();
+        let message = 'Votre demande ne peut pas etre envoyee pour le moment.';
+        try {
+          const parsed = JSON.parse(errorText);
+          if (typeof parsed.message === 'string' && parsed.message.toLowerCase().includes('solde insuffisant')) {
+            message = 'Solde insuffisant pour cette demande. Reduisez la duree ou contactez le service RH.';
+          } else if (typeof parsed.message === 'string') {
+            message = parsed.message;
+          }
+        } catch {
+          if (errorText) message = errorText;
+        }
         console.error('Server error:', response.status, errorText);
-        alert(`Erreur ${response.status}: ${errorText || 'Échec de la soumission'}`);
+        setFormMessage({ type: 'error', text: message });
       }
     } catch (err) {
       console.error('Network error:', err);
-      alert('Erreur réseau. Vérifiez que le serveur tourne sur localhost:8080');
+      setFormMessage({ type: 'error', text: 'Impossible de contacter le serveur. Verifiez que les services sont demarres.' });
     } finally {
       setSubmitting(false);
     }
@@ -341,11 +367,7 @@ export default function MesCongesEmployee() {
                 { label: 'Droits disponibles', value: balanceSummary.entitlement, color: 'text-gray-900' },
                 { label: 'Jours approuves', value: balanceSummary.used, color: 'text-gray-900' },
                 { label: 'Jours demandes', value: balanceSummary.pending, color: 'text-orange-600' },
-                {
-                  label: balanceSummary.overused > 0 ? 'Depassement' : 'Jours restants',
-                  value: balanceSummary.overused > 0 ? balanceSummary.overused : balanceSummary.remaining,
-                  color: balanceSummary.overused > 0 ? 'text-red-600' : 'text-[#0A6ED1]'
-                },
+                { label: 'Jours restants', value: balanceSummary.remaining, color: 'text-[#0A6ED1]' },
               ].map(card => (
                   <div key={card.label} className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
                     <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">{card.label}</h3>
@@ -353,13 +375,6 @@ export default function MesCongesEmployee() {
                   </div>
               ))}
               </div>
-              {balanceSummary.overused > 0 && (
-                  <div className="mt-3 border border-red-200 bg-red-50 px-4 py-3 rounded-lg">
-                    <p className="text-sm text-red-800">
-                      Les donnees de test depassent le droit annuel : {balanceSummary.used} jours approuves pour {balanceSummary.entitlement} jours disponibles.
-                    </p>
-                  </div>
-              )}
             </div>
         )}
 
@@ -367,6 +382,15 @@ export default function MesCongesEmployee() {
         {showForm && (
             <div className="bg-white border border-gray-200 p-6 mb-6 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Nouvelle Demande de Congé</h3>
+              {formMessage && (
+                  <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+                      formMessage.type === 'success'
+                          ? 'border-green-200 bg-green-50 text-green-800'
+                          : 'border-red-200 bg-red-50 text-red-800'
+                  }`}>
+                    {formMessage.text}
+                  </div>
+              )}
               <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
