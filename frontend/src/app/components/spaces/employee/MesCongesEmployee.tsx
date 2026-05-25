@@ -1,5 +1,5 @@
-import { Calendar, Plus, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { Calendar, Plus, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 
 const ORG_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -78,6 +78,10 @@ export default function MesCongesEmployee() {
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState('all');
   const [formData, setFormData] = useState({
     typeId: '',
     startDate: '',
@@ -148,6 +152,32 @@ export default function MesCongesEmployee() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const availableTypeNames = useMemo(
+      () => Array.from(new Set(requests.map(request => request.leaveTypeName))).sort(),
+      [requests]
+  );
+
+  const filteredRequests = useMemo(() => {
+    const now = new Date();
+    return requests.filter(request => {
+      const query = searchTerm.trim().toLowerCase();
+      const matchesSearch = !query ||
+          request.leaveTypeName.toLowerCase().includes(query) ||
+          request.reason.toLowerCase().includes(query) ||
+          normalizeStatus(request.status).toLowerCase().includes(query);
+
+      const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+      const matchesType = typeFilter === 'all' || request.leaveTypeName === typeFilter;
+      const startDate = new Date(request.startDate);
+      const matchesPeriod =
+          periodFilter === 'all' ||
+          (periodFilter === 'upcoming' && startDate >= now) ||
+          (periodFilter === 'past' && startDate < now);
+
+      return matchesSearch && matchesStatus && matchesType && matchesPeriod;
+    });
+  }, [requests, searchTerm, statusFilter, typeFilter, periodFilter]);
 
   const calculateDays = () => {
     if (!formData.startDate || !formData.endDate) return 0;
@@ -373,9 +403,64 @@ export default function MesCongesEmployee() {
 
         {/* Historique */}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Historique des Demandes</h3>
-            <span className="text-sm text-gray-500">{requests.length} demande(s)</span>
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Historique des Demandes</h3>
+              <span className="text-sm text-gray-500">{filteredRequests.length} / {requests.length} demande(s)</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="relative md:col-span-2">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+                    placeholder="Rechercher type, motif, statut..."
+                />
+              </div>
+              <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="PENDING">En attente</option>
+                <option value="APPROVED">Approuve</option>
+                <option value="REJECTED">Refuse</option>
+                <option value="CANCELLED">Annule</option>
+              </select>
+              <select
+                  value={typeFilter}
+                  onChange={e => setTypeFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+              >
+                <option value="all">Tous les types</option>
+                {availableTypeNames.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              {[
+                { value: 'all', label: 'Toutes les periodes' },
+                { value: 'upcoming', label: 'A venir' },
+                { value: 'past', label: 'Passees' },
+              ].map(option => (
+                  <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setPeriodFilter(option.value)}
+                      className={`px-3 py-1 text-xs rounded-full border ${
+                          periodFilter === option.value
+                              ? 'bg-[#0A6ED1] text-white border-[#0A6ED1]'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                      }`}
+                  >
+                    {option.label}
+                  </button>
+              ))}
+            </div>
           </div>
           <div className="p-6">
             {requests.length === 0 ? (
@@ -389,9 +474,14 @@ export default function MesCongesEmployee() {
                     Créer votre première demande
                   </button>
                 </div>
+            ) : filteredRequests.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">Aucune demande ne correspond aux filtres.</p>
+                </div>
             ) : (
                 <div className="space-y-4">
-                  {requests.map(request => (
+                  {filteredRequests.map(request => (
                       <div key={request.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-start">
