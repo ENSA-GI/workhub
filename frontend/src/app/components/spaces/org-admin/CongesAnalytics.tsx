@@ -8,20 +8,6 @@ const DEMO_EMPLOYEE_NAMES: Record<string, string> = {
   '111e8400-e29b-41d4-a716-446655440000': 'Mohammed Alami',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'En attente',
-  APPROVED: 'Approuvee',
-  REJECTED: 'Refusee',
-  CANCELLED: 'Annulee',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: '#F59E0B',
-  APPROVED: '#10B981',
-  REJECTED: '#EF4444',
-  CANCELLED: '#6B7280',
-};
-
 interface LeaveRequest {
   id: string;
   employeeId: string;
@@ -113,22 +99,13 @@ export default function CongesAnalytics() {
     const utilisation = totalEntitlement > 0 ? Math.round((usedDays / totalEntitlement) * 100) : 0;
     const colors = ['#0A6ED1', '#F59E0B', '#10B981', '#6B7280', '#EF4444'];
 
-    const byType = Array.from(activeRequests.reduce((acc, req) => {
+    const byType = Array.from(filteredRequests.reduce((acc, req) => {
       acc.set(req.leaveTypeName, (acc.get(req.leaveTypeName) || 0) + Number(req.requestedDays || 0));
       return acc;
     }, new Map<string, number>())).map(([name, value], index) => ({
       name,
       value,
       color: colors[index % colors.length],
-    }));
-
-    const byStatus = Array.from(filteredRequests.reduce((acc, req) => {
-      acc.set(req.status, (acc.get(req.status) || 0) + 1);
-      return acc;
-    }, new Map<string, number>())).map(([status, value]) => ({
-      name: STATUS_LABELS[status] || status,
-      value,
-      color: STATUS_COLORS[status] || '#0A6ED1',
     }));
 
     const byMonth = Array.from(activeRequests.reduce((acc, req) => {
@@ -149,7 +126,6 @@ export default function CongesAnalytics() {
       pendingCount: pendingRequests.length,
       globalUsage: [{ departement: 'Organisation', utilisation, total: usedDays }],
       byType,
-      byStatus,
       byMonth,
       requestRows: filteredRequests.slice(0, 20),
     };
@@ -265,16 +241,16 @@ export default function CongesAnalytics() {
 
         <div className="bg-white border border-gray-200">
           <div className="p-4 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-900">Repartition par Statut</h3>
+            <h3 className="text-base font-semibold text-gray-900">Repartition par Type de Conge</h3>
           </div>
           <div className="p-6">
-            {analytics.byStatus.length === 0 ? (
+            {analytics.byType.length === 0 ? (
               <p className="text-sm text-gray-500">Aucune demande a afficher.</p>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={analytics.byStatus}
+                    data={analytics.byType}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -283,7 +259,7 @@ export default function CongesAnalytics() {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {analytics.byStatus.map((entry, index) => (
+                    {analytics.byType.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
