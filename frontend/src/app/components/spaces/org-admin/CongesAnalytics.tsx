@@ -1,9 +1,12 @@
-import { Calendar, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Calendar, TrendingUp, AlertTriangle, Search, Filter } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 
 const API_BASE = 'http://localhost:8080';
 const DEMO_EMPLOYEE_ID = '111e8400-e29b-41d4-a716-446655440000';
+const DEMO_EMPLOYEE_NAMES: Record<string, string> = {
+  '111e8400-e29b-41d4-a716-446655440000': 'Mohammed Alami',
+};
 
 interface LeaveRequest {
   id: string;
@@ -14,6 +17,7 @@ interface LeaveRequest {
   requestedDays: number;
   reason: string;
   status: string;
+  employeeName?: string;
 }
 
 interface LeaveBalance {
@@ -27,6 +31,10 @@ interface LeaveBalance {
 export default function CongesAnalytics() {
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState('all');
 
   useEffect(() => {
     async function loadLeaveAnalytics() {
@@ -46,17 +54,52 @@ export default function CongesAnalytics() {
     loadLeaveAnalytics().catch(err => console.error('Erreur analytics conges:', err));
   }, []);
 
+  const getEmployeeName = (request: LeaveRequest) =>
+    request.employeeName || DEMO_EMPLOYEE_NAMES[request.employeeId] || 'Employe non reference';
+
+  const typeOptions = useMemo(
+    () => Array.from(new Set(requests.map(req => req.leaveTypeName))).sort(),
+    [requests]
+  );
+
+  const filteredRequests = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return requests.filter(req => {
+      const query = searchTerm.trim().toLowerCase();
+      const employeeName = getEmployeeName(req).toLowerCase();
+      const startDate = new Date(req.startDate);
+      const endDate = new Date(req.endDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      const matchesSearch = !query ||
+        employeeName.includes(query) ||
+        req.leaveTypeName.toLowerCase().includes(query) ||
+        req.reason.toLowerCase().includes(query);
+      const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
+      const matchesType = typeFilter === 'all' || req.leaveTypeName === typeFilter;
+      const matchesPeriod =
+        periodFilter === 'all' ||
+        (periodFilter === 'upcoming' && startDate > today) ||
+        (periodFilter === 'current' && startDate <= today && endDate >= today) ||
+        (periodFilter === 'past' && endDate < today);
+
+      return matchesSearch && matchesStatus && matchesType && matchesPeriod;
+    });
+  }, [requests, searchTerm, statusFilter, typeFilter, periodFilter]);
+
   const analytics = useMemo(() => {
-    const activeRequests = requests.filter(req => req.status !== 'CANCELLED');
-    const approvedRequests = requests.filter(req => req.status === 'APPROVED');
-    const pendingRequests = requests.filter(req => req.status === 'PENDING');
+    const activeRequests = filteredRequests.filter(req => req.status !== 'CANCELLED');
+    const approvedRequests = filteredRequests.filter(req => req.status === 'APPROVED');
+    const pendingRequests = filteredRequests.filter(req => req.status === 'PENDING');
     const totalEntitlement = Number(balance?.totalDays || 0) + Number(balance?.carriedOverDays || 0);
     const usedDays = Number(balance?.usedDays || 0);
     const pendingDays = Number(balance?.pendingDays || 0);
     const utilisation = totalEntitlement > 0 ? Math.round((usedDays / totalEntitlement) * 100) : 0;
     const colors = ['#0A6ED1', '#F59E0B', '#10B981', '#6B7280', '#EF4444'];
 
-    const byType = Array.from(activeRequests.reduce((acc, req) => {
+    const byType = Array.from(filteredRequests.reduce((acc, req) => {
       acc.set(req.leaveTypeName, (acc.get(req.leaveTypeName) || 0) + Number(req.requestedDays || 0));
       return acc;
     }, new Map<string, number>())).map(([name, value], index) => ({
@@ -84,9 +127,9 @@ export default function CongesAnalytics() {
       globalUsage: [{ departement: 'Organisation', utilisation, total: usedDays }],
       byType,
       byMonth,
-      calendar: approvedRequests.filter(req => new Date(req.endDate) >= new Date()).slice(0, 8),
+      requestRows: filteredRequests.slice(0, 20),
     };
-  }, [requests, balance]);
+  }, [filteredRequests, balance]);
 
   const kpis = [
     { label: 'Taux Utilisation Global', value: `${analytics.utilisation}%`, trend: 'up', change: '', color: 'text-orange-600' },
@@ -100,6 +143,64 @@ export default function CongesAnalytics() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Analytics Conges</h1>
         <p className="text-sm text-gray-600 mt-1">Vue d'ensemble reelle des demandes de conges</p>
+      </div>
+
+      <div className="bg-white border border-gray-200 p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="relative md:col-span-2">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+              placeholder="Rechercher employe, type, motif..."
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="PENDING">En attente</option>
+            <option value="APPROVED">Approuvee</option>
+            <option value="REJECTED">Refusee</option>
+            <option value="CANCELLED">Annulee</option>
+          </select>
+          <select
+            value={typeFilter}
+            onChange={e => setTypeFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+          >
+            <option value="all">Tous les types</option>
+            {typeOptions.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Filter className="w-4 h-4 text-gray-500" />
+          {[
+            { value: 'all', label: 'Toutes les periodes' },
+            { value: 'upcoming', label: 'A venir' },
+            { value: 'current', label: 'En cours' },
+            { value: 'past', label: 'Passees' },
+          ].map(option => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setPeriodFilter(option.value)}
+              className={`px-3 py-1 text-xs rounded-full border ${
+                periodFilter === option.value
+                  ? 'bg-[#0A6ED1] text-white border-[#0A6ED1]'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+          <span className="ml-auto text-xs text-gray-500">{filteredRequests.length} resultat(s)</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -197,7 +298,7 @@ export default function CongesAnalytics() {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center">
             <Calendar className="w-5 h-5 text-[#0A6ED1] mr-2" />
-            <h3 className="text-base font-semibold text-gray-900">Calendrier Global des Absences a Venir</h3>
+            <h3 className="text-base font-semibold text-gray-900">Suivi Global des Demandes</h3>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -208,15 +309,16 @@ export default function CongesAnalytics() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employe</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duree</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {analytics.calendar.map((absence) => (
+              {analytics.requestRows.map((absence) => (
                 <tr key={absence.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm text-gray-900">
                     {new Date(absence.startDate).toLocaleDateString('fr-FR')}
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{absence.employeeId}</td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{getEmployeeName(absence)}</td>
                   <td className="px-6 py-4">
                     <span className="inline-flex px-2 py-1 text-xs bg-blue-100 text-blue-800">
                       {absence.leaveTypeName}
@@ -225,10 +327,25 @@ export default function CongesAnalytics() {
                   <td className="px-6 py-4 text-sm text-gray-600">
                     {absence.requestedDays} jour{Number(absence.requestedDays) > 1 ? 's' : ''}
                   </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex px-2 py-1 text-xs rounded ${
+                      absence.status === 'APPROVED' ? 'bg-green-100 text-green-800' :
+                      absence.status === 'PENDING' ? 'bg-orange-100 text-orange-800' :
+                      absence.status === 'CANCELLED' ? 'bg-gray-100 text-gray-700' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {absence.status === 'APPROVED' ? 'Approuvee' :
+                        absence.status === 'PENDING' ? 'En attente' :
+                        absence.status === 'CANCELLED' ? 'Annulee' : 'Refusee'}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {analytics.requestRows.length === 0 && (
+            <div className="py-10 text-center text-sm text-gray-500">Aucune demande ne correspond aux filtres.</div>
+          )}
         </div>
       </div>
 
