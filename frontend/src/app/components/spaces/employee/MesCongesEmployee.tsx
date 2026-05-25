@@ -1,5 +1,5 @@
-import { Calendar, Plus, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { Calendar, Plus, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 
 const ORG_ID = '550e8400-e29b-41d4-a716-446655440000';
@@ -73,11 +73,22 @@ function formatDate(raw: string | undefined): string {
   }
 }
 
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
 export default function MesCongesEmployee() {
   const { user } = useUser();
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [periodFilter, setPeriodFilter] = useState('all');
+  const [formMessage, setFormMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [formData, setFormData] = useState({
     typeId: '',
     startDate: '',
@@ -149,6 +160,59 @@ export default function MesCongesEmployee() {
     loadData();
   }, [loadData]);
 
+  const availableTypeNames = useMemo(
+      () => Array.from(new Set(requests.map(request => request.leaveTypeName))).sort(),
+      [requests]
+  );
+
+  const filteredRequests = useMemo(() => {
+    const today = startOfToday();
+    return requests.filter(request => {
+      const query = searchTerm.trim().toLowerCase();
+      const matchesSearch = !query ||
+          request.leaveTypeName.toLowerCase().includes(query) ||
+          request.reason.toLowerCase().includes(query) ||
+          normalizeStatus(request.status).toLowerCase().includes(query);
+
+      const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+      const matchesType = typeFilter === 'all' || request.leaveTypeName === typeFilter;
+      const startDate = new Date(request.startDate);
+      const endDate = new Date(request.endDate);
+      endDate.setHours(23, 59, 59, 999);
+      const matchesPeriod =
+          periodFilter === 'all' ||
+          (periodFilter === 'upcoming' && startDate > today) ||
+          (periodFilter === 'current' && startDate <= today && endDate >= today) ||
+          (periodFilter === 'past' && endDate < today);
+
+      return matchesSearch && matchesStatus && matchesType && matchesPeriod;
+    });
+  }, [requests, searchTerm, statusFilter, typeFilter, periodFilter]);
+
+  const filteredStats = useMemo(() => ({
+    totalRequests: filteredRequests.length,
+    totalDays: filteredRequests.reduce((sum, request) => sum + Number(request.requestedDays || 0), 0),
+    pendingRequests: filteredRequests.filter(request => request.status === 'PENDING').length,
+    pendingDays: filteredRequests
+        .filter(request => request.status === 'PENDING')
+        .reduce((sum, request) => sum + Number(request.requestedDays || 0), 0),
+    approvedDays: filteredRequests
+        .filter(request => request.status === 'APPROVED')
+        .reduce((sum, request) => sum + Number(request.requestedDays || 0), 0),
+  }), [filteredRequests]);
+
+  const balanceSummary = useMemo(() => {
+    if (!balance) return null;
+    const entitlement = Number(balance.totalDays || 0) + Number(balance.carriedOverDays || 0);
+    const used = Number(balance.usedDays || 0);
+    return {
+      entitlement,
+      used,
+      pending: Number(balance.pendingDays || 0),
+      remaining: Number(balance.remainingDays || 0),
+    };
+  }, [balance]);
+
   const calculateDays = () => {
     if (!formData.startDate || !formData.endDate) return 0;
     const start = new Date(formData.startDate);
@@ -160,11 +224,26 @@ export default function MesCongesEmployee() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) {
-      alert('Utilisateur non connecté');
+      setFormMessage({ type: 'error', text: 'Vous devez etre connecte pour envoyer une demande.' });
+      return;
+    }
+
+    const requestedDays = calculateDays();
+    if (requestedDays <= 0) {
+      setFormMessage({ type: 'error', text: 'Veuillez choisir une periode valide.' });
+      return;
+    }
+
+    if (balanceSummary && requestedDays > balanceSummary.remaining) {
+      setFormMessage({
+        type: 'error',
+        text: `Solde insuffisant : il vous reste ${balanceSummary.remaining} jour(s), vous demandez ${requestedDays} jour(s).`,
+      });
       return;
     }
 
     setSubmitting(true);
+    setFormMessage(null);
     try {
       const requestBody = {
         employeeId,
@@ -191,17 +270,55 @@ export default function MesCongesEmployee() {
           endDate: '',
           reason: ''
         });
-        alert('Demande de congé soumise avec succès');
+        setFormMessage({ type: 'success', text: 'Demande de conge soumise avec succes.' });
       } else {
         const errorText = await response.text();
+        let message = 'Votre demande ne peut pas etre envoyee pour le moment.';
+        try {
+          const parsed = JSON.parse(errorText);
+          if (typeof parsed.message === 'string' && parsed.message.toLowerCase().includes('solde insuffisant')) {
+            message = 'Solde insuffisant pour cette demande. Reduisez la duree ou contactez le service RH.';
+          } else if (typeof parsed.message === 'string') {
+            message = parsed.message;
+          }
+        } catch {
+          if (errorText) message = errorText;
+        }
         console.error('Server error:', response.status, errorText);
-        alert(`Erreur ${response.status}: ${errorText || 'Échec de la soumission'}`);
+        setFormMessage({ type: 'error', text: message });
       }
     } catch (err) {
       console.error('Network error:', err);
-      alert('Erreur réseau. Vérifiez que le serveur tourne sur localhost:8080');
+      setFormMessage({ type: 'error', text: 'Impossible de contacter le serveur. Verifiez que les services sont demarres.' });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleCancelRequest = async (requestId: string) => {
+    if (!window.confirm('Confirmer l annulation de cette demande ?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/leave/leave-requests/${requestId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        await loadData();
+        alert('Demande annulee avec succes');
+      } else {
+        const errorText = await response.text();
+        console.error('Cancel error:', response.status, errorText);
+        alert(`Erreur ${response.status}: ${errorText || 'Annulation impossible'}`);
+      }
+    } catch (err) {
+      console.error('Network error:', err);
+      alert('Erreur reseau. Verifiez que le serveur tourne sur localhost:8080');
     }
   };
 
@@ -236,20 +353,28 @@ export default function MesCongesEmployee() {
         </div>
 
         {/* Cartes de solde */}
-        {balance && (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        {balance && balanceSummary && (
+            <div className="mb-6">
+              <div className="mb-3">
+                <h2 className="text-sm font-semibold text-gray-900">Solde annuel en jours</h2>
+                <p className="text-xs text-gray-500">
+                  Ces cartes affichent des jours de conge, pas le nombre de demandes.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {[
                 { label: 'Année', value: balance.year, color: 'text-gray-900' },
-                { label: 'Jours Acquis', value: balance.totalDays, color: 'text-gray-900' },
-                { label: 'Jours Pris', value: balance.usedDays, color: 'text-gray-900' },
-                { label: 'En Attente', value: balance.pendingDays, color: 'text-orange-600' },
-                { label: 'Restants', value: balance.remainingDays, color: 'text-[#0A6ED1]' },
+                { label: 'Droits disponibles', value: balanceSummary.entitlement, color: 'text-gray-900' },
+                { label: 'Jours approuves', value: balanceSummary.used, color: 'text-gray-900' },
+                { label: 'Jours demandes', value: balanceSummary.pending, color: 'text-orange-600' },
+                { label: 'Jours restants', value: balanceSummary.remaining, color: 'text-[#0A6ED1]' },
               ].map(card => (
                   <div key={card.label} className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
                     <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">{card.label}</h3>
                     <p className={`text-3xl font-semibold ${card.color}`}>{card.value}</p>
                   </div>
               ))}
+              </div>
             </div>
         )}
 
@@ -257,6 +382,15 @@ export default function MesCongesEmployee() {
         {showForm && (
             <div className="bg-white border border-gray-200 p-6 mb-6 rounded-lg shadow-sm">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Nouvelle Demande de Congé</h3>
+              {formMessage && (
+                  <div className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
+                      formMessage.type === 'success'
+                          ? 'border-green-200 bg-green-50 text-green-800'
+                          : 'border-red-200 bg-red-50 text-red-800'
+                  }`}>
+                    {formMessage.text}
+                  </div>
+              )}
               <form onSubmit={handleSubmit}>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -346,9 +480,82 @@ export default function MesCongesEmployee() {
 
         {/* Historique */}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">Historique des Demandes</h3>
-            <span className="text-sm text-gray-500">{requests.length} demande(s)</span>
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Historique des Demandes</h3>
+              <span className="text-sm text-gray-500">{filteredRequests.length} / {requests.length} demande(s)</span>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Ce resume concerne seulement les demandes visibles apres recherche et filtres.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+              {[
+                { label: 'Demandes visibles', value: filteredStats.totalRequests, color: 'text-gray-900' },
+                { label: 'Jours visibles', value: filteredStats.totalDays, color: 'text-gray-900' },
+                { label: 'Demandes attente', value: filteredStats.pendingRequests, color: 'text-orange-600' },
+                { label: 'Jours attente', value: filteredStats.pendingDays, color: 'text-orange-600' },
+                { label: 'Jours approuves', value: filteredStats.approvedDays, color: 'text-green-600' },
+              ].map(stat => (
+                  <div key={stat.label} className="border border-gray-200 rounded-lg bg-gray-50 px-3 py-2">
+                    <p className="text-[11px] uppercase text-gray-500">{stat.label}</p>
+                    <p className={`text-lg font-semibold ${stat.color}`}>{stat.value}</p>
+                  </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="relative md:col-span-2">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+                    placeholder="Rechercher type, motif, statut..."
+                />
+              </div>
+              <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="PENDING">En attente</option>
+                <option value="APPROVED">Approuve</option>
+                <option value="REJECTED">Refuse</option>
+                <option value="CANCELLED">Annule</option>
+              </select>
+              <select
+                  value={typeFilter}
+                  onChange={e => setTypeFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
+              >
+                <option value="all">Tous les types</option>
+                {availableTypeNames.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              {[
+                { value: 'all', label: 'Toutes les periodes' },
+                { value: 'upcoming', label: 'A venir' },
+                { value: 'current', label: 'En cours' },
+                { value: 'past', label: 'Passees' },
+              ].map(option => (
+                  <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setPeriodFilter(option.value)}
+                      className={`px-3 py-1 text-xs rounded-full border ${
+                          periodFilter === option.value
+                              ? 'bg-[#0A6ED1] text-white border-[#0A6ED1]'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                      }`}
+                  >
+                    {option.label}
+                  </button>
+              ))}
+            </div>
           </div>
           <div className="p-6">
             {requests.length === 0 ? (
@@ -362,9 +569,14 @@ export default function MesCongesEmployee() {
                     Créer votre première demande
                   </button>
                 </div>
+            ) : filteredRequests.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">Aucune demande ne correspond aux filtres.</p>
+                </div>
             ) : (
                 <div className="space-y-4">
-                  {requests.map(request => (
+                  {filteredRequests.map(request => (
                       <div key={request.id} className="border border-gray-200 p-4 rounded-lg hover:shadow-md transition-shadow">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-start">
@@ -379,9 +591,21 @@ export default function MesCongesEmployee() {
                               </p>
                             </div>
                           </div>
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getBadgeClass(request.status)}`}>
-                      {normalizeStatus(request.status)}
-                    </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex px-2 py-1 text-xs rounded-full ${getBadgeClass(request.status)}`}>
+                              {normalizeStatus(request.status)}
+                            </span>
+                            {request.status === 'PENDING' && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleCancelRequest(request.id)}
+                                    className="inline-flex items-center px-3 py-1 text-xs border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-full transition-colors"
+                                    title="Annuler la demande"
+                                >
+                                  Annuler
+                                </button>
+                            )}
+                          </div>
                         </div>
                         <div className="pl-8">
                           <p className="text-sm text-gray-600 mb-1">
