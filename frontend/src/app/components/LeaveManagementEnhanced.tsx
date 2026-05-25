@@ -19,6 +19,17 @@ interface LeaveManagementEnhancedProps {
   userRole?: string;
 }
 
+interface EmployeeRecord {
+  id: string;
+  cin?: string;
+  personalEmail?: string;
+}
+
+const ORG_ID = '550e8400-e29b-41d4-a716-446655440000';
+const DEMO_EMPLOYEE_NAMES: Record<string, string> = {
+  '111e8400-e29b-41d4-a716-446655440000': 'Mohammed Alami',
+};
+
 const STATUS_LABELS: Record<string, string> = {
   Pending: 'En attente',
   Approved: 'Approuvee',
@@ -44,8 +55,30 @@ function mapStatus(status: string) {
   return status;
 }
 
+function titleCase(value: string) {
+  return value
+    .split(/[.\s_-]+/)
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function employeeDisplayName(employee?: EmployeeRecord) {
+  if (!employee) return '';
+  if (employee.personalEmail) {
+    return titleCase(employee.personalEmail.split('@')[0]);
+  }
+  return employee.cin || '';
+}
+
 function formatDate(raw: string) {
   return new Date(raw).toLocaleDateString('fr-FR');
+}
+
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
 }
 
 function isSameDay(a: Date, b: Date) {
@@ -95,14 +128,27 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const res = await fetch('http://localhost:8080/leave/leave-requests/all', {
-          headers: { Accept: 'application/json' },
-        });
+        const [res, employeesRes] = await Promise.all([
+          fetch('http://localhost:8080/leave/leave-requests/all', {
+            headers: { Accept: 'application/json' },
+          }),
+          fetch(`http://localhost:8080/employee/employees?organizationId=${ORG_ID}&status=ACTIVE&size=200`, {
+            headers: { Accept: 'application/json' },
+          }),
+        ]);
+
+        let employeeNames = new Map<string, string>();
+        if (employeesRes.ok) {
+          const employeesPage = await employeesRes.json();
+          const employees: EmployeeRecord[] = Array.isArray(employeesPage?.content) ? employeesPage.content : [];
+          employeeNames = new Map(employees.map(employee => [employee.id, employeeDisplayName(employee)]));
+        }
+
         if (res.ok) {
           const data = await res.json();
           const mapped = data.map((d: any) => ({
             id: d.id,
-            employee: d.employeeName || d.employeeId || 'Employe',
+            employee: d.employeeName || employeeNames.get(d.employeeId) || DEMO_EMPLOYEE_NAMES[d.employeeId] || 'Employe non reference',
             type: d.leaveTypeName || 'Conge',
             startDate: d.startDate,
             endDate: d.endDate,
@@ -163,7 +209,7 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
   const types = useMemo(() => Array.from(new Set(leaveRequests.map(req => req.type))).sort(), [leaveRequests]);
 
   const filteredRequests = useMemo(() => {
-    const now = new Date();
+    const today = startOfToday();
     return leaveRequests.filter(req => {
       const query = searchTerm.trim().toLowerCase();
       const matchesSearch = !query ||
@@ -176,10 +222,13 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
       const matchesType = typeFilter === 'all' || req.type === typeFilter;
 
       const start = new Date(req.startDate);
+      const end = new Date(req.endDate);
+      end.setHours(23, 59, 59, 999);
       const matchesDate =
         dateFilter === 'all' ||
-        (dateFilter === 'upcoming' && start >= now) ||
-        (dateFilter === 'past' && start < now);
+        (dateFilter === 'upcoming' && start > today) ||
+        (dateFilter === 'current' && start <= today && end >= today) ||
+        (dateFilter === 'past' && end < today);
 
       return matchesSearch && matchesStatus && matchesType && matchesDate;
     });
@@ -346,6 +395,7 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
                 {[
                   { value: 'all', label: 'Toutes les periodes' },
                   { value: 'upcoming', label: 'A venir' },
+                  { value: 'current', label: 'En cours' },
                   { value: 'past', label: 'Passees' },
                 ].map(option => (
                   <button

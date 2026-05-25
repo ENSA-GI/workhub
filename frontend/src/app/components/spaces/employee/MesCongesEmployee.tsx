@@ -73,6 +73,12 @@ function formatDate(raw: string | undefined): string {
   }
 }
 
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
 export default function MesCongesEmployee() {
   const { user } = useUser();
 
@@ -159,7 +165,7 @@ export default function MesCongesEmployee() {
   );
 
   const filteredRequests = useMemo(() => {
-    const now = new Date();
+    const today = startOfToday();
     return requests.filter(request => {
       const query = searchTerm.trim().toLowerCase();
       const matchesSearch = !query ||
@@ -170,14 +176,25 @@ export default function MesCongesEmployee() {
       const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
       const matchesType = typeFilter === 'all' || request.leaveTypeName === typeFilter;
       const startDate = new Date(request.startDate);
+      const endDate = new Date(request.endDate);
+      endDate.setHours(23, 59, 59, 999);
       const matchesPeriod =
           periodFilter === 'all' ||
-          (periodFilter === 'upcoming' && startDate >= now) ||
-          (periodFilter === 'past' && startDate < now);
+          (periodFilter === 'upcoming' && startDate > today) ||
+          (periodFilter === 'current' && startDate <= today && endDate >= today) ||
+          (periodFilter === 'past' && endDate < today);
 
       return matchesSearch && matchesStatus && matchesType && matchesPeriod;
     });
   }, [requests, searchTerm, statusFilter, typeFilter, periodFilter]);
+
+  const filteredStats = useMemo(() => ({
+    total: filteredRequests.length,
+    pending: filteredRequests.filter(request => request.status === 'PENDING').length,
+    approved: filteredRequests.filter(request => request.status === 'APPROVED').length,
+    rejected: filteredRequests.filter(request => request.status === 'REJECTED').length,
+    cancelled: filteredRequests.filter(request => request.status === 'CANCELLED').length,
+  }), [filteredRequests]);
 
   const calculateDays = () => {
     if (!formData.startDate || !formData.endDate) return 0;
@@ -299,8 +316,8 @@ export default function MesCongesEmployee() {
                 { label: 'Année', value: balance.year, color: 'text-gray-900' },
                 { label: 'Jours Acquis', value: balance.totalDays, color: 'text-gray-900' },
                 { label: 'Jours Pris', value: balance.usedDays, color: 'text-gray-900' },
-                { label: 'En Attente', value: balance.pendingDays, color: 'text-orange-600' },
-                { label: 'Restants', value: balance.remainingDays, color: 'text-[#0A6ED1]' },
+                { label: 'Jours en Attente', value: balance.pendingDays, color: 'text-orange-600' },
+                { label: 'Jours Restants', value: balance.remainingDays, color: 'text-[#0A6ED1]' },
               ].map(card => (
                   <div key={card.label} className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
                     <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">{card.label}</h3>
@@ -408,6 +425,20 @@ export default function MesCongesEmployee() {
               <h3 className="text-lg font-semibold text-gray-900">Historique des Demandes</h3>
               <span className="text-sm text-gray-500">{filteredRequests.length} / {requests.length} demande(s)</span>
             </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+              {[
+                { label: 'Resultats', value: filteredStats.total, color: 'text-gray-900' },
+                { label: 'En attente', value: filteredStats.pending, color: 'text-orange-600' },
+                { label: 'Approuvees', value: filteredStats.approved, color: 'text-green-600' },
+                { label: 'Refusees', value: filteredStats.rejected, color: 'text-red-600' },
+                { label: 'Annulees', value: filteredStats.cancelled, color: 'text-gray-600' },
+              ].map(stat => (
+                  <div key={stat.label} className="border border-gray-200 rounded-lg bg-gray-50 px-3 py-2">
+                    <p className="text-[11px] uppercase text-gray-500">{stat.label}</p>
+                    <p className={`text-lg font-semibold ${stat.color}`}>{stat.value}</p>
+                  </div>
+              ))}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="relative md:col-span-2">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -445,6 +476,7 @@ export default function MesCongesEmployee() {
               {[
                 { value: 'all', label: 'Toutes les periodes' },
                 { value: 'upcoming', label: 'A venir' },
+                { value: 'current', label: 'En cours' },
                 { value: 'past', label: 'Passees' },
               ].map(option => (
                   <button
