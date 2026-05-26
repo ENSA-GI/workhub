@@ -257,4 +257,66 @@ public class PayrollService {
 
         return new PayrollAnalyticsDTOs.ChargesDistributionDTO(cnss, amo, ir);
     }
+
+    /**
+     * NOUVEAU : Récupère la liste de tous les bulletins individuels (items) d'une paie mensuelle.
+     */
+    public List<PayrollItem> getPayrollItems(UUID payrollId) {
+        log.info("Fetching payroll items for payroll: {}", payrollId);
+        return itemRepo.findAllByPayrollId(payrollId);
+    }
+
+    /**
+     * NOUVEAU : Agrège dynamiquement les coûts salariaux par département pour un mois donné.
+     */
+    public List<com.workhub.payroll.dto.PayrollAnalyticsDTOs.DepartmentCostDTO> getDepartmentCosts(UUID orgId, int month, int year) {
+        log.info("Calculating department costs for org {} - {}/{}", orgId, month, year);
+
+        // 1. Récupérer la paie du mois
+        java.util.Optional<Payroll> payrollOpt = payrollRepo.findByOrganizationIdAndYearAndMonth(orgId, year, month);
+        if (payrollOpt.isEmpty()) {
+            return java.util.List.of();
+        }
+
+        // 2. Récupérer les lignes de calcul (items) de cette paie
+        List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollOpt.get().getId());
+
+        // 3. Récupérer les employés depuis le service externe pour connaître leur département
+        List<EmployeeClient.EmployeeResponse> employees;
+        try {
+            employees = employeeClient.getActiveEmployees(orgId).getContent();
+        } catch (Exception e) {
+            log.warn("Impossible de récupérer les départements réels (service employé en panne).");
+            return java.util.List.of(
+                    new com.workhub.payroll.dto.PayrollAnalyticsDTOs.DepartmentCostDTO("R&D (Fictif)", payrollOpt.get().getTotalGrossSalary(), items.size())
+            );
+        }
+
+        // 4. Associer chaque ID d'employé à son département
+        java.util.Map<UUID, String> empDeptMap = new java.util.HashMap<>();
+        for (EmployeeClient.EmployeeResponse emp : employees) {
+            // Si le département n'existe pas dans le service, nous mettons "Non spécifié"
+            empDeptMap.put(emp.getId(), emp.getDepartment() != null ? emp.getDepartment() : "Non spécifié");
+        }
+
+        // 5. Grouper les coûts bruts par département
+        java.util.Map<String, BigDecimal> deptCostMap = new java.util.HashMap<>();
+        java.util.Map<String, Long> deptCountMap = new java.util.HashMap<>();
+
+        for (PayrollItem item : items) {
+            String dept = empDeptMap.getOrDefault(item.getEmployeeId(), "Non spécifié");
+
+            deptCostMap.put(dept, deptCostMap.getOrDefault(dept, BigDecimal.ZERO).add(item.getGrossSalary()));
+            deptCountMap.put(dept, deptCountMap.getOrDefault(dept, 0L) + 1);
+        }
+
+        // 6. Transformer la Map en liste de DTOs pour le Frontend
+        return deptCostMap.entrySet().stream()
+                .map(entry -> new com.workhub.payroll.dto.PayrollAnalyticsDTOs.DepartmentCostDTO(
+                        entry.getKey(),
+                        entry.getValue(),
+                        deptCountMap.get(entry.getKey())
+                ))
+                .toList();
+    }
 }

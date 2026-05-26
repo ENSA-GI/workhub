@@ -27,4 +27,10 @@ public class PayrollAnalyticsDTOs {
             BigDecimal totalAmo,
             BigDecimal totalIr
     ) {}
+
+    public record DepartmentCostDTO(
+            String departmentName,
+            BigDecimal totalCost,
+            long employeeCount
+    ) {}
 }

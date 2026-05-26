@@ -136,4 +136,24 @@ public class PayrollController {
             @RequestParam int year) {
         return ResponseEntity.ok(payrollService.getChargesDistribution(orgId, year));
     }
+    /**
+     * GET /api/payrolls/{id}/items
+     * Retourne la liste de tous les bulletins d'une paie (utile pour PayslipsManagement.tsx)
+     */
+    @GetMapping("/{id}/items")
+    public ResponseEntity<List<PayrollItem>> getPayrollItems(@PathVariable UUID id) {
+        return ResponseEntity.ok(payrollService.getPayrollItems(id));
+    }
+
+    /**
+     * GET /api/payrolls/analytics/by-department
+     * Utilisé pour alimenter le graphique par département (BarChart)
+     */
+    @GetMapping("/analytics/by-department")
+    public ResponseEntity<List<com.workhub.payroll.dto.PayrollAnalyticsDTOs.DepartmentCostDTO>> getDepartmentCosts(
+            @RequestParam UUID orgId,
+            @RequestParam int month,
+            @RequestParam int year) {
+        return ResponseEntity.ok(payrollService.getDepartmentCosts(orgId, month, year));
+    }
 }
