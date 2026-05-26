@@ -1,12 +1,14 @@
 package com.workhub.payroll.api;
 
 import com.workhub.payroll.domain.Payroll;
+import com.workhub.payroll.domain.PayrollItem;
 import com.workhub.payroll.repo.PayrollRepository;
 import com.workhub.payroll.service.PayrollService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -66,5 +68,27 @@ public class PayrollController {
                 year,
                 generatedBy
         );
+    }
+    /**
+     * GET /api/payrolls/employee/{employeeId}
+     * Permet à l'employé de récupérer la liste de tous ses bulletins.
+     */
+    @GetMapping("/employee/{employeeId}")
+    public ResponseEntity<List<PayrollItem>> getEmployeeBulletins(@PathVariable UUID employeeId) {
+        return ResponseEntity.ok(payrollService.getEmployeePayslips(employeeId));
+    }
+
+    /**
+     * GET /api/payrolls/items/{itemId}/download
+     * Permet de télécharger le fichier PDF physique depuis MinIO.
+     */
+    @GetMapping("/items/{itemId}/download")
+    public ResponseEntity<byte[]> downloadPayslipPdf(@PathVariable UUID itemId) {
+        byte[] pdfContent = payrollService.getPayslipPdfContent(itemId);
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition", "attachment; filename=\"bulletin_" + itemId + ".pdf\"")
+                .body(pdfContent);
     }
 }

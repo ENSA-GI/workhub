@@ -52,4 +52,22 @@ public class StorageService {
             throw new RuntimeException("Échec du stockage du bulletin PDF.");
         }
     }
+
+    public byte[] downloadPdf(String objectKey) {
+        try {
+            // objectKey ressemble à "payslips/bulletin_xxxx.pdf"
+            // On sépare le bucket du nom de l'objet si nécessaire
+            String cleanKey = objectKey.contains("/") ? objectKey.substring(objectKey.indexOf("/") + 1) : objectKey;
+
+            return minioClient.getObject(
+                    io.minio.GetObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(cleanKey)
+                            .build()
+            ).readAllBytes();
+        } catch (Exception e) {
+            log.error("Erreur lors du téléchargement du fichier depuis MinIO : {}", e.getMessage());
+            throw new RuntimeException("Impossible de récupérer le fichier PDF.");
+        }
+    }
 }

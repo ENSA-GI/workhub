@@ -150,4 +150,18 @@ public class PayrollService {
         }
         return String.valueOf(month);
     }
+    public List<PayrollItem> getEmployeePayslips(UUID employeeId) {
+        log.info("Fetching payslips for employee: {}", employeeId);
+        return itemRepo.findAllByEmployeeId(employeeId);
+    }
+    public byte[] getPayslipPdfContent(UUID itemId) {
+        PayrollItem item = itemRepo.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin non trouvé."));
+
+        if (item.getBulletinPdfUrl() == null) {
+            throw new RuntimeException("Le fichier PDF n'a pas encore été généré pour ce bulletin.");
+        }
+
+        return storageService.downloadPdf(item.getBulletinPdfUrl());
+    }
 }
