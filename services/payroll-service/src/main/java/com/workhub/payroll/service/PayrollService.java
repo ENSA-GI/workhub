@@ -2,6 +2,7 @@ package com.workhub.payroll.service;
 
 import com.workhub.payroll.client.EmployeeClient;
 import com.workhub.payroll.domain.*;
+import com.workhub.payroll.dto.PayrollAnalyticsDTOs;
 import com.workhub.payroll.repo.*;
 import com.workhub.payroll.kafka.producer.PayrollEventsPublisher;
 import com.workhub.payroll.kafka.event.PayrollGeneratedEvent;
@@ -163,5 +164,97 @@ public class PayrollService {
         }
 
         return storageService.downloadPdf(item.getBulletinPdfUrl());
+    }
+    /**
+     * NOUVEAU : Met à jour le statut d'une paie (ex: DRAFT -> VALIDATED -> PAID).
+     */
+    @Transactional
+    public Payroll updatePayrollStatus(UUID payrollId, PayrollStatus newStatus, UUID updatedBy) {
+        Payroll payroll = payrollRepo.findById(payrollId)
+                .orElseThrow(() -> new RuntimeException("Paie non trouvée."));
+
+        payroll.setStatus(newStatus);
+        payroll.setValidatedAt(java.time.LocalDateTime.now());
+        payroll.setValidatedBy(updatedBy);
+
+        log.info("Payroll {} status updated to {}", payrollId, newStatus);
+        return payrollRepo.save(payroll);
+    }
+
+    /**
+     * NOUVEAU : Calcule le résumé annuel (YTD) pour l'organisation.
+     */
+    public PayrollAnalyticsDTOs.YtdSummaryDTO getYtdSummary(UUID orgId, int year) {
+        List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
+
+        BigDecimal totalGross = BigDecimal.ZERO;
+        BigDecimal totalNet = BigDecimal.ZERO;
+        BigDecimal totalSocial = BigDecimal.ZERO;
+        int totalEmployees = 0;
+        int payrollCount = 0;
+
+        for (Payroll p : payrolls) {
+            if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
+                totalGross = totalGross.add(p.getTotalGrossSalary());
+                totalNet = totalNet.add(p.getTotalNetSalary());
+
+                BigDecimal socialForMonth = p.getTotalCnss().add(p.getTotalAmo()).add(p.getTotalIr());
+                totalSocial = totalSocial.add(socialForMonth);
+
+                // On récupère le nombre d'employés traités
+                List<PayrollItem> items = itemRepo.findAllByPayrollId(p.getId());
+                totalEmployees += items.size();
+                payrollCount++;
+            }
+        }
+
+        BigDecimal avgCost = BigDecimal.ZERO;
+        if (totalEmployees > 0) {
+            // Coût moyen = total brut / nombre total d'employés traités
+            avgCost = totalGross.divide(BigDecimal.valueOf(totalEmployees), 2, java.math.RoundingMode.HALF_UP);
+        }
+
+        return new PayrollAnalyticsDTOs.YtdSummaryDTO(totalGross, totalNet, totalSocial, avgCost);
+    }
+
+    /**
+     * NOUVEAU : Génère l'évolution mensuelle sur 6 mois (LineChart).
+     */
+    public List<PayrollAnalyticsDTOs.MonthlyTrendDTO> getMonthlyTrend(UUID orgId, int year) {
+        List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
+
+        return payrolls.stream()
+                .filter(p -> p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT)
+                .map(p -> {
+                    BigDecimal social = p.getTotalCnss().add(p.getTotalAmo()).add(p.getTotalIr());
+                    return new PayrollAnalyticsDTOs.MonthlyTrendDTO(
+                            getMonthName(p.getMonth()),
+                            p.getTotalGrossSalary(),
+                            p.getTotalNetSalary(),
+                            social
+                    );
+                })
+                .toList();
+    }
+
+    /**
+     * NOUVEAU : Génère la répartition des charges (PieChart).
+     */
+    public PayrollAnalyticsDTOs.ChargesDistributionDTO getChargesDistribution(UUID orgId, int year) {
+        List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
+
+        BigDecimal cnss = BigDecimal.ZERO;
+        BigDecimal amo = BigDecimal.ZERO;
+        BigDecimal ir = BigDecimal.ZERO;
+
+        for (Payroll p : payrolls) {
+            if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
+                cnss = cnss.add(p.getTotalCnss() != null ? p.getTotalCnss() : BigDecimal.ZERO);
+                amo = amo.add(p.getTotalAmo() != null ? p.getTotalAmo() : BigDecimal.ZERO);
+                ir = ir.add(p.getTotalIr() != null ? p.getTotalIr() : BigDecimal.ZERO);
+            }
+        }
+
+        return new PayrollAnalyticsDTOs.ChargesDistributionDTO(cnss, amo, ir);
     }
 }

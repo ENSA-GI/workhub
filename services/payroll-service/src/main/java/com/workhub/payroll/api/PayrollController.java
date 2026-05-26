@@ -91,4 +91,49 @@ public class PayrollController {
                 .header("Content-Disposition", "attachment; filename=\"bulletin_" + itemId + ".pdf\"")
                 .body(pdfContent);
     }
+
+    /**
+     * PUT /api/payrolls/{id}/status
+     * Permet de valider ou payer une paie.
+     */
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Payroll> updateStatus(
+            @PathVariable UUID id,
+            @RequestParam com.workhub.payroll.domain.PayrollStatus status,
+            @RequestHeader("X-User-Id") UUID updatedBy) {
+        return ResponseEntity.ok(payrollService.updatePayrollStatus(id, status, updatedBy));
+    }
+
+    /**
+     * GET /api/payrolls/analytics/ytd
+     * Pour les cartes KPI de synthèse annuelle.
+     */
+    @GetMapping("/analytics/ytd")
+    public ResponseEntity<com.workhub.payroll.dto.PayrollAnalyticsDTOs.YtdSummaryDTO> getYtdSummary(
+            @RequestParam UUID orgId,
+            @RequestParam int year) {
+        return ResponseEntity.ok(payrollService.getYtdSummary(orgId, year));
+    }
+
+    /**
+     * GET /api/payrolls/analytics/trend
+     * Pour le graphique linéaire d'évolution.
+     */
+    @GetMapping("/analytics/trend")
+    public ResponseEntity<List<com.workhub.payroll.dto.PayrollAnalyticsDTOs.MonthlyTrendDTO>> getTrend(
+            @RequestParam UUID orgId,
+            @RequestParam int year) {
+        return ResponseEntity.ok(payrollService.getMonthlyTrend(orgId, year));
+    }
+
+    /**
+     * GET /api/payrolls/analytics/charges
+     * Pour le camembert de répartition des taxes.
+     */
+    @GetMapping("/analytics/charges")
+    public ResponseEntity<com.workhub.payroll.dto.PayrollAnalyticsDTOs.ChargesDistributionDTO> getCharges(
+            @RequestParam UUID orgId,
+            @RequestParam int year) {
+        return ResponseEntity.ok(payrollService.getChargesDistribution(orgId, year));
+    }
 }
