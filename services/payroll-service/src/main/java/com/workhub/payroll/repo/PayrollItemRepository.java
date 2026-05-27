@@ -8,6 +8,8 @@ import java.util.UUID;
 
 @Repository
 public interface PayrollItemRepository extends JpaRepository<PayrollItem, UUID> {
+
     List<PayrollItem> findAllByPayrollId(UUID payrollId);
+
     List<PayrollItem> findAllByEmployeeId(UUID employeeId);
 }

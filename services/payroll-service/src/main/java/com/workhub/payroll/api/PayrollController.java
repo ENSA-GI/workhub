@@ -219,4 +219,25 @@ public class PayrollController {
 
         payrollService.exportPayslipsToZip(id, response.getOutputStream());
     }
+    /**
+     * GET /api/payrolls/search
+     * Filtre et recherche les paies d'une organisation (ex: ?orgId=xxx&year=2026&status=PAID)
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<Payroll>> searchPayrolls(
+            @RequestParam UUID orgId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) com.workhub.payroll.domain.PayrollStatus status) {
+
+        return ResponseEntity.ok(payrollService.searchPayrolls(orgId, year, month, status));
+    }
+    /**
+     * GET /api/payrolls/{id}
+     * Récupère les détails globaux d'une seule session de paie par son ID.
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Payroll> getPayrollById(@PathVariable UUID id) {
+        return ResponseEntity.ok(payrollService.getPayrollById(id));
+    }
 }

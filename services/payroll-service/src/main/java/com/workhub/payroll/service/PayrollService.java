@@ -459,4 +459,19 @@ public class PayrollService {
             throw new RuntimeException("Échec de la génération de l'archive ZIP.");
         }
     }
+    /**
+     * Recherche et filtre les paies d'une organisation selon des critères optionnels.
+     */
+    public List<Payroll> searchPayrolls(UUID orgId, Integer year, Integer month, PayrollStatus status) {
+        log.info("Searching payrolls for org {} (filters: year={}, month={}, status={})", orgId, year, month, status);
+        return payrollRepo.searchPayrolls(orgId, year, month, status);
+    }
+    /**
+     * Récupère une paie spécifique par son ID unique.
+     */
+    public Payroll getPayrollById(UUID id) {
+        log.info("Fetching payroll details for ID: {}", id);
+        return payrollRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Session de paie introuvable."));
+    }
 }
