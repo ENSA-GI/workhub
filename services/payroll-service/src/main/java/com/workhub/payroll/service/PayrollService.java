@@ -26,6 +26,7 @@ public class PayrollService {
     private final EmployeeClient employeeClient;
     private final PayrollEngine engine;
     private final PayrollEventsPublisher eventsPublisher;
+    private final PayrollBudgetRepository budgetRepo;
 
     // Injection des deux nouveaux services pour le PDF et MinIO
     private final PdfGenerator pdfGenerator;
@@ -388,9 +389,10 @@ public class PayrollService {
      */
     public com.workhub.payroll.dto.PayrollAnalyticsDTOs.BudgetUtilizationDTO getBudgetUtilization(UUID orgId, int year) {
         log.info("Calculating budget utilization for org {} and year {}", orgId, year);
-
         // Budget annuel par défaut de l'organisation (ex: 2 400 000 MAD, comme dans le mock frontend)
-        BigDecimal annualBudget = new BigDecimal("2400000.00");
+        BigDecimal annualBudget = budgetRepo.findByOrganizationIdAndBudgetYear(orgId, year)
+                .map(PayrollBudget::getTotalBudget)
+                .orElse(new BigDecimal("2400000.00"));
 
         List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
         BigDecimal spentAmount = BigDecimal.ZERO;
@@ -413,15 +415,29 @@ public class PayrollService {
         }
 
         return new com.workhub.payroll.dto.PayrollAnalyticsDTOs.BudgetUtilizationDTO(
-                annualBudget,
-                spentAmount,
-                remainingAmount,
-                utilizationPercentage
+                annualBudget, spentAmount, remainingAmount, utilizationPercentage
         );
     }
 
     /**
-     * NOUVEAU : Récupère tous les bulletins PDF d'un mois de paie sur MinIO
+     * Configure ou met à jour le budget annuel d'une organisation.
+     */
+    @Transactional
+    public PayrollBudget saveOrUpdateBudget(UUID orgId, int year, BigDecimal totalBudget) {
+        log.info("Saving annual budget of {} MAD for org {} in {}", totalBudget, orgId, year);
+
+        PayrollBudget budget = budgetRepo.findByOrganizationIdAndBudgetYear(orgId, year)
+                .orElse(new PayrollBudget());
+
+        budget.setOrganizationId(orgId);
+        budget.setBudgetYear(year);
+        budget.setTotalBudget(totalBudget);
+
+        return budgetRepo.save(budget);
+    }
+
+    /**
+     * Récupère tous les bulletins PDF d'un mois de paie sur MinIO
      * et les compresse dans un seul fichier ZIP envoyé au navigateur.
      */
     public void exportPayslipsToZip(UUID payrollId, java.io.OutputStream outputStream) {

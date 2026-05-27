@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -258,5 +259,16 @@ public class PayrollController {
     public ResponseEntity<Void> markAsRead(@PathVariable UUID itemId) {
         payrollService.markPayslipAsRead(itemId);
         return ResponseEntity.ok().build();
+    }
+    /**
+     * POST /api/payrolls/budget
+     * Configure ou met à jour le budget annuel de paie d'une organisation.
+     */
+    @PostMapping("/budget")
+    public ResponseEntity<com.workhub.payroll.domain.PayrollBudget> saveOrUpdateBudget(
+            @RequestParam UUID orgId,
+            @RequestParam int year,
+            @RequestParam BigDecimal totalBudget) {
+        return ResponseEntity.ok(payrollService.saveOrUpdateBudget(orgId, year, totalBudget));
     }
 }
