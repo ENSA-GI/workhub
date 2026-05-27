@@ -1,194 +1,106 @@
-import { DollarSign, TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useMemo, useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { TrendingUp, Loader2 } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { usePayrollAnalyticsYtd, usePayrollBudgetUtilization, usePayrollCharges, usePayrollDepartments, usePayrollTrend, payrollValue } from '@/lib/usePayroll';
 
 export default function PayrollAnalytics() {
-  const masseSalarialeEvolution = [
-    { id: 'ms-jan', mois: 'Jan', masseSalariale: 168000, charges: 33600 },
-    { id: 'ms-fev', mois: 'Fév', masseSalariale: 176000, charges: 35200 },
-    { id: 'ms-mar', mois: 'Mar', masseSalariale: 185000, charges: 37000 },
-    { id: 'ms-avr', mois: 'Avr', masseSalariale: 198000, charges: 39600 },
-  ];
+  const { user } = useUser();
+  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
 
-  const coutParDepartement = [
-    { id: 'dept-it', departement: 'IT', cout: 82500 },
-    { id: 'dept-ventes', departement: 'Ventes', cout: 52800 },
-    { id: 'dept-marketing', departement: 'Marketing', cout: 35200 },
-    { id: 'dept-finance', departement: 'Finance', cout: 19800 },
-    { id: 'dept-rh', departement: 'RH', cout: 7700 },
-  ];
+  const { data: ytd } = usePayrollAnalyticsYtd(organizationId, year);
+  const { data: trend = [], isLoading: trendLoading } = usePayrollTrend(organizationId, year);
+  const { data: charges } = usePayrollCharges(organizationId, year);
+  const { data: budget } = usePayrollBudgetUtilization(organizationId, year);
+  const { data: departments = [] } = usePayrollDepartments(organizationId, month, year);
 
-  const kpis = [
-    { label: 'Masse Salariale Avril', value: 'MAD 198,000', trend: 'up', change: '+7%', color: 'text-green-600' },
-    { label: 'Coût Moyen/Employé', value: 'MAD 4,400', trend: 'up', change: '+2%', color: 'text-orange-600' },
-    { label: 'Charges Sociales', value: 'MAD 39,600', trend: 'up', change: '+7%', color: 'text-blue-600' },
-    { label: 'Budget Annuel Utilisé', value: '32%', trend: 'stable', change: '', color: 'text-gray-600' },
-  ];
+  const previousPoint = trend.length > 1 ? trend[trend.length - 2] : null;
+  const currentPoint = trend.length ? trend[trend.length - 1] : null;
+  const variation = previousPoint && currentPoint ? currentPoint.gross - previousPoint.gross : 0;
 
-  const comparaison = [
-    { periode: 'Mars vs Avril', variation: '+7.0%', montant: '+MAD 13,000' },
-    { periode: 'Févr vs Avril', variation: '+12.5%', montant: '+MAD 22,000' },
-    { periode: 'Jan vs Avril', variation: '+17.9%', montant: '+MAD 30,000' },
-  ];
+  const chargesData = useMemo(() => [
+    { id: 'cnss', name: 'CNSS', value: payrollValue(charges?.totalCnss), color: '#0A6ED1' },
+    { id: 'amo', name: 'AMO', value: payrollValue(charges?.totalAmo), color: '#10B981' },
+    { id: 'ir', name: 'IR', value: payrollValue(charges?.totalIr), color: '#F59E0B' },
+  ].filter((item) => item.value > 0), [charges]);
+
+  if (!organizationId) {
+    return <div className="p-6 text-center text-red-600">ID d'organisation manquant dans Clerk.</div>;
+  }
 
   return (
     <div className="p-6 bg-[#F5F7FA]">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Analytics Paie</h1>
-        <p className="text-sm text-gray-600 mt-1">Vue analytique de la masse salariale et des coûts</p>
+      <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Analytics Paie</h1>
+          <p className="text-sm text-gray-600 mt-1">Toutes les métriques viennent du backend</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="px-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]">
+            {[currentYear, currentYear - 1, currentYear - 2].map((y) => <option key={y} value={y}>Année {y}</option>)}
+          </select>
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className="px-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]">
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>Mois {m}</option>)}
+          </select>
+        </div>
       </div>
 
-      {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        {kpis.map((kpi, index) => (
-          <div key={index} className="bg-white border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-medium text-gray-500 uppercase">{kpi.label}</h3>
-              {kpi.trend === 'up' ? (
-                <TrendingUp className={`w-4 h-4 ${kpi.color}`} />
-              ) : kpi.trend === 'down' ? (
-                <TrendingDown className={`w-4 h-4 ${kpi.color}`} />
-              ) : null}
-            </div>
-            <p className="text-3xl font-semibold text-gray-900 mb-1">{kpi.value}</p>
-            {kpi.change && <p className={`text-xs ${kpi.color}`}>{kpi.change}</p>}
-          </div>
-        ))}
+        <div className="bg-white border border-gray-200 p-6"><h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Masse Salariale YTD</h3><p className="text-3xl font-semibold text-gray-900">MAD {payrollValue(ytd?.totalGrossYtd).toLocaleString('fr-FR')}</p><p className="text-xs text-green-600 mt-1"><TrendingUp className="inline w-3 h-3 mr-1" />backend</p></div>
+        <div className="bg-white border border-gray-200 p-6"><h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Salaire Net YTD</h3><p className="text-3xl font-semibold text-green-600">MAD {payrollValue(ytd?.totalNetYtd).toLocaleString('fr-FR')}</p></div>
+        <div className="bg-white border border-gray-200 p-6"><h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Charges Sociales YTD</h3><p className="text-3xl font-semibold text-orange-600">MAD {payrollValue(ytd?.totalSocialChargesYtd).toLocaleString('fr-FR')}</p></div>
+        <div className="bg-white border border-gray-200 p-6"><h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Coût Moyen / Employé</h3><p className="text-3xl font-semibold text-purple-600">MAD {payrollValue(ytd?.averageCostPerEmployee).toLocaleString('fr-FR')}</p></div>
       </div>
 
-      {/* Graphiques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Évolution Masse Salariale */}
         <div className="bg-white border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-900">Évolution de la Masse Salariale</h3>
-          </div>
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between"><h3 className="text-base font-semibold text-gray-900">Évolution de la Masse Salariale</h3>{trendLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-500" />}</div>
+          <div className="p-6"><ResponsiveContainer width="100%" height={300}><LineChart data={trend}><CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" /><XAxis dataKey="month" stroke="#6B7280" /><YAxis stroke="#6B7280" /><Tooltip /><Legend /><Line type="monotone" dataKey="gross" stroke="#0A6ED1" strokeWidth={2} name="Brut" /><Line type="monotone" dataKey="net" stroke="#10B981" strokeWidth={2} name="Net" /><Line type="monotone" dataKey="socialCharges" stroke="#F59E0B" strokeWidth={2} name="Charges" /></LineChart></ResponsiveContainer></div>
+        </div>
+
+        <div className="bg-white border border-gray-200">
+          <div className="p-4 border-b border-gray-200"><h3 className="text-base font-semibold text-gray-900">Coûts par Département</h3></div>
+          <div className="p-6"><ResponsiveContainer width="100%" height={300}><BarChart data={departments}><CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" /><XAxis dataKey="departmentName" stroke="#6B7280" /><YAxis stroke="#6B7280" /><Tooltip /><Legend /><Bar dataKey="totalCost" fill="#0A6ED1" name="Coût" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer></div>
+        </div>
+
+        <div className="bg-white border border-gray-200">
+          <div className="p-4 border-b border-gray-200"><h3 className="text-base font-semibold text-gray-900">Répartition des Charges</h3></div>
           <div className="p-6">
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={masseSalarialeEvolution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" key="grid-ms" />
-                <XAxis dataKey="mois" stroke="#6B7280" key="xaxis-ms" />
-                <YAxis stroke="#6B7280" key="yaxis-ms" />
-                <Tooltip key="tooltip-ms" />
-                <Legend key="legend-ms" />
-                <Line type="monotone" dataKey="masseSalariale" stroke="#0A6ED1" strokeWidth={2} name="Masse Salariale (MAD )" key="line-ms" />
-                <Line type="monotone" dataKey="charges" stroke="#F59E0B" strokeWidth={2} name="Charges Sociales (MAD )" key="line-charges" />
-              </LineChart>
+              <PieChart>
+                <Pie data={chargesData} cx="50%" cy="50%" outerRadius={80} dataKey="value" labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                  {chargesData.map((entry) => <Cell key={entry.id} fill={entry.color} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
             </ResponsiveContainer>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {chargesData.map((charge) => <div key={charge.id} className="flex items-center justify-between p-2 bg-gray-50 border border-gray-200"><span className="text-xs text-gray-700">{charge.name}</span><span className="text-xs font-medium text-gray-900">MAD {charge.value.toLocaleString('fr-FR')}</span></div>)}
+            </div>
           </div>
         </div>
 
-        {/* Coût par Département */}
         <div className="bg-white border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-900">Coûts par Département (Avril)</h3>
-          </div>
-          <div className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={coutParDepartement}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" key="grid-dept" />
-                <XAxis dataKey="departement" stroke="#6B7280" key="xaxis-dept" />
-                <YAxis stroke="#6B7280" key="yaxis-dept" />
-                <Tooltip key="tooltip-dept" />
-                <Legend key="legend-dept" />
-                <Bar dataKey="cout" fill="#10B981" name="Coût (MAD )" key="bar-dept" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="p-4 border-b border-gray-200"><h3 className="text-base font-semibold text-gray-900">Budget Annuel</h3></div>
+          <div className="p-6 space-y-4">
+            <div className="flex justify-between pb-3 border-b border-gray-100"><span className="text-sm text-gray-600">Budget Total</span><span className="text-sm font-medium text-gray-900">MAD {payrollValue(budget?.annualBudget).toLocaleString('fr-FR')}</span></div>
+            <div className="flex justify-between pb-3 border-b border-gray-100"><span className="text-sm text-gray-600">Dépensé</span><span className="text-sm font-medium text-gray-900">MAD {payrollValue(budget?.spentAmount).toLocaleString('fr-FR')}</span></div>
+            <div className="flex justify-between pb-3 border-b border-gray-100"><span className="text-sm text-gray-600">Restant</span><span className="text-sm font-medium text-green-600">MAD {payrollValue(budget?.remainingAmount).toLocaleString('fr-FR')}</span></div>
+            <div className="pt-2"><p className="text-xs text-gray-600 mb-2">Utilisation</p><div className="w-full bg-gray-200 h-3"><div className="bg-[#0A6ED1] h-3" style={{ width: `${budget?.utilizationPercentage ?? 0}%` }} /></div><p className="text-xs text-gray-500 mt-1">{(budget?.utilizationPercentage ?? 0).toFixed(0)}% utilisé</p></div>
           </div>
         </div>
       </div>
 
-      {/* Comparaisons */}
       <div className="bg-white border border-gray-200 mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center">
-            <BarChart3 className="w-5 h-5 text-[#0A6ED1] mr-2" />
-            <h3 className="text-base font-semibold text-gray-900">Comparaisons Mensuelles</h3>
-          </div>
+        <div className="p-4 border-b border-gray-200"><h3 className="text-base font-semibold text-gray-900">Variation du mois</h3></div>
+        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gray-50 border border-gray-200 p-4"><p className="text-sm text-gray-600 mb-2">Brut courant</p><p className="text-2xl font-semibold text-gray-900">MAD {currentPoint ? currentPoint.gross.toLocaleString('fr-FR') : '0'}</p></div>
+          <div className="bg-gray-50 border border-gray-200 p-4"><p className="text-sm text-gray-600 mb-2">Variation vs mois précédent</p><p className={`text-2xl font-semibold ${variation >= 0 ? 'text-green-600' : 'text-red-600'}`}>{variation >= 0 ? '+' : ''}MAD {Math.abs(variation).toLocaleString('fr-FR')}</p></div>
+          <div className="bg-gray-50 border border-gray-200 p-4"><p className="text-sm text-gray-600 mb-2">Statut</p><p className="text-2xl font-semibold text-gray-900">Analyse temps réel</p></div>
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {comparaison.map((comp, index) => (
-              <div key={index} className="bg-gray-50 border border-gray-200 p-4">
-                <p className="text-sm text-gray-600 mb-2">{comp.periode}</p>
-                <p className="text-2xl font-semibold text-gray-900 mb-1">{comp.variation}</p>
-                <p className="text-sm text-green-600">{comp.montant}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Résumés Détaillés */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Répartition des Coûts */}
-        <div className="bg-white border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-900">Répartition des Coûts (Avril)</h3>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between pb-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Salaires Bruts</span>
-              <span className="text-sm font-medium text-gray-900">MAD 198,000</span>
-            </div>
-            <div className="flex justify-between pb-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Charges Patronales (20%)</span>
-              <span className="text-sm font-medium text-gray-900">MAD 39,600</span>
-            </div>
-            <div className="flex justify-between pb-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Primes Variables</span>
-              <span className="text-sm font-medium text-gray-900">MAD 8,500</span>
-            </div>
-            <div className="flex justify-between pb-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Avantages (tickets, assurance)</span>
-              <span className="text-sm font-medium text-gray-900">MAD 4,200</span>
-            </div>
-            <div className="flex justify-between pt-2 border-t-2 border-gray-300">
-              <span className="text-sm font-semibold text-gray-900">Coût Total</span>
-              <span className="text-base font-bold text-[#0A6ED1]">MAD 250,300</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Budget Annuel */}
-        <div className="bg-white border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-900">Budget Annuel 2026</h3>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="flex justify-between pb-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Budget Total Annuel</span>
-              <span className="text-sm font-medium text-gray-900">MAD 2,400,000</span>
-            </div>
-            <div className="flex justify-between pb-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Dépensé (Jan-Avr)</span>
-              <span className="text-sm font-medium text-gray-900">MAD 762,000</span>
-            </div>
-            <div className="flex justify-between pb-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Restant</span>
-              <span className="text-sm font-medium text-green-600">MAD 1,638,000</span>
-            </div>
-            <div className="flex justify-between pb-3 border-b border-gray-100">
-              <span className="text-sm text-gray-600">Projection Fin d'Année</span>
-              <span className="text-sm font-medium text-gray-900">MAD 2,376,000</span>
-            </div>
-            <div className="pt-2">
-              <p className="text-xs text-gray-600 mb-2">Utilisation</p>
-              <div className="w-full bg-gray-200 h-3">
-                <div className="bg-[#0A6ED1] h-3" style={{ width: '32%' }}></div>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">32% utilisé</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Info Box */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 p-4">
-        <h4 className="text-sm font-semibold text-blue-900 mb-2">Mode Analyse Uniquement</h4>
-        <p className="text-sm text-blue-800">
-          En tant qu'Administrateur d'Organisation, vous avez accès aux analyses et rapports de paie.
-          La génération de la paie et l'ajout de primes sont effectués par l'équipe RH.
-        </p>
       </div>
     </div>
   );
