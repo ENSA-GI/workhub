@@ -419,4 +419,44 @@ public class PayrollService {
                 utilizationPercentage
         );
     }
+
+    /**
+     * NOUVEAU : Récupère tous les bulletins PDF d'un mois de paie sur MinIO
+     * et les compresse dans un seul fichier ZIP envoyé au navigateur.
+     */
+    public void exportPayslipsToZip(UUID payrollId, java.io.OutputStream outputStream) {
+        log.info("Generating ZIP archive of payslips for payroll: {}", payrollId);
+
+        // 1. Récupérer toutes les lignes de paie (items) du mois
+        List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollId);
+
+        // 2. Créer le flux de compression ZIP (ZipOutputStream)
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(outputStream)) {
+
+            for (PayrollItem item : items) {
+                // Si l'employé possède bien un bulletin PDF généré
+                if (item.getBulletinPdfUrl() != null) {
+
+                    // Télécharger le PDF depuis MinIO
+                    byte[] pdfBytes = storageService.downloadPdf(item.getBulletinPdfUrl());
+
+                    // Créer une entrée dans le ZIP (un fichier "bulletin_ID.pdf")
+                    String entryName = String.format("bulletin_employe_%s.pdf", item.getEmployeeId());
+                    java.util.zip.ZipEntry zipEntry = new java.util.zip.ZipEntry(entryName);
+
+                    zos.putNextEntry(zipEntry);
+                    zos.write(pdfBytes);
+                    zos.closeEntry();
+
+                    log.info("Ajout du bulletin {} à l'archive ZIP.", entryName);
+                }
+            }
+            zos.finish();
+            log.info("Export ZIP terminé avec succès pour la paie {}.", payrollId);
+
+        } catch (Exception e) {
+            log.error("Erreur lors de la génération du fichier ZIP : {}", e.getMessage());
+            throw new RuntimeException("Échec de la génération de l'archive ZIP.");
+        }
+    }
 }

@@ -203,4 +203,20 @@ public class PayrollController {
             @RequestParam int year) {
         return ResponseEntity.ok(payrollService.getBudgetUtilization(orgId, year));
     }
+
+    /**
+     * GET /api/payrolls/{id}/payslips/export-zip
+     * Permet au RH de télécharger toutes les fiches de paie du mois compressées dans un fichier ZIP.
+     */
+    @GetMapping("/{id}/payslips/export-zip")
+    public void exportPayslipsToZip(
+            @PathVariable UUID id,
+            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+
+        // Configuration des en-têtes HTTP pour un fichier ZIP binaires
+        response.setContentType("application/zip");
+        response.setHeader("Content-Disposition", "attachment; filename=\"bulletins_paie_session_" + id + ".zip\"");
+
+        payrollService.exportPayslipsToZip(id, response.getOutputStream());
+    }
 }
