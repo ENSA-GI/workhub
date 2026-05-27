@@ -29,5 +29,6 @@ public interface EmployeeClient {
         private String lastName;
         private BigDecimal baseSalary;
         private Integer childrenCount;
+        private String department;
     }
 }

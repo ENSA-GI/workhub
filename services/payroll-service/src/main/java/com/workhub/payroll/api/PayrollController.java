@@ -175,4 +175,32 @@ public class PayrollController {
             @RequestBody com.workhub.payroll.domain.PayrollParameter newParams) {
         return ResponseEntity.ok(payrollService.updateConfig(orgId, newParams));
     }
+
+    /**
+     * GET /api/payrolls/export/csv
+     * Génère et lance le téléchargement d'un fichier CSV de l'historique des paies.
+     */
+    @GetMapping("/export/csv")
+    public void exportPayrollHistoryToCsv(
+            @RequestParam UUID orgId,
+            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+
+        // Configuration des en-têtes HTTP pour déclencher un téléchargement de fichier
+        response.setContentType("text/csv");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"payroll_history_org_" + orgId + ".csv\"");
+
+        payrollService.exportPayrollHistoryToCsv(orgId, response.getWriter());
+    }
+
+    /**
+     * GET /api/payrolls/budget/utilization
+     * Retourne le taux d'utilisation en temps réel du budget annuel de l'organisation.
+     */
+    @GetMapping("/budget/utilization")
+    public ResponseEntity<com.workhub.payroll.dto.PayrollAnalyticsDTOs.BudgetUtilizationDTO> getBudgetUtilization(
+            @RequestParam UUID orgId,
+            @RequestParam int year) {
+        return ResponseEntity.ok(payrollService.getBudgetUtilization(orgId, year));
+    }
 }

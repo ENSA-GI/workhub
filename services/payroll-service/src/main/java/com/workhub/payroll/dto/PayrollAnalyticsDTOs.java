@@ -33,4 +33,12 @@ public class PayrollAnalyticsDTOs {
             BigDecimal totalCost,
             long employeeCount
     ) {}
+
+    // Pour la jauge de budget de l'Admin Org
+    public record BudgetUtilizationDTO(
+            BigDecimal annualBudget,
+            BigDecimal spentAmount,
+            BigDecimal remainingAmount,
+            double utilizationPercentage
+    ) {}
 }

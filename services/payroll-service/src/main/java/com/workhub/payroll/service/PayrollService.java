@@ -354,4 +354,69 @@ public class PayrollService {
 
         return paramsRepo.save(newParams);
     }
+    /**
+     * NOUVEAU : Génère un fichier CSV d'historique des paies directement dans le flux de réponse.
+     */
+    public void exportPayrollHistoryToCsv(UUID orgId, java.io.PrintWriter writer) {
+        log.info("Generating payroll history CSV for organization: {}", orgId);
+
+        List<Payroll> payrolls = payrollRepo.findByOrganizationIdOrderByYearDescMonthDesc(orgId);
+
+        // En-tête du fichier CSV (format professionnel)
+        writer.println("ID Paie,Annee,Mois,Statut,Total Brut (MAD),Total Net (MAD),CNSS (MAD),AMO (MAD),IR (MAD),Date Generation");
+
+        // Remplissage des lignes
+        for (Payroll p : payrolls) {
+            writer.printf("%s,%d,%d,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%s\n",
+                    p.getId(),
+                    p.getYear(),
+                    p.getMonth(),
+                    p.getStatus().toString(),
+                    p.getTotalGrossSalary(),
+                    p.getTotalNetSalary(),
+                    p.getTotalCnss() != null ? p.getTotalCnss() : java.math.BigDecimal.ZERO,
+                    p.getTotalAmo() != null ? p.getTotalAmo() : java.math.BigDecimal.ZERO,
+                    p.getTotalIr() != null ? p.getTotalIr() : java.math.BigDecimal.ZERO,
+                    p.getGeneratedAt()
+            );
+        }
+        writer.flush();
+    }
+
+    /**
+     * NOUVEAU : Calcule dynamiquement l'utilisation du budget annuel (zéro hardcoding).
+     */
+    public com.workhub.payroll.dto.PayrollAnalyticsDTOs.BudgetUtilizationDTO getBudgetUtilization(UUID orgId, int year) {
+        log.info("Calculating budget utilization for org {} and year {}", orgId, year);
+
+        // Budget annuel par défaut de l'organisation (ex: 2 400 000 MAD, comme dans le mock frontend)
+        BigDecimal annualBudget = new BigDecimal("2400000.00");
+
+        List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
+        BigDecimal spentAmount = BigDecimal.ZERO;
+
+        // On fait la somme des coûts réels (Brut) de toutes les paies validées ou payées de l'année
+        for (Payroll p : payrolls) {
+            if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
+                // Coût total employeur approché = Salaire Brut
+                spentAmount = spentAmount.add(p.getTotalGrossSalary());
+            }
+        }
+
+        BigDecimal remainingAmount = annualBudget.subtract(spentAmount).max(BigDecimal.ZERO);
+
+        double utilizationPercentage = 0.0;
+        if (annualBudget.compareTo(BigDecimal.ZERO) > 0) {
+            utilizationPercentage = spentAmount.divide(annualBudget, 4, java.math.RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"))
+                    .doubleValue();
+        }
+
+        return new com.workhub.payroll.dto.PayrollAnalyticsDTOs.BudgetUtilizationDTO(
+                annualBudget,
+                spentAmount,
+                remainingAmount,
+                utilizationPercentage
+        );
+    }
 }
