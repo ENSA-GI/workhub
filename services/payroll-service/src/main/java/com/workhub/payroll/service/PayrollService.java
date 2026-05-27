@@ -3,6 +3,7 @@ package com.workhub.payroll.service;
 import com.workhub.payroll.client.EmployeeClient;
 import com.workhub.payroll.domain.*;
 import com.workhub.payroll.dto.PayrollAnalyticsDTOs;
+import com.workhub.payroll.dto.PayrollAdjustmentDTO;
 import com.workhub.payroll.repo.*;
 import com.workhub.payroll.kafka.producer.PayrollEventsPublisher;
 import com.workhub.payroll.kafka.event.PayrollGeneratedEvent;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +25,7 @@ public class PayrollService {
     private final PayrollRepository payrollRepo;
     private final PayrollItemRepository itemRepo;
     private final PayrollParameterRepository paramsRepo;
+    private final PayrollAdjustmentRepository adjustmentRepo;
     private final EmployeeClient employeeClient;
     private final PayrollEngine engine;
     private final PayrollEventsPublisher eventsPublisher;
@@ -539,5 +542,110 @@ public class PayrollService {
         item.setReadAt(java.time.LocalDateTime.now());
 
         itemRepo.save(item);
+    }
+
+    /**
+     * Ajoute un ajustement (heures sup, prime, déduction) à un bulletin
+     */
+    @Transactional
+    public PayrollAdjustment addAdjustment(UUID payrollItemId, PayrollAdjustmentDTO dto) {
+        log.info("Adding adjustment to payroll item {}: type={}, amount={}", payrollItemId, dto.getType(), dto.getAmount());
+
+        PayrollItem item = itemRepo.findById(payrollItemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin de paie introuvable."));
+
+        PayrollAdjustment adjustment = PayrollAdjustment.builder()
+                .payrollItem(item)
+                .type(PayrollAdjustment.AdjustmentType.valueOf(dto.getType().toUpperCase()))
+                .amount(dto.getAmount())
+                .description(dto.getDescription())
+                .build();
+
+        PayrollAdjustment saved = adjustmentRepo.save(adjustment);
+        recalculateItemAndPayroll(item.getId());
+        log.info("Adjustment added with id: {}", saved.getId());
+        return saved;
+    }
+
+    /**
+     * Supprime un ajustement
+     */
+    @Transactional
+    public void deleteAdjustment(UUID adjustmentId) {
+        log.info("Deleting adjustment: {}", adjustmentId);
+
+        PayrollAdjustment adjustment = adjustmentRepo.findById(adjustmentId)
+                .orElseThrow(() -> new RuntimeException("Ajustement introuvable."));
+
+        UUID payrollItemId = adjustment.getPayrollItem().getId();
+
+        adjustmentRepo.delete(adjustment);
+        recalculateItemAndPayroll(payrollItemId);
+        log.info("Adjustment deleted successfully");
+    }
+
+    private void recalculateItemAndPayroll(UUID payrollItemId) {
+        PayrollItem item = itemRepo.findById(payrollItemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin de paie introuvable."));
+
+        UUID organizationId = item.getPayroll().getOrganizationId();
+        PayrollParameter params = paramsRepo.findFirstByOrganizationIdAndActiveTrueOrderByEffectiveDateDesc(organizationId)
+                .orElseThrow(() -> new RuntimeException("Paramètres de paie non configurés."));
+
+        EmployeeClient.EmployeeResponse employee = employeeClient.getEmployeeById(item.getEmployeeId(), organizationId);
+        int children = employee.getChildrenCount() != null ? employee.getChildrenCount() : 0;
+
+        BigDecimal baseGross = nvl(item.getBaseSalary())
+                .add(nvl(item.getTransportBonus()))
+                .add(nvl(item.getMealBonus()))
+                .add(nvl(item.getPerformanceBonus()));
+
+        BigDecimal adjustmentDelta = adjustmentRepo.findByPayrollItemId(payrollItemId).stream()
+                .map(a -> a.getType() == PayrollAdjustment.AdjustmentType.DEDUCTION ? a.getAmount().negate() : a.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal recalculatedBase = baseGross.add(adjustmentDelta).max(BigDecimal.ZERO);
+        PayrollEngine.CalculationResult result = engine.calculate(recalculatedBase, BigDecimal.ZERO, params, children);
+
+        item.setGrossSalary(result.gross());
+        item.setCnssDeduction(result.cnss());
+        item.setAmoDeduction(result.amo());
+        item.setTaxableIncome(result.taxable());
+        item.setIrDeduction(result.ir());
+        item.setNetSalary(result.net());
+        itemRepo.save(item);
+
+        recalculatePayrollTotals(item.getPayroll().getId());
+    }
+
+    private void recalculatePayrollTotals(UUID payrollId) {
+        Payroll payroll = payrollRepo.findById(payrollId)
+                .orElseThrow(() -> new RuntimeException("Paie introuvable."));
+
+        List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollId);
+        BigDecimal totalGross = BigDecimal.ZERO;
+        BigDecimal totalNet = BigDecimal.ZERO;
+        BigDecimal totalCnss = BigDecimal.ZERO;
+        BigDecimal totalAmo = BigDecimal.ZERO;
+        BigDecimal totalIr = BigDecimal.ZERO;
+
+        for (PayrollItem payrollItem : items) {
+            totalGross = totalGross.add(nvl(payrollItem.getGrossSalary()));
+            totalNet = totalNet.add(nvl(payrollItem.getNetSalary()));
+            totalCnss = totalCnss.add(nvl(payrollItem.getCnssDeduction()));
+            totalAmo = totalAmo.add(nvl(payrollItem.getAmoDeduction()));
+            totalIr = totalIr.add(nvl(payrollItem.getIrDeduction()));
+        }
+
+        payroll.setTotalGrossSalary(totalGross.setScale(2, RoundingMode.HALF_UP));
+        payroll.setTotalNetSalary(totalNet.setScale(2, RoundingMode.HALF_UP));
+        payroll.setTotalCnss(totalCnss.setScale(2, RoundingMode.HALF_UP));
+        payroll.setTotalAmo(totalAmo.setScale(2, RoundingMode.HALF_UP));
+        payroll.setTotalIr(totalIr.setScale(2, RoundingMode.HALF_UP));
+        payrollRepo.save(payroll);
+    }
+
+    private BigDecimal nvl(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

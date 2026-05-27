@@ -41,6 +41,13 @@ export interface PayrollItem {
   bulletinPdfUrl?: string | null;
   isRead?: boolean;
   readAt?: string | null;
+  adjustments?: {
+    id: string;
+    type: 'OVERTIME' | 'BONUS' | 'DEDUCTION' | string;
+    amount: number | string;
+    description?: string | null;
+    createdAt?: string;
+  }[];
 }
 
 export interface PayrollParameter {
@@ -297,8 +304,38 @@ export function useSavePayrollBudget() {
   });
 }
 
+export function useAddPayrollAdjustment() {
+  const apiFetch = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation<any, Error, { payrollItemId: string; type: string; amount: number; description?: string }>({
+    mutationFn: ({ payrollItemId, type, amount, description }) =>
+      apiFetch(`${payrollBase}/items/${payrollItemId}/adjustments`, {
+        method: 'POST',
+        body: JSON.stringify({ type, amount, description }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-items'] });
+      queryClient.invalidateQueries({ queryKey: ['payrolls'] });
+    },
+  });
+}
+
+export function useDeletePayrollAdjustment() {
+  const apiFetch = useApi();
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, string>({
+    mutationFn: (adjustmentId) =>
+      apiFetch(`${payrollBase}/adjustments/${adjustmentId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-items'] });
+      queryClient.invalidateQueries({ queryKey: ['payrolls'] });
+    },
+  });
+}
+
 export function payrollValue(value: number | string | null | undefined) {
   return asNumber(value);
 }
-
 

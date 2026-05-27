@@ -4,7 +4,7 @@ import { useUser } from '@clerk/clerk-react';
 import { Calendar, Download, CheckCircle, Search, Filter, Loader2 } from 'lucide-react';
 import { useDepartments } from '@/lib/useOrg';
 import { useEmployees } from '@/lib/useEmployees';
-import { useGeneratePayroll, usePayrollConfig } from '@/lib/usePayroll';
+import { useGeneratePayroll, usePayrollConfig, usePayrollItems, usePayrolls, payrollValue } from '@/lib/usePayroll';
 
 function parseRate(value: number | string | null | undefined, fallback: number) {
   if (value === null || value === undefined || value === '') return fallback;
@@ -28,6 +28,7 @@ export default function PayrollGeneration() {
   const { data: employeesData, isLoading: employeesLoading } = useEmployees(organizationId, 0, 200, 'ACTIVE');
   const { data: departmentsData } = useDepartments(organizationId, 0, 200);
   const { data: payrollConfig } = usePayrollConfig(organizationId);
+  const { data: payrolls = [] } = usePayrolls(organizationId);
   const generatePayroll = useGeneratePayroll();
 
   const employees = employeesData?.content || [];
@@ -37,6 +38,11 @@ export default function PayrollGeneration() {
   const rateCnss = parseRate(payrollConfig?.cnssEmployeeRate, 0.0448);
   const rateAmo = parseRate(payrollConfig?.amoEmployeeRate, 0.0226);
   const rateIr = 0.10;
+
+  const selectedYear = Number(selectedMonth.split('-')[0]);
+  const selectedMonthNumber = Number(selectedMonth.split('-')[1]);
+  const selectedPayroll = useMemo(() => payrolls.find((payroll) => payroll.year === selectedYear && payroll.month === selectedMonthNumber) || null, [payrolls, selectedYear, selectedMonthNumber]);
+  const { data: selectedPayrollItems = [] } = usePayrollItems(selectedPayroll?.id || '');
 
   const enrichedEmployees = useMemo(() => employees.map((emp) => {
     const department = departments.find((d) => d.id === emp.departmentId)?.name || emp.departmentId || 'Non spécifié';
@@ -49,7 +55,39 @@ export default function PayrollGeneration() {
     };
   }), [employees, departments, rateAmo, rateCnss, rateIr]);
 
-  const filteredEmployees = enrichedEmployees.filter((emp) => {
+  const payrollRows = useMemo(() => selectedPayrollItems.map((item) => {
+    const employee = employees.find((emp) => emp.id === item.employeeId);
+    const department = departments.find((d) => d.id === employee?.departmentId)?.name || employee?.departmentId || 'Non spécifié';
+    const adjustments = Array.isArray(item.adjustments) ? item.adjustments : [];
+    const adjustmentTotal = adjustments.reduce((sum, adj) => {
+      const amount = payrollValue(adj.amount);
+      return sum + (adj.type === 'DEDUCTION' ? -amount : amount);
+    }, 0);
+
+    return {
+      id: item.id,
+      employeeId: item.employeeId,
+      department,
+      positionId: employee?.positionId || '—',
+      label: employee?.cin || employee?.userId || item.employeeId,
+      estimatedGross: payrollValue(item.grossSalary),
+      estimatedNet: payrollValue(item.netSalary),
+      adjustmentTotal,
+    };
+  }), [departments, employees, selectedPayrollItems]);
+
+  const displayRows = selectedPayroll ? payrollRows : enrichedEmployees.map((emp) => ({
+    id: emp.id,
+    employeeId: emp.id,
+    department: emp.department,
+    positionId: emp.positionId,
+    label: emp.cin || emp.userId || emp.id,
+    estimatedGross: emp.estimatedGross,
+    estimatedNet: emp.estimatedNet,
+    adjustmentTotal: 0,
+  }));
+
+  const filteredEmployees = displayRows.filter((emp) => {
     const searchTarget = `${emp.id} ${emp.userId} ${emp.cin}`.toLowerCase();
     const matchSearch = searchTarget.includes(searchTerm.toLowerCase());
     const matchDept = filterDept === 'Tous' || emp.department === filterDept;
@@ -59,6 +97,7 @@ export default function PayrollGeneration() {
   const totalGross = filteredEmployees.reduce((sum, emp) => sum + emp.estimatedGross, 0);
   const totalNet = filteredEmployees.reduce((sum, emp) => sum + emp.estimatedNet, 0);
   const totalCharges = totalGross - totalNet;
+  const hasGeneratedPayroll = !!selectedPayroll;
 
   const handleGeneratePayroll = async () => {
     if (!organizationId || !generatedBy) {
@@ -86,7 +125,11 @@ export default function PayrollGeneration() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Génération de la Paie</h1>
-          <p className="text-sm text-gray-600 mt-1">Employés, départements et paramètres chargés depuis le backend</p>
+          <p className="text-sm text-gray-600 mt-1">
+            {hasGeneratedPayroll
+              ? 'Paie générée pour cette période chargée depuis le backend'
+              : 'Aperçu des employés avant génération, chargé depuis le backend'}
+          </p>
         </div>
         <div className="flex items-center space-x-3">
           <button disabled className="px-4 py-2 border border-gray-300 text-gray-500 bg-white flex items-center cursor-not-allowed">
@@ -112,6 +155,7 @@ export default function PayrollGeneration() {
           <div className="flex items-center space-x-6">
             <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Période</p><p className="text-sm font-medium text-gray-900">{monthLabel(selectedMonth)}</p></div>
             <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Employés actifs</p><p className="text-lg font-semibold text-gray-900">{employees.length}</p></div>
+            <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Source</p><p className="text-sm font-medium text-gray-900">{hasGeneratedPayroll ? 'Backend paie' : 'Aperçu RH'}</p></div>
           </div>
         </div>
       </div>
@@ -142,7 +186,11 @@ export default function PayrollGeneration() {
       <div className="bg-white border border-gray-200 mb-6">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-base font-semibold text-gray-900">Détail des Salaires - {monthLabel(selectedMonth)}</h3>
-          <span className="text-sm text-gray-500">Taux backend: CNSS {((rateCnss * 100).toFixed(2))}% | AMO {((rateAmo * 100).toFixed(2))}% | IR {((rateIr * 100).toFixed(0))}%</span>
+          <span className="text-sm text-gray-500">
+            {hasGeneratedPayroll
+              ? 'Données réelles de la paie générée avec ajustements backend'
+              : `Taux backend: CNSS ${((rateCnss * 100).toFixed(2))}% | AMO ${((rateAmo * 100).toFixed(2))}% | IR ${((rateIr * 100).toFixed(0))}%`}
+          </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -152,28 +200,31 @@ export default function PayrollGeneration() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employé</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Département</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Poste</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salaire Brut Estimé</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salaire Net Estimé</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ajustements</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salaire Brut</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salaire Net</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredEmployees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-gray-50">
                   <td className="px-4 py-4 text-sm font-medium text-gray-900">{emp.id.slice(0, 8)}</td>
-                  <td className="px-4 py-4 text-sm text-gray-900">{emp.cin || emp.userId || emp.id}</td>
+                  <td className="px-4 py-4 text-sm text-gray-900">{emp.label}</td>
                   <td className="px-4 py-4 text-sm text-gray-600">{emp.department}</td>
                   <td className="px-4 py-4 text-sm text-gray-600">{emp.positionId}</td>
+                  <td className="px-4 py-4 text-sm text-right text-gray-600">MAD {emp.adjustmentTotal.toLocaleString('fr-FR')}</td>
                   <td className="px-4 py-4 text-sm text-right text-gray-900">MAD {emp.estimatedGross.toLocaleString('fr-FR')}</td>
                   <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {emp.estimatedNet.toLocaleString('fr-FR')}</td>
                 </tr>
               ))}
               {!employeesLoading && filteredEmployees.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">Aucun employé actif à générer.</td></tr>
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500">Aucune donnée disponible pour cette période.</td></tr>
               )}
             </tbody>
             <tfoot className="bg-gray-50 border-t-2 border-gray-300">
               <tr>
                 <td colSpan={4} className="px-4 py-4 text-sm font-semibold text-gray-900 uppercase">Total Général ({filteredEmployees.length} employés)</td>
+                <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {filteredEmployees.reduce((sum, emp) => sum + (emp.adjustmentTotal || 0), 0).toLocaleString('fr-FR')}</td>
                 <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {totalGross.toLocaleString('fr-FR')}</td>
                 <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {totalNet.toLocaleString('fr-FR')}</td>
               </tr>

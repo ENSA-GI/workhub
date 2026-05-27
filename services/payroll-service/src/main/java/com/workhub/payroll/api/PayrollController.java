@@ -2,7 +2,10 @@ package com.workhub.payroll.api;
 
 import com.workhub.payroll.domain.Payroll;
 import com.workhub.payroll.domain.PayrollItem;
+import com.workhub.payroll.domain.PayrollAdjustment;
+import com.workhub.payroll.dto.PayrollAdjustmentDTO;
 import com.workhub.payroll.repo.PayrollRepository;
+import com.workhub.payroll.repo.PayrollAdjustmentRepository;
 import com.workhub.payroll.service.PayrollService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -20,10 +23,12 @@ import java.util.UUID;
 public class PayrollController {
 
     private final PayrollRepository repo;
+    private final PayrollAdjustmentRepository adjustmentRepo;
     private final PayrollService payrollService;
 
-    public PayrollController(PayrollRepository repo, PayrollService payrollService) {
+    public PayrollController(PayrollRepository repo, PayrollAdjustmentRepository adjustmentRepo, PayrollService payrollService) {
         this.repo = repo;
+        this.adjustmentRepo = adjustmentRepo;
         this.payrollService = payrollService;
     }
 
@@ -270,5 +275,26 @@ public class PayrollController {
             @RequestParam int year,
             @RequestParam BigDecimal totalBudget) {
         return ResponseEntity.ok(payrollService.saveOrUpdateBudget(orgId, year, totalBudget));
+    }
+
+    /**
+     * POST /api/payrolls/items/{itemId}/adjustments
+     * Ajoute un ajustement (heures supp, prime, déduction) à un bulletin
+     */
+    @PostMapping("/items/{itemId}/adjustments")
+    public ResponseEntity<PayrollAdjustment> addAdjustment(
+            @PathVariable UUID itemId,
+            @RequestBody @Valid PayrollAdjustmentDTO dto) {
+        return ResponseEntity.ok(payrollService.addAdjustment(itemId, dto));
+    }
+
+    /**
+     * DELETE /api/payrolls/adjustments/{adjustmentId}
+     * Supprime un ajustement
+     */
+    @DeleteMapping("/adjustments/{adjustmentId}")
+    public ResponseEntity<Void> deleteAdjustment(@PathVariable UUID adjustmentId) {
+        payrollService.deleteAdjustment(adjustmentId);
+        return ResponseEntity.noContent().build();
     }
 }
