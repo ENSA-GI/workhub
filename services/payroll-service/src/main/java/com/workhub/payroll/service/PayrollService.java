@@ -319,4 +319,39 @@ public class PayrollService {
                 ))
                 .toList();
     }
+    /**
+     * NOUVEAU : Récupère la configuration de paie active pour une organisation.
+     */
+    public PayrollParameter getActiveConfig(UUID orgId) {
+        log.info("Fetching active payroll configuration for organization: {}", orgId);
+        return paramsRepo.findFirstByOrganizationIdAndActiveTrueOrderByEffectiveDateDesc(orgId)
+                .orElseThrow(() -> new RuntimeException("Aucune configuration de paie trouvée pour cette organisation."));
+    }
+
+    /**
+     * NOUVEAU : Crée ou met à jour la configuration de paie d'une organisation.
+     * Cette méthode désactive l'ancienne configuration pour garder un historique propre.
+     */
+    @Transactional
+    public PayrollParameter updateConfig(UUID orgId, PayrollParameter newParams) {
+        log.info("Updating payroll configuration for organization: {}", orgId);
+
+        // 1. Désactiver l'ancienne configuration active s'il y en a une
+        paramsRepo.findFirstByOrganizationIdAndActiveTrueOrderByEffectiveDateDesc(orgId)
+                .ifPresent(existingConfig -> {
+                    existingConfig.setActive(false);
+                    paramsRepo.save(existingConfig);
+                    log.info("Old configuration {} deactivated.", existingConfig.getId());
+                });
+
+        // 2. Configurer et sauvegarder la nouvelle configuration
+        newParams.setId(null); // Force la création d'une nouvelle ligne en base de données
+        newParams.setOrganizationId(orgId);
+        newParams.setActive(true);
+        if (newParams.getEffectiveDate() == null) {
+            newParams.setEffectiveDate(java.time.LocalDate.now());
+        }
+
+        return paramsRepo.save(newParams);
+    }
 }

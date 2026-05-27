@@ -156,4 +156,23 @@ public class PayrollController {
             @RequestParam int year) {
         return ResponseEntity.ok(payrollService.getDepartmentCosts(orgId, month, year));
     }
+    /**
+     * GET /api/payrolls/config
+     * Permet à l'administrateur de consulter ses taux de paie actuels.
+     */
+    @GetMapping("/config")
+    public ResponseEntity<com.workhub.payroll.domain.PayrollParameter> getActiveConfig(@RequestParam UUID orgId) {
+        return ResponseEntity.ok(payrollService.getActiveConfig(orgId));
+    }
+
+    /**
+     * PUT /api/payrolls/config
+     * Permet de modifier ou d'ajouter une nouvelle configuration de paie.
+     */
+    @PutMapping("/config")
+    public ResponseEntity<com.workhub.payroll.domain.PayrollParameter> updateConfig(
+            @RequestParam UUID orgId,
+            @RequestBody com.workhub.payroll.domain.PayrollParameter newParams) {
+        return ResponseEntity.ok(payrollService.updateConfig(orgId, newParams));
+    }
 }
