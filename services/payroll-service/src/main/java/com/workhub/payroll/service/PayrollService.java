@@ -474,4 +474,82 @@ public class PayrollService {
         return payrollRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Session de paie introuvable."));
     }
+    /**
+     * NOUVEAU : Valide le paiement de la paie, génère le fichier de virement bancaire CSV,
+     * l'envoie sur MinIO et met à jour le statut en base de données.
+     */
+    @Transactional
+    public Payroll payAndGenerateBankFile(UUID payrollId, UUID updatedBy) {
+        log.info("Processing bank transfer payment for payroll ID: {}", payrollId);
+
+        // 1. Récupérer la paie
+        Payroll payroll = payrollRepo.findById(payrollId)
+                .orElseThrow(() -> new RuntimeException("Session de paie introuvable."));
+
+        // Sécurité professionnelle : On ne peut payer que si la paie a d'abord été validée
+        if (payroll.getStatus() != PayrollStatus.VALIDATED) {
+            throw new RuntimeException("Impossible de payer une session de paie qui n'est pas VALIDATED.");
+        }
+
+        // 2. Récupérer tous les bulletins du mois
+        List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollId);
+
+        // 3. Générer le contenu du fichier CSV de virement bancaire (Format BMCE/BOA)
+        StringBuilder csvContent = new StringBuilder();
+        csvContent.append("Nom Employe,RIB Bancaire,Montant Net (MAD),Reference Virement\n");
+
+        for (PayrollItem item : items) {
+            // Dans un cas réel, on lirait le RIB depuis le service employé.
+            // Ici, on simule un RIB marocain valide de 24 chiffres (Bank of Africa)
+            String mockRib = "181123456789012345678901";
+
+            csvContent.append(String.format("Employe_%s,%s,%.2f,VIREMENT_PAIE_%d_%d\n",
+                    item.getEmployeeId(),
+                    mockRib,
+                    item.getNetSalary(),
+                    payroll.getMonth(),
+                    payroll.getYear()
+            ));
+        }
+
+        // Convertir la chaîne CSV en tableau d'octets binaire
+        byte[] csvBytes = csvContent.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        // Nom du fichier unique dans MinIO
+        String filename = String.format("virement_bancaire_org_%s_periode_%d_%d.csv",
+                payroll.getOrganizationId(), payroll.getMonth(), payroll.getYear());
+
+        // 4. Envoyer le fichier CSV sur MinIO
+        String fileUrl = "";
+        try {
+            fileUrl = storageService.uploadPdf(filename, csvBytes); // On réutilise le service de stockage
+        } catch (Exception e) {
+            log.error("Échec de l'envoi du fichier de virement vers MinIO : {}", e.getMessage());
+            throw new RuntimeException("Impossible de stocker le fichier de virement bancaire.");
+        }
+
+        // 5. Mettre à jour l'entité en base de données
+        payroll.setStatus(PayrollStatus.PAID);
+        payroll.setBankFileUrl(fileUrl);
+        payroll.setValidatedAt(java.time.LocalDateTime.now());
+        payroll.setValidatedBy(updatedBy);
+
+        log.info("Payroll {} has been paid. Bank file generated: {}", payrollId, fileUrl);
+        return payrollRepo.save(payroll);
+    }
+    /**
+     * Marque un bulletin individuel comme "Lu" (consultateur employé).
+     */
+    @Transactional
+    public void markPayslipAsRead(UUID itemId) {
+        log.info("Marking payslip item {} as read.", itemId);
+
+        PayrollItem item = itemRepo.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin de paie introuvable."));
+
+        item.setIsRead(true);
+        item.setReadAt(java.time.LocalDateTime.now());
+
+        itemRepo.save(item);
+    }
 }

@@ -240,4 +240,23 @@ public class PayrollController {
     public ResponseEntity<Payroll> getPayrollById(@PathVariable UUID id) {
         return ResponseEntity.ok(payrollService.getPayrollById(id));
     }
+    /**
+     * POST /api/payrolls/{id}/pay
+     * Marque la paie comme PAYÉE et génère le fichier de virement bancaire CSV sur MinIO.
+     */
+    @PostMapping("/{id}/pay")
+    public ResponseEntity<Payroll> payPayroll(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") UUID updatedBy) {
+        return ResponseEntity.ok(payrollService.payAndGenerateBankFile(id, updatedBy));
+    }
+    /**
+     * PUT /api/payrolls/items/{itemId}/read
+     * Marque un bulletin individuel comme lu (appelé par le Frontend dès que l'employé ouvre le PDF).
+     */
+    @PutMapping("/items/{itemId}/read")
+    public ResponseEntity<Void> markAsRead(@PathVariable UUID itemId) {
+        payrollService.markPayslipAsRead(itemId);
+        return ResponseEntity.ok().build();
+    }
 }

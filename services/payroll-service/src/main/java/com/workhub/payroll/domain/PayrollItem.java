@@ -29,4 +29,10 @@ public class PayrollItem {
     private BigDecimal irDeduction;
     private BigDecimal netSalary;
     private String bulletinPdfUrl;
+
+    @Column(name = "is_read")
+    private Boolean isRead = false;
+
+    @Column(name = "read_at")
+    private java.time.LocalDateTime readAt;
 }
