@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
-import { useUser } from '@clerk/clerk-react';
 import { FileText, Download, Eye, CheckCircle, Clock, Calendar, Search, Filter, Loader2 } from 'lucide-react';
 import { useMarkPayslipAsRead, usePayrollItems, usePayrolls, payrollValue } from '@/lib/usePayroll';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 export default function PayslipsManagement() {
-  const { user } = useUser();
-  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const organizationId = useOrganizationId();
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Tous');

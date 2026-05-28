@@ -1,12 +1,11 @@
-import { useUser } from '@clerk/clerk-react';
 import { Users, UserCheck, FileText, DollarSign, TrendingUp } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useEmployees } from '@/lib/useEmployees';
 import { usePayrollAnalyticsYtd, usePayrollTrend, payrollValue } from '@/lib/usePayroll';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 export default function Dashboard() {
-  const { user } = useUser();
-  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const organizationId = useOrganizationId();
   const currentYear = new Date().getFullYear();
 
   const { data: employeesData } = useEmployees(organizationId, 0, 200, 'ACTIVE');

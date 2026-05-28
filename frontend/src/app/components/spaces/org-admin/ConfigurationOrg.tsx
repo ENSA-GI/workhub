@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
 import { Settings, Calendar, DollarSign, Briefcase, Trash2, Plus, Loader2 } from 'lucide-react';
 import {
   useOrganization,
@@ -11,10 +10,10 @@ import {
   useCreatePosition,
   useDeletePosition
 } from '@/lib/useOrg';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 export default function ConfigurationOrg() {
-  const { user } = useUser();
-  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const organizationId = useOrganizationId();
 
   const { data: org, isLoading: isOrgLoading } = useOrganization(organizationId);
   const updateOrgMutation = useUpdateOrganization();

@@ -1,12 +1,11 @@
-import { useUser } from '@clerk/clerk-react';
 import { Users, DollarSign, Calendar, Loader2 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useEmployees } from '@/lib/useEmployees';
 import { payrollValue, usePayrollAnalyticsYtd, usePayrollCharges, usePayrollDepartments, usePayrollTrend, usePayrollBudgetUtilization } from '@/lib/usePayroll';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 export default function DashboardRHManager() {
-  const { user } = useUser();
-  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const organizationId = useOrganizationId();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 

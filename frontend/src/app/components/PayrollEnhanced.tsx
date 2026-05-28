@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Download, ChevronRight, Loader2, MoreVertical } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { usePayPayroll, usePayrollItems, usePayrolls, payrollValue, Payroll } from '@/lib/usePayroll';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 function monthLabel(payroll: Payroll) {
   return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(payroll.year, payroll.month - 1, 1));
@@ -11,7 +12,7 @@ function monthLabel(payroll: Payroll) {
 export default function PayrollEnhanced() {
   const navigate = useNavigate();
   const { user } = useUser();
-  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const organizationId = useOrganizationId();
   const userId = (user?.publicMetadata?.employeeId as string) || '';
 
   const { data: payrolls = [], isLoading, error } = usePayrolls(organizationId);

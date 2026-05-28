@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { useUser } from '@clerk/clerk-react';
 import { Download, Calendar, Users, BarChart3, PieChart as PieChartIcon, TrendingUp, Loader2 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { usePayrolls, payrollValue, usePayrollTrend, usePayrollDepartments, usePayrollCharges, usePayrollBudgetUtilization } from '@/lib/usePayroll';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 export default function PayrollHistory() {
-  const { user } = useUser();
-  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const organizationId = useOrganizationId();
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);

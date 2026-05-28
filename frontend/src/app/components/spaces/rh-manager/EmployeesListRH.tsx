@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { useUser } from '@clerk/clerk-react';
 import { Users, Search, Plus, Edit2, Archive, Eye, Filter, RefreshCw } from "lucide-react";
 import { useEmployees, useSearchEmployees, Employee } from '@/lib/useEmployees';
 import EmployeeFormModal from './EmployeeFormModal';
 import EmployeeDetailModal from './EmployeeDetailModal';
 import ArchiveEmployeeModal from './ArchiveEmployeeModal';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 export default function EmployeesListRH() {
-    const { user } = useUser();
-    const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+    const organizationId = useOrganizationId();
 
     const [page, setPage] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');

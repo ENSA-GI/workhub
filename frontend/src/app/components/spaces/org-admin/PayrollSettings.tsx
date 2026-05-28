@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useUser } from '@clerk/clerk-react';
 import { Save, FileText, DollarSign, Percent, Calendar, AlertCircle, Loader2 } from 'lucide-react';
 import { useOrganization } from '@/lib/useOrg';
 import { payrollValue, usePayrollBudgetUtilization, usePayrollConfig, useSavePayrollBudget, useUpdatePayrollConfig } from '@/lib/usePayroll';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 export default function PayrollSettings() {
-  const { user } = useUser();
-  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const organizationId = useOrganizationId();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const { data: org } = useOrganization(organizationId);
   const { data: payrollConfig } = usePayrollConfig(organizationId);

@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
-import { useUser } from '@clerk/clerk-react';
 import { Plus, Trash2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { usePayrollItems, usePayrolls, payrollValue, useAddPayrollAdjustment, useDeletePayrollAdjustment } from '@/lib/usePayroll';
 import NotificationToast from '../../NotificationToast';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 interface PayrollAdjustment {
   id: string;
@@ -14,24 +14,9 @@ interface PayrollAdjustment {
   createdAt: string;
 }
 
-interface PayrollItemDetail {
-  id: string;
-  employeeId: string;
-  baseSalary?: number | string;
-  transportBonus?: number | string;
-  mealBonus?: number | string;
-  performanceBonus?: number | string;
-  grossSalary?: number | string;
-  cnssDeduction?: number | string;
-  amoDeduction?: number | string;
-  irDeduction?: number | string;
-  netSalary?: number | string;
-  adjustments?: PayrollAdjustment[];
-}
 
 export default function PayrollDetailAdjustments() {
-  const { user } = useUser();
-  const organizationId = (user?.publicMetadata?.organizationId as string) || '';
+  const organizationId = useOrganizationId();
 
   const { data: payrolls = [] } = usePayrolls(organizationId);
   const activePayroll = payrolls[0];
