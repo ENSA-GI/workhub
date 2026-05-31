@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.http.Method;
 
 @Service
 @Slf4j
@@ -72,6 +75,23 @@ public class StorageService {
         } catch (Exception e) {
             log.error("Erreur lors de l'upload sur MinIO", e);
             throw new RuntimeException("Erreur lors de l'upload du CV", e);
+        }
+    }
+
+    public String getPresignedUrl(String objectUrl) {
+        try {
+            String filename = objectUrl.substring(objectUrl.lastIndexOf("/") + 1);
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucketName)
+                            .object(filename)
+                            .expiry(1, TimeUnit.HOURS)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Erreur lors de la génération de l'URL signée pour {}", objectUrl, e);
+            throw new RuntimeException("Erreur lors de la récupération du fichier", e);
         }
     }
 }

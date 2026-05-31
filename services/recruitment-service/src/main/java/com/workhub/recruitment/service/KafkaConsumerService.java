@@ -36,9 +36,4 @@ public class KafkaConsumerService {
             log.info("Updated application {} with AI score and summary.", result.getApplicationId());
         });
     }
-
-    @KafkaListener(topics = "workhub.recruitment.analysis.v1", groupId = "recruitment-debug-group")
-    public void listenRaw(String rawMessage) {
-        log.info("RAW KAFKA MESSAGE RECEIVED: {}", rawMessage);
-    }
 }
