@@ -23,12 +23,11 @@ VALUES
      'Amina','Khalid','amina.candidate@mail.com','+212611111111')
     ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO applications (id, job_offer_id, candidate_id, cv_url, status, ai_matching_score)
+INSERT INTO applications (id, job_offer_id, candidate_id, cv_url, status)
 VALUES
     ('aaa18400-e29b-41d4-a716-446655440000',
      '888e8400-e29b-41d4-a716-446655440000',
      '999e8400-e29b-41d4-a716-446655440000',
      'minio://cv/amkhalid.pdf',
-     'NEW',
-     85.5)
+     'NEW')
     ON CONFLICT (id) DO NOTHING;

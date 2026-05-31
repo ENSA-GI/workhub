@@ -146,6 +146,18 @@ public class ApplicationService {
 
         JobOffer offer = jobOfferRepo.findById(app.getJobOfferId()).orElse(null);
         Candidate candidate = candidateRepo.findById(app.getCandidateId()).orElse(null);
+
+        if (candidate != null && (status == ApplicationStatus.HIRED || status == ApplicationStatus.REJECTED)) {
+            com.workhub.recruitment.dto.RecruitmentNotificationEvent event = com.workhub.recruitment.dto.RecruitmentNotificationEvent.builder()
+                    .candidateId(candidate.getId())
+                    .candidateEmail(candidate.getEmail())
+                    .candidateName(candidate.getFirstName() + " " + candidate.getLastName())
+                    .eventType(status.name())
+                    .jobTitle(offer != null ? offer.getTitle() : "Poste")
+                    .build();
+            kafkaProducer.sendRecruitmentNotification(event);
+        }
+
         return mapToResponse(app, offer, candidate);
     }
 
@@ -156,6 +168,10 @@ public class ApplicationService {
             return storageService.getPresignedUrl(app.getCvUrl());
         }
         return app.getCvUrl();
+    }
+
+    public Candidate getCandidateByEmail(String email) {
+        return candidateRepo.findByEmail(email).orElse(null);
     }
 
     private ApplicationResponse mapToResponse(Application app, JobOffer offer, Candidate candidate) {

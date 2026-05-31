@@ -17,19 +17,62 @@ export default function MesCandidatures() {
         const response = await fetch(`http://localhost:8085/api/applications/candidate/${email}`);
         const data = await response.json();
         
-        const mappedApps = data.map((app: any) => ({
-          id: app.id,
-          offre: app.jobTitle,
-          departement: "IT", // Info non présente dans le DTO pour l'instant
-          localisation: "Casablanca", // Info non présente dans le DTO pour l'instant
-          dateCandidature: app.appliedAt,
-          statut: app.status === 'NEW' ? 'En cours' : app.status,
-          etape: app.aiScore ? `Analyse IA terminée (${app.aiScore}%)` : 'Analyse en cours...',
-          aiScore: app.aiScore,
-          historique: [
+        const mappedApps = await Promise.all(data.map(async (app: any) => {
+          let entretien = null;
+          try {
+            const intRes = await fetch(`http://localhost:8085/api/interviews/application/${app.id}`);
+            if (intRes.ok) {
+              const interviews = await intRes.json();
+              if (interviews && interviews.length > 0) {
+                const activeInt = interviews.find((i: any) => i.status === 'SCHEDULED' || i.status === 'COMPLETED') || interviews[0];
+                entretien = {
+                  date: activeInt.scheduledAt,
+                  heure: activeInt.timeSlot || "À déterminer",
+                  mode: "Visioconférence",
+                  lien: "https://zoom.us/j/1234567890",
+                  interviewers: ["Équipe RH"]
+                };
+              }
+            }
+          } catch (err) {
+            console.error("Erreur lors de la récupération de l'entretien:", err);
+          }
+
+          const historique = [
             { date: app.appliedAt, action: 'Candidature reçue', details: 'Votre candidature a été enregistrée avec succès' },
-            { date: new Date().toISOString(), action: 'Analyse IA', details: app.aiScore ? 'L\'IA a terminé l\'évaluation de votre profil.' : 'L\'IA analyse votre CV en ce moment même.' }
-          ]
+          ];
+
+          if (app.aiScore) {
+            historique.push({ date: app.appliedAt, action: 'Analyse IA', details: `L'IA a terminé l'évaluation avec un score de ${app.aiScore}%.` });
+          } else {
+            historique.push({ date: app.appliedAt, action: 'Analyse IA', details: "L'IA analyse votre CV en ce moment même." });
+          }
+
+          if (app.status === 'INTERVIEW_SCHEDULED') {
+            historique.push({ date: new Date().toISOString(), action: 'Entretien Planifié', details: 'Un entretien a été planifié avec l\'équipe recrutement' });
+          } else if (app.status === 'HIRED') {
+            historique.push({ date: new Date().toISOString(), action: 'Offre Acceptée', details: 'Félicitations ! Votre candidature a été acceptée.' });
+          } else if (app.status === 'REJECTED') {
+            historique.push({ date: new Date().toISOString(), action: 'Candidature Refusée', details: 'Votre candidature n\'a pas été retenue pour ce poste.' });
+          }
+
+          let uiStatus = 'En cours';
+          if (app.status === 'HIRED') uiStatus = 'Accepté';
+          else if (app.status === 'REJECTED') uiStatus = 'Refusé';
+          else if (app.status === 'INTERVIEW_SCHEDULED') uiStatus = 'Entretien';
+
+          return {
+            id: app.id,
+            offre: app.jobTitle,
+            departement: "IT",
+            localisation: "Casablanca",
+            dateCandidature: app.appliedAt,
+            statut: uiStatus,
+            etape: app.status === 'INTERVIEW_SCHEDULED' ? 'Entretien planifié' : (app.aiScore ? `Analyse IA terminée (${app.aiScore}%)` : 'Analyse en cours...'),
+            aiScore: app.aiScore,
+            entretien: entretien,
+            historique: historique
+          };
         }));
         
         setCandidatures(mappedApps);
@@ -57,6 +100,8 @@ export default function MesCandidatures() {
         return 'bg-green-100 text-green-800';
       case 'Refusé':
         return 'bg-red-100 text-red-800';
+      case 'Entretien':
+        return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -70,10 +115,20 @@ export default function MesCandidatures() {
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case 'Refusé':
         return <XCircle className="w-5 h-5 text-red-600" />;
+      case 'Entretien':
+        return <Calendar className="w-5 h-5 text-purple-600" />;
       default:
         return <Briefcase className="w-5 h-5 text-gray-600" />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-[#F5F7FA] min-h-screen flex items-center justify-center">
+        <p className="text-gray-600 text-sm">Chargement de vos candidatures...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-[#F5F7FA]">
@@ -91,7 +146,7 @@ export default function MesCandidatures() {
         <div className="bg-white border border-gray-200 p-6">
           <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">En Cours</h3>
           <p className="text-3xl font-semibold text-blue-600">
-            {candidatures.filter((c) => c.statut === 'En cours').length}
+            {candidatures.filter((c) => c.statut === 'En cours' || c.statut === 'Entretien').length}
           </p>
         </div>
         <div className="bg-white border border-gray-200 p-6">
@@ -229,7 +284,7 @@ export default function MesCandidatures() {
               <div className="p-6">
                 <h3 className="text-base font-semibold text-gray-900 mb-4">Historique de la Candidature</h3>
                 <div className="space-y-4">
-                  {candidatureDetail.historique.map((entry, index) => (
+                  {candidatureDetail.historique.map((entry: any, index: number) => (
                     <div key={index} className="flex items-start">
                       <div className="flex-shrink-0 w-2 h-2 bg-[#0A6ED1] rounded-full mt-2"></div>
                       <div className="ml-4 flex-1">

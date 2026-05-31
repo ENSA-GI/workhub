@@ -17,6 +17,8 @@ public class Interview {
     private UUID id;
     private UUID applicationId;
     private Instant scheduledAt;
+    @Column(name = "time_slot")
+    private String timeSlot;
     @Enumerated(EnumType.STRING)
     private InterviewStatus status;
     private String feedback;

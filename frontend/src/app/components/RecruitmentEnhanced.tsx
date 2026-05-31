@@ -41,6 +41,10 @@ export default function RecruitmentEnhanced() {
   const [isJobFormOpen, setIsJobFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInterviewModalOpen, setIsInterviewModalOpen] = useState(false);
+  const [schedulingAppId, setSchedulingAppId] = useState<string | null>(null);
+  const [interviewDate, setInterviewDate] = useState('');
+  const [interviewTimeSlot, setInterviewTimeSlot] = useState('09:00 - 10:00');
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info'; visible: boolean }>({
     message: '',
     type: 'success',
@@ -193,8 +197,44 @@ export default function RecruitmentEnhanced() {
   const handleRejectCandidate = (applicationId: string) =>
     updateStatus(applicationId, 'REJECTED', 'Rejected');
 
-  const handleScheduleInterview = (applicationId: string) =>
-    updateStatus(applicationId, 'INTERVIEW_SCHEDULED', 'Interview');
+  const handleScheduleInterview = (applicationId: string) => {
+    setSchedulingAppId(applicationId);
+    setInterviewDate('');
+    setInterviewTimeSlot('09:00 - 10:00');
+    setIsInterviewModalOpen(true);
+  };
+
+  const handleConfirmScheduleInterview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!schedulingAppId || !interviewDate || !interviewTimeSlot) return;
+
+    try {
+      const scheduledAt = new Date(interviewDate).toISOString();
+      const res = await fetch(`${API_BASE}/interviews/schedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          applicationId: schedulingAppId,
+          scheduledAt,
+          timeSlot: interviewTimeSlot
+        }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      setCandidates(prev => prev.map(c =>
+        c.applicationId === schedulingAppId ? { ...c, status: 'Interview' } : c
+      ));
+
+      setIsInterviewModalOpen(false);
+      setSchedulingAppId(null);
+      showNotification('Entretien planifié avec succès', 'success');
+    } catch (error) {
+      showNotification("Erreur lors de la planification de l'entretien", 'error');
+    }
+  };
 
   // ─── Voir le CV ───────────────────────────────────────────────────────────────
   const handleViewCv = async (applicationId: string) => {
@@ -520,6 +560,60 @@ export default function RecruitmentEnhanced() {
         onClose={() => setIsJobFormOpen(false)}
         onSave={handleSaveJob}
       />
+
+      {isInterviewModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Planifier un entretien</h3>
+            <form onSubmit={handleConfirmScheduleInterview}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date de l'entretien</label>
+                  <input
+                    type="date"
+                    required
+                    value={interviewDate}
+                    onChange={(e) => setInterviewDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Créneau horaire</label>
+                  <select
+                    value={interviewTimeSlot}
+                    onChange={(e) => setInterviewTimeSlot(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900"
+                  >
+                    <option value="08:00 - 09:00">08:00 - 09:00</option>
+                    <option value="09:00 - 10:00">09:00 - 10:00</option>
+                    <option value="10:00 - 11:00">10:00 - 11:00</option>
+                    <option value="11:00 - 12:00">11:00 - 12:00</option>
+                    <option value="14:00 - 15:00">14:00 - 15:00</option>
+                    <option value="15:00 - 16:00">15:00 - 16:00</option>
+                    <option value="16:00 - 17:00">16:00 - 17:00</option>
+                    <option value="17:00 - 18:00">17:00 - 18:00</option>
+                  </select>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setIsInterviewModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                >
+                  Planifier
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
