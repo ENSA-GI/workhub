@@ -27,7 +27,7 @@ public class RecruitmentEventConsumer {
     @KafkaListener(topics = "workhub.recruitment.notifications.v1", groupId = "notification-group")
     public void consumeRecruitmentEvent(String message) {
         try {
-            log.info("Received recruitment notification event: {}", message);
+            log.info("Receive recruitment notification event: {}", message);
             JsonNode event = objectMapper.readTree(message);
             
             UUID candidateId = UUID.fromString(event.get("candidateId").asText());
