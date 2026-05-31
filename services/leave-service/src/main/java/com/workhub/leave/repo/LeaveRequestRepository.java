@@ -13,6 +13,8 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequest, UUID
     // Add these missing methods:
     List<LeaveRequest> findByEmployeeIdOrderByStartDateDesc(UUID employeeId);
 
+    List<LeaveRequest> findAllByOrderByStartDateDesc();
+
     List<LeaveRequest> findByStatusOrderByStartDateDesc(LeaveStatus status);
 
     List<LeaveRequest> findByEmployeeIdAndStatus(UUID employeeId, LeaveStatus status);

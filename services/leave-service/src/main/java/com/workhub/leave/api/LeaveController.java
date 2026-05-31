@@ -74,6 +74,11 @@ public class LeaveController {
     }
 
     // GET /api/leave-requests/{id}  → détail d'une demande
+    @GetMapping("/leave-requests/all")
+    public List<LeaveRequestResponse> allRequests() {
+        return leaveService.getAll();
+    }
+
     @GetMapping("/leave-requests/{id}")
     public ResponseEntity<LeaveRequest> getById(@PathVariable UUID id) {
         return reqRepo.findById(id)

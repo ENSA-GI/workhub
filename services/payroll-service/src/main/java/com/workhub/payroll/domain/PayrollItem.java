@@ -3,6 +3,7 @@ package com.workhub.payroll.domain;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -29,4 +30,13 @@ public class PayrollItem {
     private BigDecimal irDeduction;
     private BigDecimal netSalary;
     private String bulletinPdfUrl;
+
+    @Column(name = "is_read")
+    private Boolean isRead = false;
+
+    @Column(name = "read_at")
+    private java.time.LocalDateTime readAt;
+
+    @OneToMany(mappedBy = "payrollItem", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<PayrollAdjustment> adjustments;
 }

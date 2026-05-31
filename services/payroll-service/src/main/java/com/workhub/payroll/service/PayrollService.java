@@ -2,6 +2,8 @@ package com.workhub.payroll.service;
 
 import com.workhub.payroll.client.EmployeeClient;
 import com.workhub.payroll.domain.*;
+import com.workhub.payroll.dto.PayrollAnalyticsDTOs;
+import com.workhub.payroll.dto.PayrollAdjustmentDTO;
 import com.workhub.payroll.repo.*;
 import com.workhub.payroll.kafka.producer.PayrollEventsPublisher;
 import com.workhub.payroll.kafka.event.PayrollGeneratedEvent;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,11 +25,11 @@ public class PayrollService {
     private final PayrollRepository payrollRepo;
     private final PayrollItemRepository itemRepo;
     private final PayrollParameterRepository paramsRepo;
+    private final PayrollAdjustmentRepository adjustmentRepo;
     private final EmployeeClient employeeClient;
     private final PayrollEngine engine;
     private final PayrollEventsPublisher eventsPublisher;
-
-    // Injection des deux nouveaux services pour le PDF et MinIO
+    private final PayrollBudgetRepository budgetRepo;
     private final PdfGenerator pdfGenerator;
     private final StorageService storageService;
 
@@ -95,7 +98,7 @@ public class PayrollService {
             item.setTaxableIncome(result.taxable());
             item.setIrDeduction(result.ir());
 
-            // 3. --- NOUVEAU : GÉNÉRATION ET STOCKAGE DU PDF ---
+            // 3. --- GÉNÉRATION ET STOCKAGE DU PDF ---
             try {
                 String empName = emp.getFirstName() + " " + emp.getLastName();
                 String monthName = getMonthName(month);
@@ -111,8 +114,6 @@ public class PayrollService {
                 item.setBulletinPdfUrl(pdfUrl);
 
             } catch (Exception e) {
-                // Si la génération de PDF échoue, on loggue l'erreur mais on ne bloque pas
-                // la sauvegarde de la paie (pour rester robuste en prod)
                 log.error("Échec de la génération/upload du PDF pour l'employé {}: {}", emp.getId(), e.getMessage());
             }
 
@@ -149,5 +150,502 @@ public class PayrollService {
             return months[month];
         }
         return String.valueOf(month);
+    }
+
+    public List<PayrollItem> getEmployeePayslips(UUID employeeId) {
+        log.info("Fetching payslips for employee: {}", employeeId);
+        return itemRepo.findAllByEmployeeId(employeeId);
+    }
+
+    public byte[] getPayslipPdfContent(UUID itemId) {
+        PayrollItem item = itemRepo.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin non trouvé."));
+
+        if (item.getBulletinPdfUrl() == null) {
+            throw new RuntimeException("Le fichier PDF n'a pas encore été généré pour ce bulletin.");
+        }
+
+        return storageService.downloadPdf(item.getBulletinPdfUrl());
+    }
+
+    /**
+     * Met à jour le statut d'une paie (ex: DRAFT -> VALIDATED -> PAID).
+     */
+    @Transactional
+    public Payroll updatePayrollStatus(UUID payrollId, PayrollStatus newStatus, UUID updatedBy) {
+        Payroll payroll = payrollRepo.findById(payrollId)
+                .orElseThrow(() -> new RuntimeException("Paie non trouvée."));
+
+        payroll.setStatus(newStatus);
+        payroll.setValidatedAt(java.time.LocalDateTime.now());
+        payroll.setValidatedBy(updatedBy);
+
+        log.info("Payroll {} status updated to {}", payrollId, newStatus);
+        return payrollRepo.save(payroll);
+    }
+
+    /**
+     * Calcule le résumé annuel (YTD) pour l'organisation.
+     */
+    public PayrollAnalyticsDTOs.YtdSummaryDTO getYtdSummary(UUID orgId, int year) {
+        List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
+
+        BigDecimal totalGross = BigDecimal.ZERO;
+        BigDecimal totalNet = BigDecimal.ZERO;
+        BigDecimal totalSocial = BigDecimal.ZERO;
+        int totalEmployees = 0;
+        int payrollCount = 0;
+
+        for (Payroll p : payrolls) {
+            if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
+                totalGross = totalGross.add(p.getTotalGrossSalary());
+                totalNet = totalNet.add(p.getTotalNetSalary());
+
+                BigDecimal socialForMonth = p.getTotalCnss().add(p.getTotalAmo()).add(p.getTotalIr());
+                totalSocial = totalSocial.add(socialForMonth);
+
+                List<PayrollItem> items = itemRepo.findAllByPayrollId(p.getId());
+                totalEmployees += items.size();
+                payrollCount++;
+            }
+        }
+
+        BigDecimal avgCost = BigDecimal.ZERO;
+        if (totalEmployees > 0) {
+            avgCost = totalGross.divide(BigDecimal.valueOf(totalEmployees), 2, java.math.RoundingMode.HALF_UP);
+        }
+
+        return new PayrollAnalyticsDTOs.YtdSummaryDTO(totalGross, totalNet, totalSocial, avgCost);
+    }
+
+    /**
+     * Génère l'évolution mensuelle sur 6 mois (LineChart).
+     */
+    public List<PayrollAnalyticsDTOs.MonthlyTrendDTO> getMonthlyTrend(UUID orgId, int year) {
+        List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
+
+        return payrolls.stream()
+                .filter(p -> p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT)
+                .map(p -> {
+                    BigDecimal social = p.getTotalCnss().add(p.getTotalAmo()).add(p.getTotalIr());
+                    return new PayrollAnalyticsDTOs.MonthlyTrendDTO(
+                            getMonthName(p.getMonth()),
+                            p.getTotalGrossSalary(),
+                            p.getTotalNetSalary(),
+                            social
+                    );
+                })
+                .toList();
+    }
+
+    /**
+     * Génère la répartition des charges (PieChart).
+     */
+    public PayrollAnalyticsDTOs.ChargesDistributionDTO getChargesDistribution(UUID orgId, int year) {
+        List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
+
+        BigDecimal cnss = BigDecimal.ZERO;
+        BigDecimal amo = BigDecimal.ZERO;
+        BigDecimal ir = BigDecimal.ZERO;
+
+        for (Payroll p : payrolls) {
+            if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
+                cnss = cnss.add(p.getTotalCnss() != null ? p.getTotalCnss() : BigDecimal.ZERO);
+                amo = amo.add(p.getTotalAmo() != null ? p.getTotalAmo() : BigDecimal.ZERO);
+                ir = ir.add(p.getTotalIr() != null ? p.getTotalIr() : BigDecimal.ZERO);
+            }
+        }
+
+        return new PayrollAnalyticsDTOs.ChargesDistributionDTO(cnss, amo, ir);
+    }
+
+    /**
+     * Récupère la liste de tous les bulletins individuels (items) d'une paie mensuelle.
+     */
+    public List<PayrollItem> getPayrollItems(UUID payrollId) {
+        log.info("Fetching payroll items for payroll: {}", payrollId);
+        return itemRepo.findAllByPayrollId(payrollId);
+    }
+
+    /**
+     * Agrège dynamiquement les coûts salariaux par département pour un mois donné.
+     */
+    public List<com.workhub.payroll.dto.PayrollAnalyticsDTOs.DepartmentCostDTO> getDepartmentCosts(UUID orgId, int month, int year) {
+        log.info("Calculating department costs for org {} - {}/{}", orgId, month, year);
+
+        java.util.Optional<Payroll> payrollOpt = payrollRepo.findByOrganizationIdAndYearAndMonth(orgId, year, month);
+        if (payrollOpt.isEmpty()) {
+            return java.util.List.of();
+        }
+
+        List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollOpt.get().getId());
+
+        List<EmployeeClient.EmployeeResponse> employees;
+        try {
+            employees = employeeClient.getActiveEmployees(orgId).getContent();
+        } catch (Exception e) {
+            log.warn("Impossible de récupérer les départements réels (service employé en panne).");
+            return java.util.List.of(
+                    new com.workhub.payroll.dto.PayrollAnalyticsDTOs.DepartmentCostDTO("R&D (Fictif)", payrollOpt.get().getTotalGrossSalary(), items.size())
+            );
+        }
+
+        java.util.Map<UUID, String> empDeptMap = new java.util.HashMap<>();
+        for (EmployeeClient.EmployeeResponse emp : employees) {
+            empDeptMap.put(emp.getId(), emp.getDepartment() != null ? emp.getDepartment() : "Non spécifié");
+        }
+
+        java.util.Map<String, BigDecimal> deptCostMap = new java.util.HashMap<>();
+        java.util.Map<String, Long> deptCountMap = new java.util.HashMap<>();
+
+        for (PayrollItem item : items) {
+            String dept = empDeptMap.getOrDefault(item.getEmployeeId(), "Non spécifié");
+
+            deptCostMap.put(dept, deptCostMap.getOrDefault(dept, BigDecimal.ZERO).add(item.getGrossSalary()));
+            deptCountMap.put(dept, deptCountMap.getOrDefault(dept, 0L) + 1);
+        }
+
+        return deptCostMap.entrySet().stream()
+                .map(entry -> new com.workhub.payroll.dto.PayrollAnalyticsDTOs.DepartmentCostDTO(
+                        entry.getKey(),
+                        entry.getValue(),
+                        deptCountMap.get(entry.getKey())
+                ))
+                .toList();
+    }
+
+    /**
+     * Récupère la configuration de paie active pour une organisation.
+     */
+    public PayrollParameter getActiveConfig(UUID orgId) {
+        log.info("Fetching active payroll configuration for organization: {}", orgId);
+        return paramsRepo.findFirstByOrganizationIdAndActiveTrueOrderByEffectiveDateDesc(orgId)
+                .orElseThrow(() -> new RuntimeException("Aucune configuration de paie trouvée pour cette organisation."));
+    }
+
+    /**
+     * Crée ou met à jour la configuration de paie d'une organisation.
+     */
+    @Transactional
+    public PayrollParameter updateConfig(UUID orgId, PayrollParameter newParams) {
+        log.info("Updating payroll configuration for organization: {}", orgId);
+
+        paramsRepo.findFirstByOrganizationIdAndActiveTrueOrderByEffectiveDateDesc(orgId)
+                .ifPresent(existingConfig -> {
+                    existingConfig.setActive(false);
+                    paramsRepo.save(existingConfig);
+                    log.info("Old configuration {} deactivated.", existingConfig.getId());
+                });
+
+        newParams.setId(null);
+        newParams.setOrganizationId(orgId);
+        newParams.setActive(true);
+        if (newParams.getEffectiveDate() == null) {
+            newParams.setEffectiveDate(java.time.LocalDate.now());
+        }
+
+        return paramsRepo.save(newParams);
+    }
+
+    /**
+     * Génère un fichier CSV d'historique des paies directement dans le flux de réponse.
+     */
+    public void exportPayrollHistoryToCsv(UUID orgId, java.io.PrintWriter writer) {
+        log.info("Generating payroll history CSV for organization: {}", orgId);
+
+        List<Payroll> payrolls = payrollRepo.findByOrganizationIdOrderByYearDescMonthDesc(orgId);
+
+        writer.println("ID Paie,Annee,Mois,Statut,Total Brut (MAD),Total Net (MAD),CNSS (MAD),AMO (MAD),IR (MAD),Date Generation");
+
+        for (Payroll p : payrolls) {
+            writer.printf("%s,%d,%d,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%s\n",
+                    p.getId(),
+                    p.getYear(),
+                    p.getMonth(),
+                    p.getStatus().toString(),
+                    p.getTotalGrossSalary(),
+                    p.getTotalNetSalary(),
+                    p.getTotalCnss() != null ? p.getTotalCnss() : java.math.BigDecimal.ZERO,
+                    p.getTotalAmo() != null ? p.getTotalAmo() : java.math.BigDecimal.ZERO,
+                    p.getTotalIr() != null ? p.getTotalIr() : java.math.BigDecimal.ZERO,
+                    p.getGeneratedAt()
+            );
+        }
+        writer.flush();
+    }
+
+    /**
+     * Calcule dynamiquement l'utilisation du budget annuel.
+     */
+    public com.workhub.payroll.dto.PayrollAnalyticsDTOs.BudgetUtilizationDTO getBudgetUtilization(UUID orgId, int year) {
+        log.info("Calculating budget utilization for org {} and year {}", orgId, year);
+
+        BigDecimal annualBudget = budgetRepo.findByOrganizationIdAndBudgetYear(orgId, year)
+                .map(PayrollBudget::getTotalBudget)
+                .orElse(new BigDecimal("2400000.00"));
+
+        List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
+        BigDecimal spentAmount = BigDecimal.ZERO;
+
+        for (Payroll p : payrolls) {
+            if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
+                spentAmount = spentAmount.add(p.getTotalGrossSalary());
+            }
+        }
+
+        BigDecimal remainingAmount = annualBudget.subtract(spentAmount).max(BigDecimal.ZERO);
+
+        double utilizationPercentage = 0.0;
+        if (annualBudget.compareTo(BigDecimal.ZERO) > 0) {
+            utilizationPercentage = spentAmount.divide(annualBudget, 4, java.math.RoundingMode.HALF_UP)
+                    .multiply(new BigDecimal("100"))
+                    .doubleValue();
+        }
+
+        return new com.workhub.payroll.dto.PayrollAnalyticsDTOs.BudgetUtilizationDTO(
+                annualBudget, spentAmount, remainingAmount, utilizationPercentage
+        );
+    }
+
+    /**
+     * Configure ou met à jour le budget annuel d'une organisation.
+     */
+    @Transactional
+    public PayrollBudget saveOrUpdateBudget(UUID orgId, int year, BigDecimal totalBudget) {
+        log.info("Saving annual budget of {} MAD for org {} in {}", totalBudget, orgId, year);
+
+        PayrollBudget budget = budgetRepo.findByOrganizationIdAndBudgetYear(orgId, year)
+                .orElse(new PayrollBudget());
+
+        budget.setOrganizationId(orgId);
+        budget.setBudgetYear(year);
+        budget.setTotalBudget(totalBudget);
+
+        return budgetRepo.save(budget);
+    }
+
+    /**
+     * Récupère tous les bulletins PDF d'un mois de paie sur MinIO
+     * et les compresse dans un seul fichier ZIP.
+     */
+    public void exportPayslipsToZip(UUID payrollId, java.io.OutputStream outputStream) {
+        log.info("Generating ZIP archive of payslips for payroll: {}", payrollId);
+
+        List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollId);
+
+        try (java.util.zip.ZipOutputStream zos = new java.util.zip.ZipOutputStream(outputStream)) {
+
+            for (PayrollItem item : items) {
+                if (item.getBulletinPdfUrl() != null) {
+                    byte[] pdfBytes = storageService.downloadPdf(item.getBulletinPdfUrl());
+
+                    String entryName = String.format("bulletin_employe_%s.pdf", item.getEmployeeId());
+                    java.util.zip.ZipEntry zipEntry = new java.util.zip.ZipEntry(entryName);
+
+                    zos.putNextEntry(zipEntry);
+                    zos.write(pdfBytes);
+                    zos.closeEntry();
+
+                    log.info("Ajout du bulletin {} à l'archive ZIP.", entryName);
+                }
+            }
+            zos.finish();
+            log.info("Export ZIP terminé pour la paie {}.", payrollId);
+
+        } catch (Exception e) {
+            log.error("Erreur lors de la génération du fichier ZIP : {}", e.getMessage());
+            throw new RuntimeException("Échec de la génération de l'archive ZIP.");
+        }
+    }
+
+    /**
+     * Recherche et filtre les paies d'une organisation selon des critères optionnels.
+     */
+    public List<Payroll> searchPayrolls(UUID orgId, Integer year, Integer month, PayrollStatus status) {
+        log.info("Searching payrolls for org {} (filters: year={}, month={}, status={})", orgId, year, month, status);
+        return payrollRepo.searchPayrolls(orgId, year, month, status);
+    }
+
+    /**
+     * Récupère une paie spécifique par son ID unique.
+     */
+    public Payroll getPayrollById(UUID id) {
+        log.info("Fetching payroll details for ID: {}", id);
+        return payrollRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Session de paie introuvable."));
+    }
+
+    /**
+     * Valide le paiement de la paie, génère le fichier de virement bancaire CSV,
+     * l'envoie sur MinIO et met à jour le statut en base de données.
+     */
+    @Transactional
+    public Payroll payAndGenerateBankFile(UUID payrollId, UUID updatedBy) {
+        log.info("Processing bank transfer payment for payroll ID: {}", payrollId);
+
+        Payroll payroll = getPayrollById(payrollId);
+
+        if (payroll.getStatus() != PayrollStatus.VALIDATED) {
+            throw new RuntimeException("Impossible de payer une session de paie qui n'est pas VALIDATED.");
+        }
+
+        List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollId);
+
+        StringBuilder csvContent = new StringBuilder();
+        csvContent.append("Nom Employe,RIB Bancaire,Montant Net (MAD),Reference Virement\n");
+
+        for (PayrollItem item : items) {
+            String mockRib = "181123456789012345678901";
+
+            csvContent.append(String.format("Employe_%s,%s,%.2f,VIREMENT_PAIE_%d_%d\n",
+                    item.getEmployeeId(),
+                    mockRib,
+                    item.getNetSalary(),
+                    payroll.getMonth(),
+                    payroll.getYear()
+            ));
+        }
+
+        byte[] csvBytes = csvContent.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        String filename = String.format("virement_bancaire_org_%s_periode_%d_%d.csv",
+                payroll.getOrganizationId(), payroll.getMonth(), payroll.getYear());
+
+        String fileUrl = "";
+        try {
+            fileUrl = storageService.uploadPdf(filename, csvBytes);
+        } catch (Exception e) {
+            log.error("Échec de l'envoi du fichier de virement vers MinIO : {}", e.getMessage());
+            throw new RuntimeException("Impossible de stocker le fichier de virement bancaire.");
+        }
+
+        payroll.setStatus(PayrollStatus.PAID);
+        payroll.setBankFileUrl(fileUrl);
+        payroll.setValidatedAt(java.time.LocalDateTime.now());
+        payroll.setValidatedBy(updatedBy);
+
+        log.info("Payroll {} has been paid. Bank file generated: {}", payrollId, fileUrl);
+        return payrollRepo.save(payroll);
+    }
+
+    /**
+     * Marque un bulletin individuel comme "Lu" (consultateur employé).
+     */
+    @Transactional
+    public void markPayslipAsRead(UUID itemId) {
+        log.info("Marking payslip item {} as read.", itemId);
+
+        PayrollItem item = itemRepo.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin de paie introuvable."));
+
+        item.setIsRead(true);
+        item.setReadAt(java.time.LocalDateTime.now());
+
+        itemRepo.save(item);
+    }
+
+    /**
+     * Ajoute un ajustement (heures sup, prime, déduction) à un bulletin
+     */
+    @Transactional
+    public PayrollAdjustment addAdjustment(UUID payrollItemId, PayrollAdjustmentDTO dto) {
+        log.info("Adding adjustment to payroll item {}: type={}, amount={}", payrollItemId, dto.getType(), dto.getAmount());
+
+        PayrollItem item = itemRepo.findById(payrollItemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin de paie introuvable."));
+
+        PayrollAdjustment adjustment = PayrollAdjustment.builder()
+                .payrollItem(item)
+                .type(PayrollAdjustment.AdjustmentType.valueOf(dto.getType().toUpperCase()))
+                .amount(dto.getAmount())
+                .description(dto.getDescription())
+                .build();
+
+        PayrollAdjustment saved = adjustmentRepo.save(adjustment);
+        recalculateItemAndPayroll(item.getId());
+        log.info("Adjustment added with id: {}", saved.getId());
+        return saved;
+    }
+
+    /**
+     * Supprime un ajustement
+     */
+    @Transactional
+    public void deleteAdjustment(UUID adjustmentId) {
+        log.info("Deleting adjustment: {}", adjustmentId);
+
+        PayrollAdjustment adjustment = adjustmentRepo.findById(adjustmentId)
+                .orElseThrow(() -> new RuntimeException("Ajustement introuvable."));
+
+        UUID payrollItemId = adjustment.getPayrollItem().getId();
+
+        adjustmentRepo.delete(adjustment);
+        recalculateItemAndPayroll(payrollItemId);
+        log.info("Adjustment deleted successfully");
+    }
+
+    private void recalculateItemAndPayroll(UUID payrollItemId) {
+        PayrollItem item = itemRepo.findById(payrollItemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin de paie introuvable."));
+
+        UUID organizationId = item.getPayroll().getOrganizationId();
+        PayrollParameter params = paramsRepo.findFirstByOrganizationIdAndActiveTrueOrderByEffectiveDateDesc(organizationId)
+                .orElseThrow(() -> new RuntimeException("Paramètres de paie non configurés."));
+
+        EmployeeClient.EmployeeResponse employee = employeeClient.getEmployeeById(item.getEmployeeId(), organizationId);
+        int children = employee.getChildrenCount() != null ? employee.getChildrenCount() : 0;
+
+        BigDecimal baseGross = nvl(item.getBaseSalary())
+                .add(nvl(item.getTransportBonus()))
+                .add(nvl(item.getMealBonus()))
+                .add(nvl(item.getPerformanceBonus()));
+
+        BigDecimal adjustmentDelta = adjustmentRepo.findByPayrollItemId(payrollItemId).stream()
+                .map(a -> a.getType() == PayrollAdjustment.AdjustmentType.DEDUCTION ? a.getAmount().negate() : a.getAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal recalculatedBase = baseGross.add(adjustmentDelta).max(BigDecimal.ZERO);
+        PayrollEngine.CalculationResult result = engine.calculate(recalculatedBase, BigDecimal.ZERO, params, children);
+
+        item.setGrossSalary(result.gross());
+        item.setCnssDeduction(result.cnss());
+        item.setAmoDeduction(result.amo());
+        item.setTaxableIncome(result.taxable());
+        item.setIrDeduction(result.ir());
+        item.setNetSalary(result.net());
+        itemRepo.save(item);
+
+        recalculatePayrollTotals(item.getPayroll().getId());
+    }
+
+    private void recalculatePayrollTotals(UUID payrollId) {
+        Payroll payroll = payrollRepo.findById(payrollId)
+                .orElseThrow(() -> new RuntimeException("Paie introuvable."));
+
+        List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollId);
+        BigDecimal totalGross = BigDecimal.ZERO;
+        BigDecimal totalNet = BigDecimal.ZERO;
+        BigDecimal totalCnss = BigDecimal.ZERO;
+        BigDecimal totalAmo = BigDecimal.ZERO;
+        BigDecimal totalIr = BigDecimal.ZERO;
+
+        for (PayrollItem payrollItem : items) {
+            totalGross = totalGross.add(nvl(payrollItem.getGrossSalary()));
+            totalNet = totalNet.add(nvl(payrollItem.getNetSalary()));
+            totalCnss = totalCnss.add(nvl(payrollItem.getCnssDeduction()));
+            totalAmo = totalAmo.add(nvl(payrollItem.getAmoDeduction()));
+            totalIr = totalIr.add(nvl(payrollItem.getIrDeduction()));
+        }
+
+        payroll.setTotalGrossSalary(totalGross.setScale(2, RoundingMode.HALF_UP));
+        payroll.setTotalNetSalary(totalNet.setScale(2, RoundingMode.HALF_UP));
+        payroll.setTotalCnss(totalCnss.setScale(2, RoundingMode.HALF_UP));
+        payroll.setTotalAmo(totalAmo.setScale(2, RoundingMode.HALF_UP));
+        payroll.setTotalIr(totalIr.setScale(2, RoundingMode.HALF_UP));
+        payrollRepo.save(payroll);
+    }
+
+    private BigDecimal nvl(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 }

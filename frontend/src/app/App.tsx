@@ -46,18 +46,19 @@ import MonProfilCandidat from "./components/spaces/candidate/MonProfilCandidat";
 import MesDocumentsCandidat from "./components/spaces/candidate/MesDocumentsCandidat";
 import NotificationsCandidat from "./components/spaces/candidate/NotificationsCandidat";
 
-// ✅ RH Manager Employees (nouvelle page)
+//  RH Manager Employees (nouvelle page)
 import EmployeesListRH from "./components/spaces/rh-manager/EmployeesListRH";
+import PayrollDetailAdjustments from "./components/spaces/rh-manager/PayrollDetailAdjustments";
 
 const STORAGE_KEY = "workhub.selectedRole";
 
 export default function App() {
-    // ✅ PERSISTENCE : récupère le rôle depuis localStorage au refresh / redirect Clerk
+    // PERSISTENCE : récupère le rôle depuis localStorage au refresh / redirect Clerk
     const [selectedRole, setSelectedRole] = useState<string | null>(() => {
         return localStorage.getItem(STORAGE_KEY);
     });
 
-    // ✅ PERSISTENCE : sauvegarde/supprime dans localStorage
+    // PERSISTENCE : sauvegarde/supprime dans localStorage
     useEffect(() => {
         if (selectedRole) localStorage.setItem(STORAGE_KEY, selectedRole);
         else localStorage.removeItem(STORAGE_KEY);
@@ -78,7 +79,7 @@ export default function App() {
         <>
             <SignedOut>
                 <div style={{ maxWidth: 420, margin: "40px auto" }}>
-                    {/* ✅ IMPORTANT : forcer Clerk à revenir sur "/" après login/register */}
+                    {/*  IMPORTANT : forcer Clerk à revenir sur "/" après login/register */}
                     <SignIn afterSignInUrl="/" afterSignUpUrl="/" />
                 </div>
             </SignedOut>
@@ -157,18 +158,19 @@ export default function App() {
                 {/* RH manager */}
                 {selectedRole === "rh-manager" && (
                     <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
-                        <Routes>
-                            <Route path="/" element={<DashboardRHManager />} />
-                            <Route path="/employees" element={<EmployeesListRH />} />
-                            <Route path="/payroll" element={<PayrollEnhanced />} />
-                            <Route path="/payroll-generation" element={<PayrollGeneration />} />
-                            <Route path="/payroll-bulletins" element={<PayslipsManagement />} />
-                            <Route path="/payroll-history" element={<PayrollHistory />} />
-                            <Route path="/leave" element={<LeaveManagementEnhanced userRole="rh-manager" />} />
-                            <Route path="/recruitment" element={<RecruitmentEnhanced />} />
-                            <Route path="/analytics" element={<AnalyticsRHManager />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
+                         <Routes>
+                             <Route path="/" element={<DashboardRHManager />} />
+                             <Route path="/employees" element={<EmployeesListRH />} />
+                             <Route path="/payroll" element={<PayrollEnhanced />} />
+                             <Route path="/payroll-generation" element={<PayrollGeneration />} />
+                             <Route path="/payroll-bulletins" element={<PayslipsManagement />} />
+                             <Route path="/payroll-details" element={<PayrollDetailAdjustments />} />
+                             <Route path="/payroll-history" element={<PayrollHistory />} />
+                             <Route path="/leave" element={<LeaveManagementEnhanced userRole="rh-manager" />} />
+                             <Route path="/recruitment" element={<RecruitmentEnhanced />} />
+                             <Route path="/analytics" element={<AnalyticsRHManager />} />
+                             <Route path="*" element={<Navigate to="/" replace />} />
+                         </Routes>
                     </Layout>
                 )}
 

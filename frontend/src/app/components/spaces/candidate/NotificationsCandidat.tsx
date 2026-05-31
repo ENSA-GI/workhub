@@ -1,68 +1,65 @@
 import { Bell, CheckCircle, Calendar, FileText, AlertCircle, Trash2 } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useState } from 'react';
 
 export default function NotificationsCandidat() {
-  const { user } = useUser();
   const [selectedFilter, setSelectedFilter] = useState('Toutes');
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [candidateId, setCandidateId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!user?.primaryEmailAddress?.emailAddress) return;
-      try {
-        const email = user.primaryEmailAddress.emailAddress;
-        // 1. Get candidateId by email
-        const candRes = await fetch(`http://localhost:8085/api/candidates/by-email?email=${email}`);
-        if (!candRes.ok) throw new Error("Candidat non trouvé");
-        const candidate = await candRes.json();
-        setCandidateId(candidate.id);
-
-        // 2. Get notifications
-        const notifRes = await fetch(`http://localhost:8080/notifications/notifications?userId=${candidate.id}`);
-        if (!notifRes.ok) throw new Error("Notifications non chargées");
-        const data = await notifRes.json();
-
-        // 3. Map notifications
-        const mapped = data.map((n: any) => {
-          let type = 'info';
-          let categorie = 'Statut';
-          if (n.type === 'INTERVIEW_SCHEDULED') {
-            type = 'info';
-            categorie = 'Entretien';
-          } else if (n.title.toLowerCase().includes('accept') || n.title.toLowerCase().includes('félicitation') || n.title.toLowerCase().includes('retenu')) {
-            type = 'success';
-            categorie = 'Candidature';
-          } else if (n.title.toLowerCase().includes('non retenu') || n.title.toLowerCase().includes('refus')) {
-            type = 'error';
-            categorie = 'Candidature';
-          }
-
-          return {
-            id: n.id,
-            type: type,
-            categorie: categorie,
-            titre: n.title,
-            message: n.message,
-            date: n.createdAt,
-            lu: n.isRead,
-          };
-        });
-
-        setNotifications(mapped);
-      } catch (err) {
-        console.error("Erreur lors de la récupération des notifications:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (user) {
-      fetchNotifications();
-    }
-  }, [user]);
+  const notifications = [
+    {
+      id: 1,
+      type: 'success',
+      categorie: 'Candidature',
+      titre: 'Candidature confirmée',
+      message: 'Votre candidature pour le poste "Développeur Full-Stack Senior" a bien été reçue',
+      date: '2026-04-16 14:35',
+      lu: false,
+    },
+    {
+      id: 2,
+      type: 'info',
+      categorie: 'Entretien',
+      titre: 'Convocation entretien',
+      message: 'Vous êtes convoqué à un entretien pour le poste "Développeur Full-Stack Senior" le 25 Avril 2026 à 14:00',
+      date: '2026-04-18 15:20',
+      lu: false,
+    },
+    {
+      id: 3,
+      type: 'warning',
+      categorie: 'Entretien',
+      titre: 'Rappel entretien',
+      message: 'Rappel : Entretien technique pour "DevOps Engineer" demain à 10:00 en présentiel',
+      date: '2026-04-22 09:00',
+      lu: true,
+    },
+    {
+      id: 4,
+      type: 'info',
+      categorie: 'Statut',
+      titre: 'Mise à jour statut candidature',
+      message: 'Votre candidature pour "DevOps Engineer" est passée en phase "Entretien technique"',
+      date: '2026-04-18 14:00',
+      lu: true,
+    },
+    {
+      id: 5,
+      type: 'success',
+      categorie: 'Candidature',
+      titre: 'Candidature confirmée',
+      message: 'Votre candidature pour le poste "DevOps Engineer" a bien été reçue',
+      date: '2026-04-10 09:20',
+      lu: true,
+    },
+    {
+      id: 6,
+      type: 'error',
+      categorie: 'Statut',
+      titre: 'Candidature non retenue',
+      message: 'Nous vous remercions pour votre candidature au poste "Analyste de Données". Malheureusement, votre profil ne correspond pas aux exigences actuelles.',
+      date: '2026-04-12 16:45',
+      lu: true,
+    },
+  ];
 
   const categories = ['Toutes', 'Candidature', 'Entretien', 'Statut'];
 
@@ -85,55 +82,11 @@ export default function NotificationsCandidat() {
     }
   };
 
-  const handleMarkAsRead = async (id: string) => {
-    try {
-      const res = await fetch(`http://localhost:8080/notifications/notifications/${id}/read`, {
-        method: 'POST',
-      });
-      if (res.ok) {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, lu: true } : n));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleMarkAllRead = async () => {
-    if (!candidateId) return;
-    try {
-      const res = await fetch(`http://localhost:8080/notifications/notifications/read-all?userId=${candidateId}`, {
-        method: 'POST',
-      });
-      if (res.ok) {
-        setNotifications(prev => prev.map(n => ({ ...n, lu: true })));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: number) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette notification ?')) {
-      try {
-        const res = await fetch(`http://localhost:8080/notifications/notifications/${id}`, {
-          method: 'DELETE',
-        });
-        if (res.ok) {
-          setNotifications(prev => prev.filter(n => n.id !== id));
-        }
-      } catch (err) {
-        console.error(err);
-      }
+      // Logique de suppression
     }
   };
-
-  if (loading) {
-    return (
-      <div className="p-6 bg-[#F5F7FA] min-h-screen flex items-center justify-center">
-        <p className="text-gray-600 text-sm">Chargement des notifications...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 bg-[#F5F7FA]">
@@ -169,14 +122,9 @@ export default function NotificationsCandidat() {
               </button>
             ))}
           </div>
-          {nonLues > 0 && (
-            <button 
-              onClick={handleMarkAllRead}
-              className="text-sm text-[#0A6ED1] hover:underline"
-            >
-              Tout marquer comme lu
-            </button>
-          )}
+          <button className="text-sm text-[#0A6ED1] hover:underline">
+            Tout marquer comme lu
+          </button>
         </div>
       </div>
 
@@ -193,8 +141,7 @@ export default function NotificationsCandidat() {
             filteredNotifications.map((notif) => (
               <div
                 key={notif.id}
-                onClick={() => !notif.lu && handleMarkAsRead(notif.id)}
-                className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${
+                className={`p-6 hover:bg-gray-50 transition-colors ${
                   !notif.lu ? 'bg-blue-50' : ''
                 }`}
               >
@@ -221,10 +168,7 @@ export default function NotificationsCandidat() {
                         </div>
                       </div>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(notif.id);
-                        }}
+                        onClick={() => handleDelete(notif.id)}
                         className="ml-4 p-1 hover:bg-red-50 text-red-600 flex-shrink-0"
                         title="Supprimer"
                       >
