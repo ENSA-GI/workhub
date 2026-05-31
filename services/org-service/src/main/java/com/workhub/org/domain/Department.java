@@ -16,7 +16,7 @@ import java.util.UUID;
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
-public class Department {
+public class Department extends Auditable {
 
     @Id
     private UUID id;
@@ -32,6 +32,7 @@ public class Department {
     @Column(name = "manager_employee_id")
     private UUID managerEmployeeId;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
 }

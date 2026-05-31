@@ -1,103 +1,148 @@
 package com.workhub.org.api;
 
-import com.workhub.org.domain.*;
-import com.workhub.org.repo.*;
+import com.workhub.org.domain.ProfessionalCategory;
+import com.workhub.org.dto.*;
+import com.workhub.org.service.DepartmentService;
+import com.workhub.org.service.OrganizationService;
+import com.workhub.org.service.PositionService;
+import com.workhub.org.util.SecurityUtils;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
 public class OrgController {
 
-    private final OrganizationRepository orgRepo;
-    private final DepartmentRepository deptRepo;
-    private final PositionRepository posRepo;
+    private final OrganizationService orgService;
+    private final DepartmentService deptService;
+    private final PositionService posService;
 
-    public OrgController(OrganizationRepository orgRepo,
-                         DepartmentRepository deptRepo,
-                         PositionRepository posRepo) {
-        this.orgRepo = orgRepo;
-        this.deptRepo = deptRepo;
-        this.posRepo = posRepo;
+    public OrgController(OrganizationService orgService,
+                         DepartmentService deptService,
+                         PositionService posService) {
+        this.orgService = orgService;
+        this.deptService = deptService;
+        this.posService = posService;
     }
-
-    // ---------- DTOs ----------
-    public record CreateOrganizationRequest(
-            @NotBlank String name,
-            @NotBlank String legalName,
-            String city
-    ) {}
-
-    public record CreateDepartmentRequest(
-            @NotNull UUID organizationId,
-            @NotBlank String name,
-            String description
-    ) {}
-
-    public record CreatePositionRequest(
-            @NotNull UUID organizationId,
-            @NotBlank String title,
-            String description,
-            @NotNull ProfessionalCategory category
-    ) {}
 
     // ---------- Organizations ----------
     @PostMapping("/orgs")
-    public Organization createOrg(@RequestBody @Valid CreateOrganizationRequest req) {
-        Organization org = Organization.builder()
-                .id(UUID.randomUUID())
-                .name(req.name())
-                .legalName(req.legalName())
-                .city(req.city())
-                .active(true)
-                .build();
-        return orgRepo.save(org);
+    @ResponseStatus(HttpStatus.CREATED)
+    public OrganizationResponse createOrg(@RequestBody @Valid CreateOrganizationRequest req) {
+        return orgService.createOrganization(req);
     }
 
     @GetMapping("/orgs")
-    public List<Organization> listOrgs() {
-        return orgRepo.findAll();
+    public Page<OrganizationResponse> listOrgs(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) Boolean active,
+            Pageable pageable) {
+        return orgService.getAllOrganizations(name, city, active, pageable);
+    }
+
+    @GetMapping("/orgs/{id}")
+    public OrganizationResponse getOrgById(@PathVariable UUID id) {
+        SecurityUtils.validateOrganizationAccess(id);
+        return orgService.getOrganizationById(id);
+    }
+
+    @PutMapping("/orgs/{id}")
+    public OrganizationResponse updateOrg(@PathVariable UUID id, @RequestBody @Valid UpdateOrganizationRequest req) {
+        SecurityUtils.validateOrganizationAccess(id);
+        return orgService.updateOrganization(id, req);
+    }
+
+    @DeleteMapping("/orgs/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteOrg(@PathVariable UUID id) {
+        SecurityUtils.validateOrganizationAccess(id);
+        orgService.deleteOrganization(id);
     }
 
     // ---------- Departments ----------
     @PostMapping("/departments")
-    public Department createDepartment(@RequestBody @Valid CreateDepartmentRequest req) {
-        Department d = Department.builder()
-                .id(UUID.randomUUID())
-                .organizationId(req.organizationId())
-                .name(req.name())
-                .description(req.description())
-                .active(true)
-                .build();
-        return deptRepo.save(d);
+    @ResponseStatus(HttpStatus.CREATED)
+    public DepartmentResponse createDepartment(@RequestBody @Valid CreateDepartmentRequest req) {
+        SecurityUtils.validateOrganizationAccess(req.organizationId());
+        return deptService.createDepartment(req);
     }
 
     @GetMapping("/orgs/{orgId}/departments")
-    public List<Department> listDepartments(@PathVariable UUID orgId) {
-        return deptRepo.findByOrganizationId(orgId);
+    public Page<DepartmentResponse> listDepartments(
+            @PathVariable UUID orgId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) Boolean active,
+            Pageable pageable) {
+        SecurityUtils.validateOrganizationAccess(orgId);
+        return deptService.getDepartmentsByOrganizationId(orgId, name, active, pageable);
+    }
+
+    @GetMapping("/departments/{id}")
+    public DepartmentResponse getDepartmentById(@PathVariable UUID id) {
+        DepartmentResponse dept = deptService.getDepartmentById(id);
+        SecurityUtils.validateOrganizationAccess(dept.organizationId());
+        return dept;
+    }
+
+    @PutMapping("/departments/{id}")
+    public DepartmentResponse updateDepartment(@PathVariable UUID id, @RequestBody @Valid UpdateDepartmentRequest req) {
+        DepartmentResponse dept = deptService.getDepartmentById(id);
+        SecurityUtils.validateOrganizationAccess(dept.organizationId());
+        return deptService.updateDepartment(id, req);
+    }
+
+    @DeleteMapping("/departments/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDepartment(@PathVariable UUID id) {
+        DepartmentResponse dept = deptService.getDepartmentById(id);
+        SecurityUtils.validateOrganizationAccess(dept.organizationId());
+        deptService.deleteDepartment(id);
     }
 
     // ---------- Positions ----------
     @PostMapping("/positions")
-    public Position createPosition(@RequestBody @Valid CreatePositionRequest req) {
-        Position p = Position.builder()
-                .id(UUID.randomUUID())
-                .organizationId(req.organizationId())
-                .title(req.title())
-                .description(req.description())
-                .category(req.category())
-                .active(true)
-                .build();
-        return posRepo.save(p);
+    @ResponseStatus(HttpStatus.CREATED)
+    public PositionResponse createPosition(@RequestBody @Valid CreatePositionRequest req) {
+        SecurityUtils.validateOrganizationAccess(req.organizationId());
+        return posService.createPosition(req);
     }
 
     @GetMapping("/orgs/{orgId}/positions")
-    public List<Position> listPositions(@PathVariable UUID orgId) {
-        return posRepo.findByOrganizationId(orgId);
+    public Page<PositionResponse> listPositions(
+            @PathVariable UUID orgId,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) ProfessionalCategory category,
+            @RequestParam(required = false) Boolean active,
+            Pageable pageable) {
+        SecurityUtils.validateOrganizationAccess(orgId);
+        return posService.getPositionsByOrganizationId(orgId, title, category, active, pageable);
+    }
+
+    @GetMapping("/positions/{id}")
+    public PositionResponse getPositionById(@PathVariable UUID id) {
+        PositionResponse pos = posService.getPositionById(id);
+        SecurityUtils.validateOrganizationAccess(pos.organizationId());
+        return pos;
+    }
+
+    @PutMapping("/positions/{id}")
+    public PositionResponse updatePosition(@PathVariable UUID id, @RequestBody @Valid UpdatePositionRequest req) {
+        PositionResponse pos = posService.getPositionById(id);
+        SecurityUtils.validateOrganizationAccess(pos.organizationId());
+        return posService.updatePosition(id, req);
+    }
+
+    @DeleteMapping("/positions/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePosition(@PathVariable UUID id) {
+        PositionResponse pos = posService.getPositionById(id);
+        SecurityUtils.validateOrganizationAccess(pos.organizationId());
+        posService.deletePosition(id);
     }
 }

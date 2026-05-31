@@ -9,3 +9,4 @@ VALUES
 ('880e8400-e29b-41d4-a716-446655440000', 'clerk_fatima_123',  '550e8400-e29b-41d4-a716-446655440000', 'fatima@techvision.ma',  'Fatima',  'Zahra',   'RH_MANAGER', true),
 ('990e8400-e29b-41d4-a716-446655440000', 'clerk_mohammed_123','550e8400-e29b-41d4-a716-446655440000', 'mohammed@techvision.ma','Mohammed','El Amrani','EMPLOYEE', true)
 ON CONFLICT (id) DO NOTHING;
+

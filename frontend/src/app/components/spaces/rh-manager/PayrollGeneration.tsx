@@ -1,438 +1,179 @@
-import { DollarSign, Calendar, Users, Calculator, Download, Save, CheckCircle, AlertCircle, Edit2, Plus, Search, Filter, CheckSquare, Square } from 'lucide-react';
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { saveToLocalStorage, loadFromLocalStorage } from '../../../utils/dataManager';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
+import { Calendar, Download, CheckCircle, Search, Loader2, AlertCircle } from 'lucide-react';
+import { useGeneratePayroll, usePayrollItems, usePayrolls, payrollValue } from '@/lib/usePayroll';
+import { useOrganizationId } from '@/lib/useOrganizationId';
+
+function monthLabel(selectedMonth: string) {
+  return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(`${selectedMonth}-01`));
+}
 
 export default function PayrollGeneration() {
   const navigate = useNavigate();
-  const [selectedMonth, setSelectedMonth] = useState('2026-04');
-  const [editingRow, setEditingRow] = useState<number | null>(null);
+  const { user } = useUser();
+  const organizationId = useOrganizationId();
+  const generatedBy = (user?.publicMetadata?.employeeId as string) || '';
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [monthTouched, setMonthTouched] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterDept, setFilterDept] = useState('Tous');
-  const [selectedEmployees, setSelectedEmployees] = useState<number[]>([]);
 
-  const employees = [
-    { id: 1, matricule: 'EMP001', nom: 'Alami', prenom: 'Mohammed', departement: 'IT', poste: 'Développeur Senior', salaireBrut: 12000, anciennete: 850, transport: 500, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 2, matricule: 'EMP002', nom: 'Bennani', prenom: 'Sara', departement: 'IT', poste: 'Chef de Projet', salaireBrut: 15000, anciennete: 1200, transport: 500, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 3, matricule: 'EMP003', nom: 'Zahra', prenom: 'Fatima', departement: 'RH', poste: 'Analyste RH', salaireBrut: 9000, anciennete: 450, transport: 500, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 4, matricule: 'EMP004', nom: 'Alaoui', prenom: 'Karim', departement: 'Ventes', poste: 'Commercial Senior', salaireBrut: 8500, anciennete: 350, transport: 500, primePerf: 0, absences: 1, heuresSupp: 0 },
-    { id: 5, matricule: 'EMP005', nom: 'Idrissi', prenom: 'Amina', departement: 'Finance', poste: 'Comptable', salaireBrut: 10000, anciennete: 600, transport: 500, primePerf: 0, absences: 0, heuresSupp: 5 },
-    { id: 6, matricule: 'EMP006', nom: 'El Fassi', prenom: 'Youssef', departement: 'IT', poste: 'Développeur', salaireBrut: 9500, anciennete: 475, transport: 500, primePerf: 0, absences: 0, heuresSupp: 3 },
-    { id: 7, matricule: 'EMP007', nom: 'Tazi', prenom: 'Nadia', departement: 'Marketing', poste: 'Chef Marketing', salaireBrut: 11000, anciennete: 800, transport: 500, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 8, matricule: 'EMP008', nom: 'Berrada', prenom: 'Hassan', departement: 'Ventes', poste: 'Commercial', salaireBrut: 7500, anciennete: 300, transport: 400, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 9, matricule: 'EMP009', nom: 'Alami', prenom: 'Zineb', departement: 'RH', poste: 'RH Manager', salaireBrut: 13000, anciennete: 1000, transport: 500, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 10, matricule: 'EMP010', nom: 'Bennani', prenom: 'Omar', departement: 'IT', poste: 'DevOps Engineer', salaireBrut: 11500, anciennete: 700, transport: 500, primePerf: 0, absences: 0, heuresSupp: 8 },
-    { id: 11, matricule: 'EMP011', nom: 'Chakir', prenom: 'Leila', departement: 'Finance', poste: 'Analyste Financier', salaireBrut: 9000, anciennete: 450, transport: 400, primePerf: 0, absences: 2, heuresSupp: 0 },
-    { id: 12, matricule: 'EMP012', nom: 'El Idrissi', prenom: 'Ahmed', departement: 'IT', poste: 'Développeur Junior', salaireBrut: 7000, anciennete: 0, transport: 400, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 13, matricule: 'EMP013', nom: 'Fassi', prenom: 'Sanaa', departement: 'Marketing', poste: 'Social Media Manager', salaireBrut: 8000, anciennete: 350, transport: 400, primePerf: 0, absences: 1, heuresSupp: 0 },
-    { id: 14, matricule: 'EMP014', nom: 'Tazi', prenom: 'Mehdi', departement: 'Ventes', poste: 'Responsable Commercial', salaireBrut: 12000, anciennete: 900, transport: 500, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 15, matricule: 'EMP015', nom: 'Alaoui', prenom: 'Rachid', departement: 'IT', poste: 'Tech Lead', salaireBrut: 16000, anciennete: 1400, transport: 500, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 16, matricule: 'EMP016', nom: 'Benjelloun', prenom: 'Imane', departement: 'Finance', poste: 'Contrôleur de Gestion', salaireBrut: 10500, anciennete: 650, transport: 500, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 17, matricule: 'EMP017', nom: 'Chraibi', prenom: 'Kamal', departement: 'Ventes', poste: 'Commercial', salaireBrut: 7500, anciennete: 300, transport: 400, primePerf: 0, absences: 0, heuresSupp: 0 },
-    { id: 18, matricule: 'EMP018', nom: 'El Amrani', prenom: 'Salma', departement: 'RH', poste: 'Assistant RH', salaireBrut: 6500, anciennete: 0, transport: 300, primePerf: 0, absences: 0, heuresSupp: 0 },
-  ];
+  const { data: payrolls = [] } = usePayrolls(organizationId);
+  const generatePayroll = useGeneratePayroll();
 
-  const calculateNet = (emp: typeof employees[0]) => {
-    const brut = emp.salaireBrut + emp.anciennete + emp.transport + emp.primePerf + (emp.heuresSupp * 150);
-    const cnss = brut * 0.0448;
-    const amo = brut * 0.0226;
-    const ir = brut * 0.10;
-    const absencesDeduction = (emp.salaireBrut / 26) * emp.absences;
-    return brut - cnss - amo - ir - absencesDeduction;
-  };
+  const selectedYear = Number(selectedMonth.split('-')[0]);
+  const selectedMonthNumber = Number(selectedMonth.split('-')[1]);
+  const selectedPayroll = useMemo(() => payrolls.find((payroll) => payroll.year === selectedYear && payroll.month === selectedMonthNumber) || null, [payrolls, selectedYear, selectedMonthNumber]);
+  const { data: selectedPayrollItems = [], isLoading: selectedPayrollItemsLoading } = usePayrollItems(selectedPayroll?.id || '');
 
-  const filteredEmployees = employees.filter(emp => {
-    const matchSearch = emp.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       emp.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       emp.matricule.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchDept = filterDept === 'Tous' || emp.departement === filterDept;
-    return matchSearch && matchDept;
+  const payrollRows = useMemo(() => selectedPayrollItems.map((item) => {
+    const adjustments = Array.isArray(item.adjustments) ? item.adjustments : [];
+    const adjustmentTotal = adjustments.reduce((sum, adj) => {
+      const amount = payrollValue(adj.amount);
+      return sum + (adj.type === 'DEDUCTION' ? -amount : amount);
+    }, 0);
+
+    return {
+      id: item.id,
+      employeeId: item.employeeId,
+      estimatedGross: payrollValue(item.grossSalary),
+      estimatedNet: payrollValue(item.netSalary),
+      adjustmentTotal,
+    };
+  }), [selectedPayrollItems]);
+
+  const filteredEmployees = payrollRows.filter((emp) => {
+    const searchTarget = `${emp.id} ${emp.employeeId}`.toLowerCase();
+    return searchTarget.includes(searchTerm.toLowerCase());
   });
 
-  const totalBrut = filteredEmployees.reduce((sum, emp) => sum + emp.salaireBrut + emp.anciennete + emp.transport + emp.primePerf + (emp.heuresSupp * 150), 0);
-  const totalNet = filteredEmployees.reduce((sum, emp) => sum + calculateNet(emp), 0);
-  const totalCharges = totalBrut - totalNet;
+  const totalGross = filteredEmployees.reduce((sum, emp) => sum + emp.estimatedGross, 0);
+  const totalNet = filteredEmployees.reduce((sum, emp) => sum + emp.estimatedNet, 0);
+  const hasGeneratedPayroll = !!selectedPayroll;
+  const selectedPeriodLabel = selectedPayroll ? monthLabel(`${selectedPayroll.year}-${String(selectedPayroll.month).padStart(2, '0')}`) : monthLabel(selectedMonth);
+  const hasRenderableRows = hasGeneratedPayroll && !selectedPayrollItemsLoading && filteredEmployees.length > 0;
 
-  const departments = ['Tous', 'IT', 'Ventes', 'Marketing', 'RH', 'Finance'];
+  const handleMonthChange = (value: string) => setSelectedMonth(value);
 
-  const toggleSelectAll = () => {
-    if (selectedEmployees.length === filteredEmployees.length) {
-      setSelectedEmployees([]);
-    } else {
-      setSelectedEmployees(filteredEmployees.map(e => e.id));
-    }
-  };
-
-  const toggleSelectEmployee = (id: number) => {
-    if (selectedEmployees.includes(id)) {
-      setSelectedEmployees(selectedEmployees.filter(eid => eid !== id));
-    } else {
-      setSelectedEmployees([...selectedEmployees, id]);
-    }
-  };
-
-  const applyBulkBonus = () => {
-    const bonus = prompt('Entrez le montant de la prime à appliquer (MAD):');
-    if (bonus && selectedEmployees.length > 0) {
-      alert(`Prime de MAD ${bonus} appliquée à ${selectedEmployees.length} employé(s)`);
-    }
-  };
-
-  const applyBulkOvertimeHours = () => {
-    const hours = prompt('Entrez le nombre d\'heures supplémentaires:');
-    if (hours && selectedEmployees.length > 0) {
-      alert(`${hours} heures supplémentaires appliquées à ${selectedEmployees.length} employé(s)`);
-    }
-  };
-
-  const savePayroll = (status: 'Draft' | 'Processed') => {
-    const monthName = new Date(selectedMonth + '-01').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-
-    // Charger les paies existantes
-    const existingPayrolls = loadFromLocalStorage('workhub_payrolls', []);
-
-    // Vérifier si une paie existe déjà pour ce mois
-    const existingIndex = existingPayrolls.findIndex((p: any) => p.month === monthName);
-
-    const payrollData = {
-      id: existingIndex >= 0 ? existingPayrolls[existingIndex].id : Math.max(...existingPayrolls.map((p: any) => p.id), 0) + 1,
-      month: monthName,
-      employees: filteredEmployees.length,
-      grossAmount: totalBrut,
-      deductions: totalCharges,
-      netAmount: totalNet,
-      status: status === 'Draft' ? 'Brouillon' : 'Processed',
-      date: new Date().toISOString().split('T')[0],
-    };
-
-    // Mettre à jour ou ajouter
-    if (existingIndex >= 0) {
-      existingPayrolls[existingIndex] = payrollData;
-    } else {
-      existingPayrolls.unshift(payrollData);
+  const handleGeneratePayroll = async () => {
+    if (!organizationId || !generatedBy) {
+      alert('Organization ID ou generatedBy manquant dans Clerk.');
+      return;
     }
 
-    // Sauvegarder
-    saveToLocalStorage('workhub_payrolls', existingPayrolls);
+    const [yearStr, monthStr] = selectedMonth.split('-');
+    await generatePayroll.mutateAsync({
+      organizationId,
+      generatedBy,
+      year: Number(yearStr),
+      month: Number(monthStr),
+    });
 
-    // Rediriger vers la page Paie
     navigate('/payroll');
   };
 
-  const handleSaveDraft = () => {
-    if (window.confirm('Enregistrer cette paie comme brouillon ?')) {
-      savePayroll('Draft');
-    }
-  };
-
-  const handleGeneratePayroll = () => {
-    if (window.confirm(`Générer la paie pour ${filteredEmployees.length} employés ?\n\nTotal Net: MAD ${totalNet.toLocaleString()}`)) {
-      savePayroll('Processed');
-    }
-  };
+  if (!organizationId) {
+    return <div className="p-6 text-center text-red-600">Aucune organisation active trouvée dans Clerk. Vérifie que l'utilisateur est bien rattaché à une organisation.</div>;
+  }
 
   return (
     <div className="p-6 bg-[#F5F7FA]">
-      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Génération de la Paie</h1>
-          <p className="text-sm text-gray-600 mt-1">Préparez et générez les bulletins de paie mensuels</p>
+          <p className="text-sm text-gray-600 mt-1">
+            {hasGeneratedPayroll
+              ? 'Paie générée pour cette période chargée depuis le backend'
+              : 'Aucune paie backend pour cette période. Le tableau restera vide tant qu’elle n’existe pas.'}
+          </p>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center">
+          <button
+            onClick={() => selectedPayroll && window.open(`/payroll/payrolls/${selectedPayroll.id}/payslips/export-zip`, '_blank')}
+            disabled={!selectedPayroll}
+            className="px-4 py-2 border border-gray-300 bg-white flex items-center disabled:text-gray-400 disabled:cursor-not-allowed text-gray-700 hover:bg-gray-50"
+            title={selectedPayroll ? 'Exporter les bulletins ZIP' : 'Exporter disponible après génération'}
+          >
             <Download className="w-4 h-4 mr-2" />
-            Exporter Données
+            {selectedPayroll ? 'Exporter ZIP' : 'Export indisponible'}
           </button>
-          <button
-            onClick={handleSaveDraft}
-            className="px-4 py-2 bg-gray-600 text-white hover:bg-gray-700 flex items-center"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            Enregistrer Brouillon
-          </button>
-          <button
-            onClick={handleGeneratePayroll}
-            className="px-6 py-2 bg-[#0A6ED1] text-white hover:bg-[#0959b0] flex items-center"
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Générer la Paie
+          <button onClick={handleGeneratePayroll} disabled={generatePayroll.isPending} className="px-6 py-2 bg-[#0A6ED1] text-white hover:bg-[#0959b0] flex items-center disabled:opacity-60">
+            {generatePayroll.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
+            {selectedPayroll ? 'Régénérer la Paie' : 'Générer la Paie'}
           </button>
         </div>
       </div>
 
-      {/* Month Selector */}
       <div className="bg-white border border-gray-200 p-4 mb-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center space-x-4">
             <Calendar className="w-5 h-5 text-[#0A6ED1]" />
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase mb-1">Période de Paie</label>
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="px-4 py-2 border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
-              />
+              <input type="month" value={selectedMonth} onChange={(e) => handleMonthChange(e.target.value)} className="px-4 py-2 border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]" />
             </div>
           </div>
           <div className="flex items-center space-x-6">
-            <div className="text-center">
-              <p className="text-xs text-gray-500 uppercase mb-1">Statut</p>
-              <span className="inline-flex px-3 py-1 text-xs bg-orange-100 text-orange-800">
-                Brouillon
-              </span>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500 uppercase mb-1">Employés</p>
-              <p className="text-lg font-semibold text-gray-900">{employees.length}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-xs text-gray-500 uppercase mb-1">Date Limite</p>
-              <p className="text-sm font-medium text-red-600">30 Avril 2026</p>
-            </div>
+            <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Période</p><p className="text-sm font-medium text-gray-900">{selectedPeriodLabel}</p></div>
+            <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Lignes backend</p><p className="text-lg font-semibold text-gray-900">{selectedPayrollItems.length}</p></div>
+            <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Source</p><p className="text-sm font-medium text-gray-900">{hasGeneratedPayroll ? 'Backend paie' : 'Aucune paie'}</p></div>
           </div>
         </div>
       </div>
 
-      {/* Filters and Bulk Actions */}
-      <div className="bg-white border border-gray-200 p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher par nom ou matricule..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <Filter className="w-5 h-5 text-gray-500" />
-            <select
-              value={filterDept}
-              onChange={(e) => setFilterDept(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
-            >
-              {departments.map(dept => (
-                <option key={dept} value={dept}>{dept === 'Tous' ? 'Tous les départements' : dept}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center justify-end">
-            <span className="text-sm text-gray-600 mr-3">
-              {filteredEmployees.length} employé{filteredEmployees.length > 1 ? 's' : ''}
-            </span>
-          </div>
-        </div>
-
-        {selectedEmployees.length > 0 && (
-          <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200">
-            <div className="flex items-center">
-              <CheckCircle className="w-5 h-5 text-blue-600 mr-2" />
-              <span className="text-sm font-medium text-blue-900">
-                {selectedEmployees.length} employé{selectedEmployees.length > 1 ? 's' : ''} sélectionné{selectedEmployees.length > 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={applyBulkBonus}
-                className="px-4 py-2 bg-[#0A6ED1] text-white text-sm hover:bg-[#0959b0]"
-              >
-                Appliquer Prime
-              </button>
-              <button
-                onClick={applyBulkOvertimeHours}
-                className="px-4 py-2 bg-green-600 text-white text-sm hover:bg-green-700"
-              >
-                Ajouter Heures Supp.
-              </button>
-              <button
-                onClick={() => setSelectedEmployees([])}
-                className="px-4 py-2 border border-gray-300 text-gray-700 text-sm hover:bg-gray-50"
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-3">
-            <Calculator className="w-6 h-6 text-[#0A6ED1]" />
-          </div>
-          <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Salaire Brut Total</h3>
-          <p className="text-3xl font-semibold text-gray-900">MAD {totalBrut.toLocaleString()}</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-3">
-            <Users className="w-6 h-6 text-green-600" />
-          </div>
-          <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Salaire Net Total</h3>
-          <p className="text-3xl font-semibold text-green-600">MAD {totalNet.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-3">
-            <DollarSign className="w-6 h-6 text-orange-600" />
-          </div>
-          <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Charges Sociales</h3>
-          <p className="text-3xl font-semibold text-orange-600">MAD {totalCharges.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</p>
-        </div>
-        <div className="bg-white border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-3">
-            <AlertCircle className="w-6 h-6 text-purple-600" />
-          </div>
-          <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Coût Total Employeur</h3>
-          <p className="text-3xl font-semibold text-purple-600">MAD {(totalBrut * 1.20).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</p>
-        </div>
-      </div>
-
-      {/* Editable Payroll Table */}
       <div className="bg-white border border-gray-200 mb-6">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900">Détail des Salaires - Avril 2026</h3>
-          <button className="px-3 py-1 border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 flex items-center">
-            <Plus className="w-4 h-4 mr-1" />
-            Ajouter Prime Collective
-          </button>
+          <h3 className="text-base font-semibold text-gray-900">Détail des Salaires - {selectedPeriodLabel}</h3>
+          <span className="text-sm text-gray-500">{hasGeneratedPayroll ? 'Données réelles de la paie générée avec ajustements backend' : 'Tableau vide tant qu’aucune paie backend n’existe'}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 text-center">
-                  <button onClick={toggleSelectAll} className="p-1 hover:bg-gray-200">
-                    {selectedEmployees.length === filteredEmployees.length ? (
-                      <CheckSquare className="w-5 h-5 text-[#0A6ED1]" />
-                    ) : (
-                      <Square className="w-5 h-5 text-gray-400" />
-                    )}
-                  </button>
-                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matricule</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employé</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Département</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Poste</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ajustements</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salaire Brut</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ancienneté</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Transport</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase bg-blue-50">Prime Perf.</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Absences</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase bg-blue-50">H. Supp.</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Net à Payer</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Salaire Net</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredEmployees.map((emp) => (
-                <tr key={emp.id} className={`hover:bg-gray-50 ${selectedEmployees.includes(emp.id) ? 'bg-blue-50' : ''}`}>
-                  <td className="px-4 py-4 text-center">
-                    <button onClick={() => toggleSelectEmployee(emp.id)} className="p-1 hover:bg-gray-200">
-                      {selectedEmployees.includes(emp.id) ? (
-                        <CheckSquare className="w-5 h-5 text-[#0A6ED1]" />
-                      ) : (
-                        <Square className="w-5 h-5 text-gray-400" />
-                      )}
-                    </button>
-                  </td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900">{emp.matricule}</td>
-                  <td className="px-4 py-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{emp.nom} {emp.prenom}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-600">{emp.departement}</td>
-                  <td className="px-4 py-4 text-sm text-gray-600">{emp.poste}</td>
-                  <td className="px-4 py-4 text-sm text-right text-gray-900">MAD {emp.salaireBrut.toLocaleString()}</td>
-                  <td className="px-4 py-4 text-sm text-right text-gray-600">MAD {emp.anciennete}</td>
-                  <td className="px-4 py-4 text-sm text-right text-gray-600">MAD {emp.transport}</td>
-                  <td className="px-4 py-4 text-sm text-right bg-blue-50">
-                    {editingRow === emp.id ? (
-                      <input
-                        type="number"
-                        defaultValue={emp.primePerf}
-                        className="w-20 px-2 py-1 border border-[#0A6ED1] text-right focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
-                      />
-                    ) : (
-                      <span className="text-[#0A6ED1] font-medium">MAD {emp.primePerf}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-right">
-                    {emp.absences > 0 ? (
-                      <span className="text-red-600 font-medium">{emp.absences} j</span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-right bg-blue-50">
-                    {editingRow === emp.id ? (
-                      <input
-                        type="number"
-                        defaultValue={emp.heuresSupp}
-                        className="w-16 px-2 py-1 border border-[#0A6ED1] text-right focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
-                      />
-                    ) : (
-                      <span className="text-green-600 font-medium">{emp.heuresSupp} h</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-right">
-                    <span className="font-semibold text-gray-900">MAD {calculateNet(emp).toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    {editingRow === emp.id ? (
-                      <button
-                        onClick={() => setEditingRow(null)}
-                        className="p-1 text-green-600 hover:bg-green-50"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setEditingRow(emp.id)}
-                        className="p-1 text-[#0A6ED1] hover:bg-blue-50"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
+              {hasRenderableRows && filteredEmployees.map((emp) => (
+                <tr key={emp.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-4 text-sm font-medium text-gray-900">{emp.id.slice(0, 8)}</td>
+                  <td className="px-4 py-4 text-sm text-right text-gray-600">MAD {emp.adjustmentTotal.toLocaleString('fr-FR')}</td>
+                  <td className="px-4 py-4 text-sm text-right text-gray-900">MAD {emp.estimatedGross.toLocaleString('fr-FR')}</td>
+                  <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {emp.estimatedNet.toLocaleString('fr-FR')}</td>
                 </tr>
               ))}
+              {hasGeneratedPayroll && !selectedPayrollItemsLoading && filteredEmployees.length === 0 && (
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">Aucune ligne de paie disponible pour cette période.</td></tr>
+              )}
+              {!hasGeneratedPayroll && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8">
+                    <div className="flex flex-col items-center justify-center text-center text-gray-600">
+                      <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
+                      <p className="font-medium text-gray-900 mb-1">Aucune paie générée pour {selectedPeriodLabel}</p>
+                      <p className="text-sm max-w-xl">
+                        Le tableau reste vide tant qu’aucune paie backend n’existe pour cette période.
+                        Lancez la génération pour charger les lignes réelles et les ajustements.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
-            <tfoot className="bg-gray-50 border-t-2 border-gray-300">
-              <tr>
-                <td></td>
-                <td colSpan={4} className="px-4 py-4 text-sm font-semibold text-gray-900 uppercase">Total Général ({filteredEmployees.length} employés)</td>
-                <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {filteredEmployees.reduce((s, e) => s + e.salaireBrut, 0).toLocaleString()}</td>
-                <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {filteredEmployees.reduce((s, e) => s + e.anciennete, 0).toLocaleString()}</td>
-                <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {filteredEmployees.reduce((s, e) => s + e.transport, 0).toLocaleString()}</td>
-                <td className="px-4 py-4 text-sm text-right font-semibold text-[#0A6ED1] bg-blue-50">MAD {filteredEmployees.reduce((s, e) => s + e.primePerf, 0).toLocaleString()}</td>
-                <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">{filteredEmployees.reduce((s, e) => s + e.absences, 0)} j</td>
-                <td className="px-4 py-4 text-sm text-right font-semibold text-green-600 bg-blue-50">{filteredEmployees.reduce((s, e) => s + e.heuresSupp, 0)} h</td>
-                <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {totalNet.toLocaleString('fr-FR', { maximumFractionDigits: 0 })}</td>
-                <td></td>
-              </tr>
-            </tfoot>
+            {hasRenderableRows && (
+              <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+                <tr>
+                  <td colSpan={1} className="px-4 py-4 text-sm font-semibold text-gray-900 uppercase">Total Général ({filteredEmployees.length} lignes)</td>
+                  <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {filteredEmployees.reduce((sum, emp) => sum + (emp.adjustmentTotal || 0), 0).toLocaleString('fr-FR')}</td>
+                  <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {totalGross.toLocaleString('fr-FR')}</td>
+                  <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {totalNet.toLocaleString('fr-FR')}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
-        </div>
-      </div>
-
-      {/* Action Info Box */}
-      <div className="bg-blue-50 border border-blue-200 p-4">
-        <div className="flex items-start">
-          <AlertCircle className="w-5 h-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
-          <div>
-            <h4 className="text-sm font-semibold text-blue-900 mb-2">Instructions de Génération</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Vérifiez les primes de performance et heures supplémentaires avant génération</li>
-              <li>• Les absences non justifiées seront déduites automatiquement</li>
-              <li>• Les bulletins seront disponibles dans "Gestion des Bulletins" après génération</li>
-              <li>• Les employés recevront une notification par email avec leur bulletin en PDF</li>
-            </ul>
-          </div>
         </div>
       </div>
     </div>
