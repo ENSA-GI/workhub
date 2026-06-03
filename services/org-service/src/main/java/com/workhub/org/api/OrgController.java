@@ -145,4 +145,23 @@ public class OrgController {
         SecurityUtils.validateOrganizationAccess(pos.organizationId());
         posService.deletePosition(id);
     }
+
+    // ---------- Settings & Dashboard ----------
+    @GetMapping("/orgs/{id}/settings")
+    public OrganizationSettingsResponse getSettings(@PathVariable UUID id) {
+        SecurityUtils.validateOrganizationAccess(id);
+        return orgService.getOrganizationSettings(id);
+    }
+
+    @PutMapping("/orgs/{id}/settings")
+    public OrganizationSettingsResponse updateSettings(@PathVariable UUID id, @RequestBody @Valid UpdateOrganizationSettingsRequest req) {
+        SecurityUtils.validateOrganizationAccess(id);
+        return orgService.updateOrganizationSettings(id, req);
+    }
+
+    @GetMapping("/orgs/{id}/dashboard")
+    public OrgDashboardResponse getDashboard(@PathVariable UUID id) {
+        SecurityUtils.validateOrganizationAccess(id);
+        return orgService.getOrganizationDashboard(id);
+    }
 }

@@ -73,6 +73,15 @@ public class RecruitmentController {
         return applicationService.getByCandidateEmail(email);
     }
 
+    @GetMapping("/candidates/by-email")
+    public com.workhub.recruitment.domain.Candidate getCandidateByEmail(@RequestParam String email) {
+        com.workhub.recruitment.domain.Candidate candidate = applicationService.getCandidateByEmail(email);
+        if (candidate == null) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, "Candidat non trouvé");
+        }
+        return candidate;
+    }
+
     @DeleteMapping("/job-offers/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteJobOffer(@PathVariable UUID id) {

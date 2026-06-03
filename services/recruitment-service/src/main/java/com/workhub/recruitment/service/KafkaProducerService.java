@@ -18,4 +18,9 @@ public class KafkaProducerService {
         log.info("Sending CV analysis request for application: {}", request.getApplicationId());
         kafkaTemplate.send(TOPIC, request.getApplicationId().toString(), request);
     }
+
+    public void sendRecruitmentNotification(com.workhub.recruitment.dto.RecruitmentNotificationEvent event) {
+        log.info("Sending recruitment notification event for candidate: {} with type: {}", event.getCandidateId(), event.getEventType());
+        kafkaTemplate.send("workhub.recruitment.notifications.v1", event.getCandidateId().toString(), event);
+    }
 }

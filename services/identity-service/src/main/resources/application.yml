@@ -1,9 +1,17 @@
 server:
   port: 8088
+
+spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/identity_db}
     username: ${SPRING_DATASOURCE_USERNAME:workhub}
     password: ${SPRING_DATASOURCE_PASSWORD:workhub}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI:https://feasible-vervet-9.clerk.accounts.dev/.well-known/jwks.json}
 
   jpa:
     hibernate:
