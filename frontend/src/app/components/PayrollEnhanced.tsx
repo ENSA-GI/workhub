@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Download, ChevronRight, Loader2, MoreVertical } from 'lucide-react';
-import { useUser } from '@clerk/clerk-react';
+
 import { usePayPayroll, usePayrollItems, usePayrolls, payrollValue, Payroll } from '@/lib/usePayroll';
 import { useOrganizationId } from '@/lib/useOrganizationId';
 
@@ -11,9 +11,8 @@ function monthLabel(payroll: Payroll) {
 
 export default function PayrollEnhanced() {
   const navigate = useNavigate();
-  const { user } = useUser();
   const organizationId = useOrganizationId();
-  const userId = (user?.publicMetadata?.employeeId as string) || '';
+  const userId = (() => { try { const t = localStorage.getItem('workhub.token'); return t ? JSON.parse(atob(t.split('.')[1])).sub || '' : ''; } catch { return ''; } })();
 
   const { data: payrolls = [], isLoading, error } = usePayrolls(organizationId);
   const [selectedPayrollId, setSelectedPayrollId] = useState<string | null>(null);
@@ -26,7 +25,7 @@ export default function PayrollEnhanced() {
   const selectedDeductions = selectedPayroll ? payrollValue(selectedPayroll.totalCnss) + payrollValue(selectedPayroll.totalAmo) + payrollValue(selectedPayroll.totalIr) : 0;
 
   if (!organizationId) {
-    return <div className="p-6 text-center text-red-600">ID d'organisation manquant dans Clerk. La paie doit venir du backend.</div>;
+    return <div className="p-6 text-center text-red-600">ID d'organisation manquant. Veuillez vous connecter.</div>;
   }
 
   const handlePayPayroll = async () => {

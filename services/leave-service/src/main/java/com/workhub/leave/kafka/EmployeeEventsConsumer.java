@@ -1,5 +1,6 @@
 package com.workhub.leave.kafka;
 
+import com.workhub.leave.client.OrgPolicyClient;
 import com.workhub.leave.domain.LeaveBalance;
 import com.workhub.leave.kafka.event.EmployeeCreatedEvent;
 import com.workhub.leave.repo.LeaveBalanceRepository;
@@ -15,9 +16,11 @@ import java.util.UUID;
 public class EmployeeEventsConsumer {
 
     private final LeaveBalanceRepository repo;
+    private final OrgPolicyClient orgPolicyClient;
 
-    public EmployeeEventsConsumer(LeaveBalanceRepository repo) {
+    public EmployeeEventsConsumer(LeaveBalanceRepository repo, OrgPolicyClient orgPolicyClient) {
         this.repo = repo;
+        this.orgPolicyClient = orgPolicyClient;
     }
 
     @KafkaListener(
@@ -27,6 +30,9 @@ public class EmployeeEventsConsumer {
     )
     public void onEmployeeCreated(EmployeeCreatedEvent event) {
         int year = LocalDate.now().getYear();
+        UUID orgId = event.organizationId();
+        int annualDays = orgId != null ? orgPolicyClient.leaveDaysPerYear(orgId) : 22;
+        BigDecimal carried = orgId != null ? orgPolicyClient.maxCarryOver(orgId) : BigDecimal.ZERO;
 
         repo.findByEmployeeIdAndYear(event.employeeId(), year).ifPresentOrElse(
                 existing -> {},
@@ -34,11 +40,11 @@ public class EmployeeEventsConsumer {
                         .id(UUID.randomUUID())
                         .employeeId(event.employeeId())
                         .year(year)
-                        .totalDays(BigDecimal.valueOf(22))
+                        .totalDays(BigDecimal.valueOf(annualDays))
                         .usedDays(BigDecimal.ZERO)
                         .pendingDays(BigDecimal.ZERO)
-                        .carriedOverDays(BigDecimal.ZERO)
-                        .remainingDays(BigDecimal.valueOf(22))
+                        .carriedOverDays(carried)
+                        .remainingDays(BigDecimal.valueOf(annualDays).add(carried))
                         .updatedAt(LocalDateTime.now())
                         .build())
         );

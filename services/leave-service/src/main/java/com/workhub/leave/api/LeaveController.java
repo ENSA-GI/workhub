@@ -4,6 +4,7 @@ import com.workhub.leave.domain.*;
 import com.workhub.leave.repo.*;
 import com.workhub.leave.dto.*;
 import com.workhub.leave.service.LeaveService;
+import com.workhub.leave.util.SecurityUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
@@ -56,6 +57,7 @@ public class LeaveController {
     // GET /api/leave-types?organizationId=...
     @GetMapping("/leave-types")
     public List<LeaveType> leaveTypes(@RequestParam UUID organizationId) {
+        SecurityUtils.validateOrganizationAccess(organizationId);
         return typeRepo.findByOrganizationId(organizationId);
     }
 

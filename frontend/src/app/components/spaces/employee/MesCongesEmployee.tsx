@@ -1,9 +1,8 @@
 import { Calendar, Plus, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
-const ORG_ID = '550e8400-e29b-41d4-a716-446655440000';
-const API_BASE = 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 const DEMO_EMPLOYEE_ID = '111e8400-e29b-41d4-a716-446655440000';
 
 interface LeaveBalance {
@@ -80,7 +79,8 @@ function startOfToday() {
 }
 
 export default function MesCongesEmployee() {
-  const { user } = useUser();
+  const organizationId = useOrganizationId();
+  const employeeId = (() => { try { const t = localStorage.getItem('workhub.token'); return t ? JSON.parse(atob(t.split('.')[1])).sub || DEMO_EMPLOYEE_ID : DEMO_EMPLOYEE_ID; } catch { return DEMO_EMPLOYEE_ID; } })();
 
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -101,12 +101,6 @@ export default function MesCongesEmployee() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const employeeId = (
-    user?.publicMetadata?.employeeId ||
-    user?.unsafeMetadata?.employeeId ||
-    DEMO_EMPLOYEE_ID
-  ) as string;
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -117,7 +111,7 @@ export default function MesCongesEmployee() {
       const [reqRes, balRes, typesRes] = await Promise.all([
         fetch(`${API_BASE}/leave/leave-requests?employeeId=${employeeId}`, { headers }),
         fetch(`${API_BASE}/leave/leave-balances?employeeId=${employeeId}`, { headers }),
-        fetch(`${API_BASE}/leave/leave-types?organizationId=${ORG_ID}`, { headers }),
+        fetch(`${API_BASE}/leave/leave-types?organizationId=${organizationId}`, { headers }),
       ]);
 
       if (reqRes.ok) {
@@ -223,7 +217,7 @@ export default function MesCongesEmployee() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!user) {
+    if (!employeeId) {
       setFormMessage({ type: 'error', text: 'Vous devez etre connecte pour envoyer une demande.' });
       return;
     }

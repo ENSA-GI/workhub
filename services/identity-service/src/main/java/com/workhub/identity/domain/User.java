@@ -45,6 +45,28 @@ public class User {
     @Column(name = "email_verified", nullable = false)
     private Boolean emailVerified;
 
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
+
+    @Column(name = "mfa_secret")
+    private String mfaSecret;
+
+    @Builder.Default
+    @Column(name = "mfa_enabled", nullable = false)
+    private Boolean mfaEnabled = false;
+
+    @Column(name = "email_verification_token")
+    private String emailVerificationToken;
+
+    @Column(name = "email_verification_token_expires_at")
+    private Instant emailVerificationTokenExpiresAt;
+
+    @Column(name = "invitation_token")
+    private String invitationToken;
+
+    @Column(name = "invitation_token_expires_at")
+    private Instant invitationTokenExpiresAt;
+
     private Instant lastLogin;
 
     @Column(name = "created_at", updatable = false)

@@ -1,5 +1,5 @@
 import { AlertCircle, Bell, CheckCircle, FileText, Filter, Trash2, XCircle } from 'lucide-react';
-import { useUser } from '@clerk/clerk-react';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const API_BASE = 'http://localhost:8080';
@@ -41,17 +41,11 @@ function visualType(notification: Notification) {
 }
 
 export default function NotificationsEmployee() {
-  const { user } = useUser();
+  const userId = (() => { try { const t = localStorage.getItem('workhub.token'); return t ? JSON.parse(atob(t.split('.')[1])).sub || DEMO_EMPLOYEE_ID : DEMO_EMPLOYEE_ID; } catch { return DEMO_EMPLOYEE_ID; } })();
   const [selectedFilter, setSelectedFilter] = useState('Toutes');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const userId = (
-    user?.publicMetadata?.employeeId ||
-    user?.unsafeMetadata?.employeeId ||
-    DEMO_EMPLOYEE_ID
-  ) as string;
 
   const loadNotifications = useCallback(async () => {
     setLoading(true);

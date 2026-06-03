@@ -4,6 +4,7 @@ import com.workhub.identity.domain.Role;
 import com.workhub.identity.domain.User;
 import com.workhub.identity.repo.UserRepository;
 import com.workhub.identity.service.UserService;
+import com.workhub.identity.util.SecurityUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -41,10 +42,43 @@ public class UserController {
             @NotNull Role role
     ) {}
 
+    public record InviteRhManagerRequest(
+            @NotBlank @Email String email,
+            @NotBlank String firstName,
+            @NotBlank String lastName,
+            String phone
+    ) {}
+
     @GetMapping
     public List<User> list(@RequestParam(required = false) UUID organizationId) {
-        if (organizationId == null) return repo.findAll();
-        return repo.findByOrganizationId(organizationId);
+        if (organizationId != null) {
+            SecurityUtils.validateOrganizationAccess(organizationId);
+            return repo.findByOrganizationId(organizationId);
+        }
+        if ("SUPER_ADMIN".equals(SecurityUtils.currentRole())) {
+            return repo.findAll();
+        }
+        UUID orgId = SecurityUtils.currentOrganizationId();
+        if (orgId != null) {
+            return repo.findByOrganizationId(orgId);
+        }
+        throw new org.springframework.security.access.AccessDeniedException("Contexte organisation requis");
+    }
+
+    @PostMapping("/invite-rh-manager")
+    @ResponseStatus(HttpStatus.CREATED)
+    public User inviteRhManager(@RequestParam UUID organizationId,
+                                @RequestBody @Valid InviteRhManagerRequest req) {
+        SecurityUtils.validateOrganizationAccess(organizationId);
+        String tempPassword = java.util.UUID.randomUUID().toString();
+        return service.inviteRhManager(
+                organizationId,
+                req.email(),
+                req.firstName(),
+                req.lastName(),
+                req.phone(),
+                passwordEncoder.encode(tempPassword)
+        );
     }
 
     @GetMapping("/{id}")

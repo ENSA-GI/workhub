@@ -5,9 +5,12 @@ import EmployeeFormModal from './EmployeeFormModal';
 import EmployeeDetailModal from './EmployeeDetailModal';
 import ArchiveEmployeeModal from './ArchiveEmployeeModal';
 import { useOrganizationId } from '@/lib/useOrganizationId';
+import { useApi } from '@/lib/useApi';
 
 export default function EmployeesListRH() {
     const organizationId = useOrganizationId();
+    const apiFetch = useApi();
+    const [importing, setImporting] = useState(false);
 
     const [page, setPage] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
@@ -48,10 +51,25 @@ export default function EmployeesListRH() {
         setShowCreateModal(false);
     };
 
+    const handleImportCsv = async (file: File) => {
+        setImporting(true);
+        try {
+            const csv = await file.text();
+            await apiFetch(`/employee/employees/import?organizationId=${organizationId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: csv,
+            });
+            refetch();
+        } finally {
+            setImporting(false);
+        }
+    };
+
     if (!organizationId) {
         return (
             <div className="p-6 text-center">
-                <p className="text-red-600">Erreur : Organization ID manquant dans les métadonnées Clerk</p>
+                <p className="text-red-600">Erreur : ID organisation manquant (JWT).</p>
             </div>
         );
     }
@@ -79,6 +97,15 @@ export default function EmployeesListRH() {
                         <RefreshCw className="w-4 h-4" />
                         <span>Actualiser</span>
                     </button>
+                    <label className="px-4 py-2 border border-gray-300 cursor-pointer hover:bg-gray-50">
+                        {importing ? 'Import...' : 'Import CSV'}
+                        <input
+                            type="file"
+                            accept=".csv,.txt"
+                            className="hidden"
+                            onChange={(e) => e.target.files?.[0] && handleImportCsv(e.target.files[0])}
+                        />
+                    </label>
                     <button
                         onClick={() => setShowCreateModal(true)}
                         className="px-6 py-2 bg-[#0A6ED1] text-white hover:bg-[#0959b0] transition-colors flex items-center space-x-2"

@@ -1,4 +1,13 @@
-http://localhost:8081/api/orgs
+=======================================================
+ORG-SERVICE (Port 8081) — Auth : JWT WorkHub (plus de Clerk)
+=======================================================
+// Ajouter dans tous les appels protégés :
+// Header: Authorization: Bearer <JWT_TOKEN>
+// (JWT obtenu depuis identity-service : POST http://localhost:8088/api/auth/login)
+
+// 1. Créer une Organisation
+POST http://localhost:8081/api/orgs
+Authorization: Bearer <JWT_TOKEN>
 {
   "name": "WorkHub Corp",
   "legalName": "WorkHub International S.A.S",
@@ -7,9 +16,11 @@ http://localhost:8081/api/orgs
 
 // 2. Lister les Orgs (Récupérer l'ID)
 GET http://localhost:8081/api/orgs
+Authorization: Bearer <JWT_TOKEN>
 
 // 3. Créer un Département
 POST http://localhost:8081/api/departments
+Authorization: Bearer <JWT_TOKEN>
 {
   "organizationId": "VOTRE_ID_ORG",
   "name": "Ressources Humaines",
@@ -18,6 +29,7 @@ POST http://localhost:8081/api/departments
 
 // 4. Créer un Poste (Position)
 POST http://localhost:8081/api/positions
+Authorization: Bearer <JWT_TOKEN>
 {
   "organizationId": "VOTRE_ID_ORG",
   "title": "Développeur Fullstack",
@@ -27,38 +39,56 @@ POST http://localhost:8081/api/positions
 
 // 5. Voir les départements d'une Org
 GET http://localhost:8081/api/orgs/VOTRE_ID_ORG/departments
+Authorization: Bearer <JWT_TOKEN>
 
 // 6. Voir les postes d'une Org
 GET http://localhost:8081/api/orgs/VOTRE_ID_ORG/positions
+Authorization: Bearer <JWT_TOKEN>
+
+// 7. Dashboard d'une Org
+GET http://localhost:8081/api/orgs/VOTRE_ID_ORG/dashboard
+Authorization: Bearer <JWT_TOKEN>
+
+// 8. Routes INTERNES (sans auth, inter-services uniquement)
+GET http://localhost:8081/internal/orgs/VOTRE_ID_ORG/exists
+GET http://localhost:8081/internal/departments/VOTRE_ID_DEPT/exists
+GET http://localhost:8081/internal/departments/VOTRE_ID_DEPT/org
 
 =======================================================
 IDENTITY SERVICE (Port 8088)
 =======================================================
 
-// 1. Lister les utilisateurs
-GET http://localhost:8088/api/users
-
-// 2. Créer un utilisateur (Manuel)
-POST http://localhost:8088/api/users
+// 1. S'inscrire (créer un compte + obtenir un JWT)
+POST http://localhost:8088/api/auth/register
 {
-  "clerkId": "user_2Pz...",
   "organizationId": "VOTRE_ID_ORG",
   "email": "jean.dupont@exemple.com",
+  "password": "motdepasse",
   "firstName": "Jean",
   "lastName": "Dupont",
   "role": "EMPLOYEE"
 }
 
-// 3. Provisionner un utilisateur (Auto-sync)
-POST http://localhost:8088/api/users/provision
+// 2. Se connecter (obtenir un JWT)
+POST http://localhost:8088/api/auth/login
 {
-  "clerkId": "user_2Pz...",
   "email": "jean.dupont@exemple.com",
-  "firstName": "Jean",
-  "lastName": "Dupont",
-  "role": "ADMIN"
+  "password": "motdepasse"
 }
+// => Réponse : { "token": "eyJ..." }
 
-// 4. Utilisateur actuel (Nécessite un Token Clerk)
-GET http://localhost:8088/api/users/me
-Authorization: Bearer <CLERK_JWT_TOKEN>
+// 3. Lister les utilisateurs (JWT requis)
+GET http://localhost:8088/api/users
+Authorization: Bearer <JWT_TOKEN>
+
+// 4. Créer un utilisateur directement
+POST http://localhost:8088/api/users
+Authorization: Bearer <JWT_TOKEN>
+{
+  "organizationId": "VOTRE_ID_ORG",
+  "email": "marie.martin@exemple.com",
+  "password": "motdepasse",
+  "firstName": "Marie",
+  "lastName": "Martin",
+  "role": "ORG_ADMIN"
+}

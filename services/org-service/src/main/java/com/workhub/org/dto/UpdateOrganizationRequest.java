@@ -8,5 +8,9 @@ public record UpdateOrganizationRequest(
         String city,
         String industry,
         String country,
+        String taxId,
+        String address,
+        String phone,
+        String email,
         Boolean active
 ) {}

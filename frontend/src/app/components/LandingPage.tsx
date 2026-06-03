@@ -4,9 +4,11 @@ import footerLogo from '../../imports/Capture_d_écran_2026-04-20_185048-removeb
 
 interface LandingPageProps {
   onSelectRole: (role: string) => void;
+  onCreateOrganization?: () => void;
+  onLogin?: () => void;
 }
 
-export default function LandingPage({ onSelectRole }: LandingPageProps) {
+export default function LandingPage({ onSelectRole, onCreateOrganization, onLogin }: LandingPageProps) {
   const actors = [
     {
       role: 'super-admin',
@@ -66,11 +68,19 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
 
             {/* Right Actions */}
             <div className="flex items-center space-x-4">
-              <button className="text-sm text-gray-700 hover:text-[#0A6ED1] transition-colors">
+              <button
+                type="button"
+                onClick={onLogin}
+                className="text-sm text-gray-700 hover:text-[#0A6ED1] transition-colors"
+              >
                 Connexion
               </button>
-              <button className="px-5 py-2 bg-[#0A6ED1] text-white text-sm hover:bg-[#0959b0] transition-colors">
-                Commencer
+              <button
+                type="button"
+                onClick={onCreateOrganization}
+                className="px-5 py-2 bg-[#0A6ED1] text-white text-sm hover:bg-[#0959b0] transition-colors"
+              >
+                Créer une organisation
               </button>
             </div>
           </div>
@@ -117,8 +127,12 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
                 Conçu pour les entreprises modernes qui exigent efficacité, conformité et évolutivité.
               </p>
               <div className="flex items-center space-x-4">
-                <button className="px-6 py-3 bg-[#0A6ED1] text-white hover:bg-[#0959b0] transition-colors flex items-center">
-                  Commencer
+                <button
+                  type="button"
+                  onClick={onCreateOrganization}
+                  className="px-6 py-3 bg-[#0A6ED1] text-white hover:bg-[#0959b0] transition-colors flex items-center"
+                >
+                  Créer une organisation
                   <ChevronRight className="w-4 h-4 ml-2" />
                 </button>
                 <button className="px-6 py-3 border-2 border-gray-300 text-gray-700 hover:border-[#0A6ED1] hover:text-[#0A6ED1] transition-colors flex items-center">
@@ -413,8 +427,12 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
             Commencez votre essai gratuit ou planifiez une démo personnalisée avec notre équipe.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <button className="w-full sm:w-auto px-8 py-4 bg-white text-[#0A6ED1] font-semibold hover:bg-gray-100 transition-colors">
-              Commencer Gratuitement
+            <button
+              type="button"
+              onClick={onCreateOrganization}
+              className="w-full sm:w-auto px-8 py-4 bg-white text-[#0A6ED1] font-semibold hover:bg-gray-100 transition-colors"
+            >
+              Créer une organisation
             </button>
             <button className="w-full sm:w-auto px-8 py-4 border-2 border-white text-white font-semibold hover:bg-white hover:text-[#0A6ED1] transition-colors">
               Contacter les Ventes

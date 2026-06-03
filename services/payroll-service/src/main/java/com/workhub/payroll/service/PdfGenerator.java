@@ -21,6 +21,11 @@ public class PdfGenerator {
      * Utilise iText 7 pour la génération PDF.
      */
     public byte[] generatePayslipPdf(PayrollItem item, String employeeName, String month, int year) {
+        return generatePayslipPdf(item, employeeName, month, year, "WORKHUB", null);
+    }
+
+    public byte[] generatePayslipPdf(PayrollItem item, String employeeName, String month, int year,
+                                     String companyName, String legalMentions) {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
         try (
@@ -29,7 +34,8 @@ public class PdfGenerator {
             Document document = new Document(pdfDocument)
         ) {
             // Titre
-            Paragraph title = new Paragraph("WORKHUB - BULLETIN DE PAIE")
+            String header = (companyName != null && !companyName.isBlank()) ? companyName : "WORKHUB";
+            Paragraph title = new Paragraph(header + " - BULLETIN DE PAIE")
                     .setFontSize(18)
                     .setBold()
                     .setTextAlignment(TextAlignment.CENTER);
@@ -83,6 +89,11 @@ public class PdfGenerator {
                     .setBold()
                     .setTextAlignment(TextAlignment.CENTER);
             document.add(netPay);
+
+            if (legalMentions != null && !legalMentions.isBlank()) {
+                document.add(new Paragraph("\n"));
+                document.add(new Paragraph(legalMentions).setFontSize(8).setTextAlignment(TextAlignment.CENTER));
+            }
 
         } catch (Exception e) {
             throw new RuntimeException("Erreur lors de la génération du PDF : " + e.getMessage(), e);

@@ -1,10 +1,10 @@
-import { useAuth } from "@clerk/clerk-react";
-
+/**
+ * Hook utilitaire pour les appels API authentifiés.
+ * Lit le JWT depuis localStorage (stocké par AuthContext).
+ */
 export function useApi() {
-    const { getToken } = useAuth();
-
     return async function apiFetch(path: string, init: RequestInit = {}) {
-        const token = await getToken();
+        const token = localStorage.getItem("workhub.token");
 
         const headers = new Headers(init.headers);
         if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -22,7 +22,6 @@ export function useApi() {
         }
 
         const ct = res.headers.get("content-type") || "";
-        // @ts-ignore
         return ct.includes("application/json") ? res.json() : res.text();
     };
 }

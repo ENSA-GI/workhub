@@ -1,22 +1,38 @@
-import { useAuth, useUser } from '@clerk/clerk-react';
-
-const asString = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
-
-export function useOrganizationId() {
-  const { user } = useUser();
-  const { orgId, sessionClaims } = useAuth();
-  const claims = sessionClaims as Record<string, unknown> | null | undefined;
-  const publicMetadata = user?.publicMetadata as Record<string, unknown> | undefined;
-
-  return (
-    asString(orgId) ||
-    asString(claims?.org_id) ||
-    asString(claims?.organization_id) ||
-    asString(publicMetadata?.organizationId) ||
-    asString(import.meta.env.VITE_CLERK_ORGANIZATION_ID) ||
-    asString(import.meta.env.VITE_ORGANIZATION_ID)
-  );
+export function decodeJwtPayload(token: string): Record<string, unknown> | null {
+    try {
+        return JSON.parse(atob(token.split(".")[1]));
+    } catch {
+        return null;
+    }
 }
 
-void useOrganizationId;
+/**
+ * Hook utilitaire pour récupérer l'org_id depuis le JWT local.
+ * Décode le payload Base64 du token stocké dans localStorage.
+ */
+export function useOrganizationId(): string {
+    const token = localStorage.getItem("workhub.token");
+    if (!token) return "";
 
+    try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        return payload.org_id || payload.organization_id || "";
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * Récupère le rôle de l'utilisateur depuis le JWT local.
+ */
+export function useCurrentRole(): string {
+    const token = localStorage.getItem("workhub.token");
+    if (!token) return "";
+
+    try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        return payload.role || "";
+    } catch {
+        return "";
+    }
+}

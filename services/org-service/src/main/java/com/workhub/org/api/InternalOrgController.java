@@ -1,13 +1,16 @@
 package com.workhub.org.api;
 
+import com.workhub.org.dto.OnboardOrganizationRequest;
+import com.workhub.org.dto.OrganizationResponse;
+import com.workhub.org.dto.OrganizationSettingsResponse;
 import com.workhub.org.repo.DepartmentRepository;
 import com.workhub.org.repo.OrganizationRepository;
 import com.workhub.org.repo.PositionRepository;
+import com.workhub.org.service.OrganizationService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 import java.util.UUID;
@@ -24,13 +27,27 @@ public class InternalOrgController {
     private final OrganizationRepository orgRepo;
     private final DepartmentRepository deptRepo;
     private final PositionRepository posRepo;
+    private final OrganizationService organizationService;
 
     public InternalOrgController(OrganizationRepository orgRepo,
                                   DepartmentRepository deptRepo,
-                                  PositionRepository posRepo) {
+                                  PositionRepository posRepo,
+                                  OrganizationService organizationService) {
         this.orgRepo = orgRepo;
         this.deptRepo = deptRepo;
         this.posRepo = posRepo;
+        this.organizationService = organizationService;
+    }
+
+    @PostMapping("/orgs/onboard")
+    @ResponseStatus(HttpStatus.CREATED)
+    public OrganizationResponse onboard(@RequestBody @Valid OnboardOrganizationRequest req) {
+        return organizationService.onboardOrganization(req);
+    }
+
+    @GetMapping("/orgs/{id}/leave-policy")
+    public OrganizationSettingsResponse leavePolicy(@PathVariable UUID id) {
+        return organizationService.getOrganizationSettings(id);
     }
 
     /**

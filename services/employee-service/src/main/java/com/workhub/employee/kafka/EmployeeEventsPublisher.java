@@ -17,9 +17,9 @@ public class EmployeeEventsPublisher {
 
     public void publishEmployeeCreated(Employee employee) {
         EmployeeCreatedEvent event = new EmployeeCreatedEvent(
-                employee.getId().toString(),
-                employee.getOrganizationId().toString(),
-                employee.getUserId().toString(),
+                employee.getId(),
+                employee.getOrganizationId(),
+                employee.getUserId(),
                 employee.getHireDate().toString()
         );
 

@@ -11,7 +11,7 @@ public class SecurityUtils {
 
     /**
      * Validates that the current authenticated user belongs to the requested organization.
-     * Uses the 'org_id' claim from the Clerk JWT.
+     * Uses the 'org_id' claim from the WorkHub JWT.
      */
     public static void validateOrganizationAccess(UUID requestedOrgId) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

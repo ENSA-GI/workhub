@@ -37,6 +37,13 @@ public class OrgController {
         return orgService.createOrganization(req);
     }
 
+    @PostMapping("/orgs/{id}/onboarding/setup-defaults")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void setupOnboardingDefaults(@PathVariable UUID id) {
+        SecurityUtils.validateOrganizationAccess(id);
+        orgService.setupDefaultDepartments(id);
+    }
+
     @GetMapping("/orgs")
     public Page<OrganizationResponse> listOrgs(
             @RequestParam(required = false) String name,

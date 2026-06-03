@@ -1,34 +1,48 @@
-POST :
-http://localhost:8088/api/webhooks/clerk
+=======================================================
+IDENTITY SERVICE (Port 8088) — Auth JWT WorkHub (plus de Clerk/Svix)
+=======================================================
+
+// 1. S'inscrire (aucun token requis)
+POST http://localhost:8088/api/auth/register
+Content-Type: application/json
 {
-  "type": "user.created",
-  "data": {
-    "id": "user_2P9v1...",
-    "email_addresses": [{"email_address": "test@example.com"}],
-    "first_name": "John",
-    "last_name": "Doe",
-    "image_url": "https://example.com/avatar.png"
-  }
+  "organizationId": "VOTRE_ID_ORG",
+  "email": "jean.dupont@exemple.com",
+  "password": "motdepasse123",
+  "firstName": "Jean",
+  "lastName": "Dupont",
+  "role": "EMPLOYEE"
 }
 
+// 2. Se connecter → récupérer le JWT
+POST http://localhost:8088/api/auth/login
+Content-Type: application/json
+{
+  "email": "jean.dupont@exemple.com",
+  "password": "motdepasse123"
+}
+// Réponse : { "token": "eyJhbGciOiJIUzI1NiJ9..." }
 
-pre-request:
-const crypto = require('crypto-js');
+// 3. Lister les utilisateurs (JWT requis)
+GET http://localhost:8088/api/users
+Authorization: Bearer <JWT_TOKEN>
 
-// 1. Le secret (doit correspondre à celui du .env, sans le préfixe whsec_)
-const secret = "dGVzdF9zZWNyZXRfMTIz"; 
+// 4. Créer un utilisateur (JWT requis)
+POST http://localhost:8088/api/users
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+{
+  "organizationId": "VOTRE_ID_ORG",
+  "email": "marie.martin@exemple.com",
+  "password": "motdepasse123",
+  "firstName": "Marie",
+  "lastName": "Martin",
+  "role": "ORG_ADMIN"
+}
 
-// 2. Préparation des données
-const payload = pm.request.body.raw;
-const svix_id = "msg_" + Math.random().toString(36).substring(7);
-const svix_timestamp = Math.floor(Date.now() / 1000).toString();
+// 5. Désactiver un utilisateur
+PATCH http://localhost:8088/api/users/VOTRE_USER_ID/deactivate
+Authorization: Bearer <JWT_TOKEN>
 
-// 3. Calcul de la signature (id + timestamp + payload)
-const toSign = `${svix_id}.${svix_timestamp}.${payload}`;
-const hmac = crypto.HmacSHA256(toSign, crypto.enc.Base64.parse(secret));
-const signature = crypto.enc.Base64.stringify(hmac);
-
-// 4. Ajout des headers requis par Svix/Clerk
-pm.request.headers.add({key: 'svix-id', value: svix_id});
-pm.request.headers.add({key: 'svix-timestamp', value: svix_timestamp});
-pm.request.headers.add({key: 'svix-signature', value: `v1,${signature}`});
+// 6. Health check (sans token)
+GET http://localhost:8088/actuator/health

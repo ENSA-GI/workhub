@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+
 import { Calendar, Download, CheckCircle, Search, Loader2, AlertCircle } from 'lucide-react';
 import { useGeneratePayroll, usePayrollItems, usePayrolls, payrollValue } from '@/lib/usePayroll';
 import { useOrganizationId } from '@/lib/useOrganizationId';
@@ -11,9 +11,8 @@ function monthLabel(selectedMonth: string) {
 
 export default function PayrollGeneration() {
   const navigate = useNavigate();
-  const { user } = useUser();
   const organizationId = useOrganizationId();
-  const generatedBy = (user?.publicMetadata?.employeeId as string) || '';
+  const generatedBy = (() => { try { const t = localStorage.getItem('workhub.token'); return t ? JSON.parse(atob(t.split('.')[1])).sub || '' : ''; } catch { return ''; } })();
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [monthTouched, setMonthTouched] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,7 +56,7 @@ export default function PayrollGeneration() {
 
   const handleGeneratePayroll = async () => {
     if (!organizationId || !generatedBy) {
-      alert('Organization ID ou generatedBy manquant dans Clerk.');
+      alert('Organization ID ou identifiant utilisateur manquant.');
       return;
     }
 
@@ -73,7 +72,7 @@ export default function PayrollGeneration() {
   };
 
   if (!organizationId) {
-    return <div className="p-6 text-center text-red-600">Aucune organisation active trouvée dans Clerk. Vérifie que l'utilisateur est bien rattaché à une organisation.</div>;
+    return <div className="p-6 text-center text-red-600">Aucune organisation active trouvée. Veuillez vous connecter.</div>;
   }
 
   return (

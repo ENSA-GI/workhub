@@ -1,27 +1,26 @@
 import { Briefcase, Calendar, CheckCircle, Clock, XCircle, MapPin, TrendingUp } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+
 
 export default function MesCandidatures() {
-  const { user } = useUser();
+  const userEmail = (() => { try { const t = localStorage.getItem('workhub.token'); return t ? JSON.parse(atob(t.split('.')[1])).email || '' : ''; } catch { return ''; } })();
   const [selectedCandidature, setSelectedCandidature] = useState<string | null>(null);
   const [candidatures, setCandidatures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCandidatures = async () => {
-      if (!user?.primaryEmailAddress?.emailAddress) return;
+      if (!userEmail) return;
       
       try {
-        const email = user.primaryEmailAddress.emailAddress;
-        const response = await fetch(`http://localhost:8085/api/applications/candidate/${email}`);
+        const response = await fetch(`http://localhost:8085/api/applications/candidate/${userEmail}`);
         const data = await response.json();
         
         const mappedApps = data.map((app: any) => ({
           id: app.id,
           offre: app.jobTitle,
-          departement: "IT", // Info non présente dans le DTO pour l'instant
-          localisation: "Casablanca", // Info non présente dans le DTO pour l'instant
+          departement: "IT",
+          localisation: "Casablanca",
           dateCandidature: app.appliedAt,
           statut: app.status === 'NEW' ? 'En cours' : app.status,
           etape: app.aiScore ? `Analyse IA terminée (${app.aiScore}%)` : 'Analyse en cours...',
@@ -40,10 +39,12 @@ export default function MesCandidatures() {
       }
     };
     
-    if (user) {
+    if (userEmail) {
       fetchCandidatures();
+    } else {
+      setLoading(false);
     }
-  }, [user]);
+  }, [userEmail]);
 
   const candidatureDetail = selectedCandidature
     ? candidatures.find((c) => c.id === selectedCandidature)

@@ -25,6 +25,15 @@ public class Organization extends Auditable {
 
     private String industry;
 
+    private String address;
+
+    @Column(name = "tax_id")
+    private String taxId;
+
+    private String phone;
+
+    private String email;
+
     @Builder.Default
     private String country = "Maroc";
 

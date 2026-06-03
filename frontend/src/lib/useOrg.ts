@@ -153,6 +153,54 @@ export const useCreatePosition = () => {
     });
 };
 
+export interface OrganizationSettingsDto {
+    organizationId: string;
+    leavePolicyDaysPerYear: number;
+    leavePolicyMaxCarryOver: number;
+    payrollCnssRate?: number;
+    payrollAmoRate?: number;
+    payrollIrProgressiveScale?: string;
+    payrollTemplateLogoUrl?: string;
+    payrollTemplateLegalMentions?: string;
+}
+
+export const useOrganizationSettings = (orgId: string) => {
+    const apiFetch = useApi();
+    return useQuery<OrganizationSettingsDto>({
+        queryKey: ['organization-settings', orgId],
+        queryFn: () => apiFetch(`/org/orgs/${orgId}/settings`),
+        enabled: !!orgId,
+    });
+};
+
+export const useUpdateOrganizationSettings = () => {
+    const apiFetch = useApi();
+    const queryClient = useQueryClient();
+    return useMutation<OrganizationSettingsDto, Error, { orgId: string; data: Partial<OrganizationSettingsDto> }>({
+        mutationFn: ({ orgId, data }) =>
+            apiFetch(`/org/orgs/${orgId}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
+        onSuccess: (_, v) => {
+            queryClient.invalidateQueries({ queryKey: ['organization-settings', v.orgId] });
+        },
+    });
+};
+
+export interface OrgDashboardDto {
+    activeDepartmentsCount: number;
+    activePositionsCount: number;
+    employeeCount: number;
+    rhManagerCount: number;
+}
+
+export const useOrgDashboard = (orgId: string) => {
+    const apiFetch = useApi();
+    return useQuery<OrgDashboardDto>({
+        queryKey: ['org-dashboard', orgId],
+        queryFn: () => apiFetch(`/org/orgs/${orgId}/dashboard`),
+        enabled: !!orgId,
+    });
+};
+
 export const useDeletePosition = () => {
     const apiFetch = useApi();
     const queryClient = useQueryClient();

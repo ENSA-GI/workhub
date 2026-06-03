@@ -4,6 +4,8 @@ import com.workhub.org.api.exception.DuplicateResourceException;
 import com.workhub.org.api.exception.ResourceNotFoundException;
 import com.workhub.org.domain.Organization;
 import com.workhub.org.dto.CreateOrganizationRequest;
+import com.workhub.org.dto.OnboardOrganizationRequest;
+import com.workhub.org.domain.Department;
 import com.workhub.org.domain.OrganizationSettings;
 import com.workhub.org.dto.*;
 import com.workhub.org.mapper.OrganizationMapper;
@@ -59,6 +61,10 @@ public class OrganizationService {
                 .city(req.city())
                 .industry(req.industry())
                 .country(req.country() != null ? req.country() : "Maroc")
+                .taxId(req.taxId())
+                .address(req.address())
+                .phone(req.phone())
+                .email(req.email())
                 .active(true)
                 .build();
         
@@ -99,6 +105,10 @@ public class OrganizationService {
         org.setCity(req.city());
         if (req.industry() != null) org.setIndustry(req.industry());
         if (req.country() != null) org.setCountry(req.country());
+        if (req.taxId() != null) org.setTaxId(req.taxId());
+        if (req.address() != null) org.setAddress(req.address());
+        if (req.phone() != null) org.setPhone(req.phone());
+        if (req.email() != null) org.setEmail(req.email());
         if (req.active() != null) {
             org.setActive(req.active());
         }
@@ -153,11 +163,40 @@ public class OrganizationService {
         return getOrganizationSettings(orgId);
     }
 
+    @Transactional
+    public OrganizationResponse onboardOrganization(OnboardOrganizationRequest req) {
+        CreateOrganizationRequest createReq = new CreateOrganizationRequest(
+                req.name(), req.legalName(), req.city(), req.industry(), req.country(),
+                req.taxId(), req.address(), req.phone(), req.email());
+        OrganizationResponse created = createOrganization(createReq);
+        if (Boolean.TRUE.equals(req.setupDefaults())) {
+            setupDefaultDepartments(created.id());
+        }
+        return created;
+    }
+
+    @Transactional
+    public void setupDefaultDepartments(UUID orgId) {
+        getOrganizationEntityById(orgId);
+        String[] defaults = {"Commercial", "Technique", "RH"};
+        for (String deptName : defaults) {
+            if (!deptRepo.existsByOrganizationIdAndName(orgId, deptName)) {
+                Department d = Department.builder()
+                        .id(UUID.randomUUID())
+                        .organizationId(orgId)
+                        .name(deptName)
+                        .description("Département créé lors de l'onboarding")
+                        .active(true)
+                        .build();
+                deptRepo.save(d);
+            }
+        }
+    }
+
     public OrgDashboardResponse getOrganizationDashboard(UUID orgId) {
-        // verify org exists
         getOrganizationEntityById(orgId);
         long activeDepts = deptRepo.countByOrganizationIdAndActiveTrue(orgId);
         long activePos = posRepo.countByOrganizationIdAndActiveTrue(orgId);
-        return new OrgDashboardResponse(activeDepts, activePos);
+        return new OrgDashboardResponse(activeDepts, activePos, 0, 0);
     }
 }

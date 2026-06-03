@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useUser } from '@clerk/clerk-react';
+
 import { Download, Eye, FileText, Calendar, Loader2 } from 'lucide-react';
 import { useEmployeePayslips, useMarkPayslipAsRead, payrollValue, PayrollItem } from '@/lib/usePayroll';
 
 type EmployeePayslip = PayrollItem & { payroll?: { month: number; year: number } | null };
 
 export default function MesBulletins() {
-  const { user } = useUser();
-  const employeeId = (user?.publicMetadata?.employeeId as string) || '';
+  const employeeId = (() => { try { const t = localStorage.getItem('workhub.token'); return t ? JSON.parse(atob(t.split('.')[1])).sub || '' : ''; } catch { return ''; } })();
   const [selectedBulletinId, setSelectedBulletinId] = useState<string>('');
   const { data: bulletins = [], isLoading } = useEmployeePayslips(employeeId);
   const markAsRead = useMarkPayslipAsRead();
@@ -18,7 +17,7 @@ export default function MesBulletins() {
   const totalCharges = bulletins.reduce((sum, b) => sum + payrollValue(b.cnssDeduction) + payrollValue(b.amoDeduction) + payrollValue(b.irDeduction), 0);
 
   if (!employeeId) {
-    return <div className="p-6 text-center text-red-600">ID employé manquant dans Clerk.</div>;
+    return <div className="p-6 text-center text-red-600">Identifiant employé manquant. Veuillez vous connecter.</div>;
   }
 
   const handleDownload = (id: string) => { window.location.href = `/payroll/payrolls/items/${id}/download`; };

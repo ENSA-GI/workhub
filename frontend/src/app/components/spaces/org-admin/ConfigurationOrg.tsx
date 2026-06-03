@@ -3,6 +3,8 @@ import { Settings, Calendar, DollarSign, Briefcase, Trash2, Plus, Loader2 } from
 import {
   useOrganization,
   useUpdateOrganization,
+  useOrganizationSettings,
+  useUpdateOrganizationSettings,
   useDepartments,
   useCreateDepartment,
   useDeleteDepartment,
@@ -17,6 +19,8 @@ export default function ConfigurationOrg() {
 
   const { data: org, isLoading: isOrgLoading } = useOrganization(organizationId);
   const updateOrgMutation = useUpdateOrganization();
+  const { data: orgSettings } = useOrganizationSettings(organizationId);
+  const updateSettingsMutation = useUpdateOrganizationSettings();
 
   const { data: deptsData, isLoading: isDeptsLoading } = useDepartments(organizationId);
   const createDeptMutation = useCreateDepartment();
@@ -45,27 +49,23 @@ export default function ConfigurationOrg() {
         setSickLeave(String(org.settings.sick_leave_days || 10));
       }
     }
-  }, [org]);
+  }, [org, orgSettings]);
 
   if (!organizationId) {
     return (
       <div className="p-6 text-center">
-        <p className="text-red-600">Erreur : ID d'organisation manquant dans Clerk publicMetadata.</p>
+        <p className="text-red-600">Erreur : ID d'organisation manquant. Reconnectez-vous.</p>
       </div>
     );
   }
 
   const handleSaveLeavePolicy = () => {
-    updateOrgMutation.mutate({
-      id: organizationId,
+    updateSettingsMutation.mutate({
+      orgId: organizationId,
       data: {
-        settings: {
-          ...org?.settings,
-          annual_leave_days: parseInt(annualLeave, 10) || 25,
-          // @ts-ignore
-          sick_leave_days: parseInt(sickLeave, 10) || 10,
-        } as any
-      }
+        leavePolicyDaysPerYear: parseInt(annualLeave, 10) || 22,
+        leavePolicyMaxCarryOver: parseInt(sickLeave, 10) || 10,
+      },
     });
   };
 

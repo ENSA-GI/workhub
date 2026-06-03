@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Plus, Check, X, Clock, Download, Search, Filter, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import LeaveRequestForm from './LeaveRequestForm';
 import NotificationToast from './NotificationToast';
+import { useOrganizationId } from '@/lib/useOrganizationId';
 
 interface LeaveRequest {
   id: string | number;
@@ -25,7 +26,6 @@ interface EmployeeRecord {
   personalEmail?: string;
 }
 
-const ORG_ID = '550e8400-e29b-41d4-a716-446655440000';
 const DEMO_EMPLOYEE_NAMES: Record<string, string> = {
   '111e8400-e29b-41d4-a716-446655440000': 'Mohammed Alami',
 };
@@ -108,6 +108,7 @@ function getMonthDays(monthDate: Date) {
 }
 
 export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnhancedProps) {
+  const organizationId = useOrganizationId();
   const [view, setView] = useState<'calendar' | 'requests'>('requests');
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -132,7 +133,7 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
           fetch('http://localhost:8080/leave/leave-requests/all', {
             headers: { Accept: 'application/json' },
           }),
-          fetch(`http://localhost:8080/employee/employees?organizationId=${ORG_ID}&status=ACTIVE&size=200`, {
+          fetch(`/employee/employees?organizationId=${organizationId}&status=ACTIVE&size=200`, {
             headers: { Accept: 'application/json' },
           }),
         ]);

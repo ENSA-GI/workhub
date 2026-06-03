@@ -33,6 +33,12 @@ spring:
         spring.json.trusted.packages: "*"
       auto-offset-reset: earliest
 
+workhub:
+  frontend:
+    base-url: ${WORKHUB_FRONTEND_URL:http://localhost:5173}
+  services:
+    org-url: ${WORKHUB_ORG_SERVICE_URL:http://localhost:8081}
+
 management:
   endpoints:
     web:

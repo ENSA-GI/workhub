@@ -10,5 +10,7 @@ public enum NotificationType {
     EMPLOYEE_CREATED,
     DOCUMENT_UPLOADED,
     PROFILE_UPDATED,
-    SALARY_CHANGED
+    SALARY_CHANGED,
+    SYSTEM,
+    WELCOME
 }

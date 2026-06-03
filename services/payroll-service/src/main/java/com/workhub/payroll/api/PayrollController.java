@@ -7,6 +7,7 @@ import com.workhub.payroll.dto.PayrollAdjustmentDTO;
 import com.workhub.payroll.repo.PayrollRepository;
 import com.workhub.payroll.repo.PayrollAdjustmentRepository;
 import com.workhub.payroll.service.PayrollService;
+import com.workhub.payroll.util.SecurityUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -41,11 +42,13 @@ public class PayrollController {
 
     @GetMapping
     public List<Payroll> list(@RequestParam UUID organizationId) {
+        SecurityUtils.validateOrganizationAccess(organizationId);
         return repo.findByOrganizationIdOrderByYearDescMonthDesc(organizationId);
     }
 
     @PostMapping
     public Payroll create(@RequestBody @Valid CreatePayrollRequest req) {
+        SecurityUtils.validateOrganizationAccess(req.organizationId());
         // Appel du service métier qui :
         // 1. Récupère les employés actifs
         // 2. Calcule les salaires avec les règles de paie
@@ -68,6 +71,7 @@ public class PayrollController {
             @RequestParam("year") int year,
             @RequestParam("generatedBy") UUID generatedBy
     ) {
+        SecurityUtils.validateOrganizationAccess(organizationId);
         return payrollService.generateMonthlyPayroll(
                 organizationId,
                 month,
