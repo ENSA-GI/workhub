@@ -1,7 +1,9 @@
 import { User, Edit, Save, X, Calendar, DollarSign, Download, CreditCard } from 'lucide-react';
 import { useState } from 'react';
+import { useUser } from '@/lib/useUser';
 
 export default function MonProfilEmployee() {
+  const { user } = useUser();
   const [isEditing, setIsEditing] = useState(false);
   const [editableData, setEditableData] = useState({
     adresse: '15 Rue Mohammed V, Casablanca',
@@ -10,9 +12,9 @@ export default function MonProfilEmployee() {
   });
 
   const employeeData = {
-    nom: 'Mohammed Alami',
-    prenom: 'Mohammed',
-    email: 'mohammed.alami@techvision.ma',
+    nom: user ? user.lastName || 'El Amrani' : 'Alami',
+    prenom: user ? user.firstName || 'Mohammed' : 'Mohammed',
+    email: user?.primaryEmailAddress?.emailAddress || 'mohammed@techvision.ma',
     dateNaissance: '1990-05-15',
     cin: 'AB123456',
     poste: 'Développeur Full-Stack',

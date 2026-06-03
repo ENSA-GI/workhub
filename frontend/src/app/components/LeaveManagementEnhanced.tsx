@@ -27,7 +27,7 @@ interface EmployeeRecord {
 
 const ORG_ID = '550e8400-e29b-41d4-a716-446655440000';
 const DEMO_EMPLOYEE_NAMES: Record<string, string> = {
-  '111e8400-e29b-41d4-a716-446655440000': 'Mohammed Alami',
+  '111e8400-e29b-41d4-a716-446655440000': 'Mohammed El Amrani',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -55,6 +55,14 @@ function mapStatus(status: string) {
   return status;
 }
 
+const EMAIL_TO_NAME_MAP: Record<string, string> = {
+  "mohammed.personal@mail.com": "Mohammed El Amrani",
+  "mohammed@techvision.ma": "Mohammed El Amrani",
+  "fatima@techvision.ma": "Fatima Zahra",
+  "youssef@techvision.ma": "Youssef Bennani",
+  "admin@workhub.com": "Super Admin"
+};
+
 function titleCase(value: string) {
   return value
     .split(/[.\s_-]+/)
@@ -66,7 +74,9 @@ function titleCase(value: string) {
 function employeeDisplayName(employee?: EmployeeRecord) {
   if (!employee) return '';
   if (employee.personalEmail) {
-    return titleCase(employee.personalEmail.split('@')[0]);
+    const email = employee.personalEmail.toLowerCase();
+    if (EMAIL_TO_NAME_MAP[email]) return EMAIL_TO_NAME_MAP[email];
+    return titleCase(email.split('@')[0]);
   }
   return employee.cin || '';
 }

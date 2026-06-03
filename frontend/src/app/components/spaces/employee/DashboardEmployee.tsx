@@ -1,12 +1,17 @@
 import { User, FileText, Calendar, Bell, Download, Clock } from 'lucide-react';
+import { useUser } from '@/lib/useUser';
 
 export default function DashboardEmployee() {
+  const { user } = useUser();
+  const userName = user && (user.firstName || user.lastName) ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Mohammed Alami';
+  const userPhoto = user && (user.firstName || user.lastName) ? `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase() : 'MA';
+
   const employee = {
-    name: 'Mohammed Alami',
+    name: userName,
     poste: 'Développeur Full-Stack',
     department: 'IT',
     dateEntree: '2023-03-15',
-    photo: 'MA',
+    photo: userPhoto,
   };
 
   const soldeCongés = {

@@ -23,6 +23,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleRuntimeExceptions(RuntimeException ex) {
         Map<String, String> error = new HashMap<>();
         error.put("error", ex.getMessage());
+        if ("Invalid credentials".equalsIgnoreCase(ex.getMessage()) || "User not found".equalsIgnoreCase(ex.getMessage())) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED).body(error);
+        }
         return ResponseEntity.internalServerError().body(error);
     }
 }

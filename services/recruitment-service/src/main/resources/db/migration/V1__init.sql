@@ -81,8 +81,4 @@ DROP TRIGGER IF EXISTS update_job_offers_updated_at ON job_offers;
 CREATE TRIGGER update_job_offers_updated_at
     BEFORE UPDATE ON job_offers
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_interviews_updated_at ON interviews;
-CREATE TRIGGER update_interviews_updated_at
-    BEFORE UPDATE ON interviews
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+

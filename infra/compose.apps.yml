@@ -94,7 +94,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/recruitment_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
-    depends_on: [ postgres ]
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+    depends_on: [ postgres, kafka, minio ]
     networks: [ workhub ]
 
   document-service:

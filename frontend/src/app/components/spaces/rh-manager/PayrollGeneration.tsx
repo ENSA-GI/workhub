@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
 import { Calendar, Download, CheckCircle, Search, Loader2, AlertCircle } from 'lucide-react';
 import { useGeneratePayroll, usePayrollItems, usePayrolls, payrollValue } from '@/lib/usePayroll';
 import { useOrganizationId } from '@/lib/useOrganizationId';
+import { useUser } from '@/lib/useUser';
 
 function monthLabel(selectedMonth: string) {
   return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(`${selectedMonth}-01`));
@@ -179,3 +179,4 @@ export default function PayrollGeneration() {
     </div>
   );
 }
+

@@ -9,3 +9,8 @@ CREATE TABLE IF NOT EXISTS interviews (
 );
 
 CREATE INDEX IF NOT EXISTS idx_interviews_application ON interviews(application_id);
+
+DROP TRIGGER IF EXISTS update_interviews_updated_at ON interviews;
+CREATE TRIGGER update_interviews_updated_at
+    BEFORE UPDATE ON interviews
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

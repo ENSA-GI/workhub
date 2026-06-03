@@ -1,6 +1,6 @@
 import { AlertCircle, Bell, CheckCircle, FileText, Filter, Trash2, XCircle } from 'lucide-react';
-import { useUser } from '@clerk/clerk-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useUser } from '@/lib/useUser';
 
 const API_BASE = 'http://localhost:8080';
 const DEMO_EMPLOYEE_ID = '111e8400-e29b-41d4-a716-446655440000';
@@ -261,3 +261,4 @@ export default function NotificationsEmployee() {
     </div>
   );
 }
+

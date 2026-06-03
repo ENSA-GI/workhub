@@ -50,6 +50,8 @@ public class AuthService {
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole().name())
                 .claim("org_id", user.getOrganizationId() != null ? user.getOrganizationId().toString() : "")
+                .claim("first_name", user.getFirstName() != null ? user.getFirstName() : "")
+                .claim("last_name", user.getLastName() != null ? user.getLastName() : "")
                 .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

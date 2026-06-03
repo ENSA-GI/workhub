@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const API_BASE = 'http://localhost:8080';
 const DEMO_EMPLOYEE_ID = '111e8400-e29b-41d4-a716-446655440000';
 const DEMO_EMPLOYEE_NAMES: Record<string, string> = {
-  '111e8400-e29b-41d4-a716-446655440000': 'Mohammed Alami',
+  '111e8400-e29b-41d4-a716-446655440000': 'Mohammed El Amrani',
 };
 
 interface LeaveRequest {

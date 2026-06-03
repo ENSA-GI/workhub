@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, DollarSign, Calendar, Briefcase, Bell, Search, Home, Building2, FileText, AlertTriangle, Settings, BarChart3, UserCog, Download, User, Folder, TrendingUp, Receipt } from 'lucide-react';
 import logo from '../../imports/Capture_d_écran_2026-04-20_185048-removebg-preview.png';
+import { useUser } from '@/lib/useUser';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -25,6 +26,16 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
     };
     return titles[role] || 'Utilisateur';
   };
+
+  const { user } = useUser();
+
+  const userName = user && (user.firstName || user.lastName)
+    ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+    : (user?.primaryEmailAddress?.emailAddress || getRoleTitle(userRole));
+
+  const userInitials = user && (user.firstName || user.lastName)
+    ? `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`.toUpperCase()
+    : userName.substring(0, 2).toUpperCase();
 
   const getNavigationForRole = (role: string) => {
     const allNavigation = [
@@ -158,10 +169,10 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
           <div className="px-4 py-3">
             <div className="flex items-center mb-3">
               <div className="w-8 h-8 rounded-full bg-[#0A6ED1] flex items-center justify-center mr-3">
-                <span className="text-sm font-medium">{getRoleTitle(userRole).substring(0, 2).toUpperCase()}</span>
+                <span className="text-sm font-medium">{userInitials}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{getRoleTitle(userRole)}</p>
+                <p className="text-sm font-medium truncate">{userName}</p>
                 <p className="text-xs text-white/60 truncate">Espace {getRoleTitle(userRole)}</p>
               </div>
             </div>
@@ -198,9 +209,9 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
             </button>
             <div className="flex items-center space-x-2 px-3 py-2 bg-gray-50 rounded">
               <div className="w-6 h-6 rounded-full bg-[#0A6ED1] flex items-center justify-center">
-                <span className="text-xs font-medium text-white">{getRoleTitle(userRole).substring(0, 2).toUpperCase()}</span>
+                <span className="text-xs font-medium text-white">{userInitials}</span>
               </div>
-              <span className="text-sm font-medium text-gray-700">{getRoleTitle(userRole)}</span>
+              <span className="text-sm font-medium text-gray-700">{userName}</span>
             </div>
             <button
               onClick={onBackToHome}

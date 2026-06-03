@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { useUser } from '@clerk/clerk-react';
 import { Download, Eye, FileText, Calendar, Loader2 } from 'lucide-react';
 import { useEmployeePayslips, useMarkPayslipAsRead, payrollValue, PayrollItem } from '@/lib/usePayroll';
+import { useUser } from '@/lib/useUser';
 
 type EmployeePayslip = PayrollItem & { payroll?: { month: number; year: number } | null };
 
@@ -75,3 +75,4 @@ export default function MesBulletins() {
     </div>
   );
 }
+

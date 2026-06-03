@@ -1,6 +1,6 @@
 import { Calendar, Plus, CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@/lib/useUser';
 
 const ORG_ID = '550e8400-e29b-41d4-a716-446655440000';
 const API_BASE = 'http://localhost:8080';
@@ -628,3 +628,4 @@ export default function MesCongesEmployee() {
       </div>
   );
 }
+

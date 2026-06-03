@@ -1,22 +1,11 @@
-import { useAuth, useUser } from '@clerk/clerk-react';
-
-const asString = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
-
 export function useOrganizationId() {
-  const { user } = useUser();
-  const { orgId, sessionClaims } = useAuth();
-  const claims = sessionClaims as Record<string, unknown> | null | undefined;
-  const publicMetadata = user?.publicMetadata as Record<string, unknown> | undefined;
-
-  return (
-    asString(orgId) ||
-    asString(claims?.org_id) ||
-    asString(claims?.organization_id) ||
-    asString(publicMetadata?.organizationId) ||
-    asString(import.meta.env.VITE_CLERK_ORGANIZATION_ID) ||
-    asString(import.meta.env.VITE_ORGANIZATION_ID)
-  );
+  const token = localStorage.getItem("workhub.token");
+  if (!token) return "";
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.organizationId || payload.org_id || payload.organization_id || "";
+  } catch {
+    return "";
+  }
 }
-
 void useOrganizationId;
-

@@ -53,8 +53,24 @@ import PayrollDetailAdjustments from "./components/spaces/rh-manager/PayrollDeta
 const STORAGE_KEY = "workhub.selectedRole";
 
 export default function App() {
+    const getRoleFromToken = (tokenStr: string | null) => {
+        if (!tokenStr) return null;
+        try {
+            const payload = JSON.parse(atob(tokenStr.split(".")[1]));
+            const role = payload.role;
+            if (role === "SUPER_ADMIN") return "super-admin";
+            if (role === "ORG_ADMIN") return "org-admin";
+            if (role === "RH_MANAGER") return "rh-manager";
+            if (role === "EMPLOYEE") return "employee";
+            if (role === "CANDIDATE") return "candidate";
+            return null;
+        } catch {
+            return null;
+        }
+    };
+
     // PERSISTENCE : récupère le rôle depuis localStorage au refresh / redirect Clerk
-    const [selectedRole, setSelectedRole] = useState<string | null>(() => {
+    const [rawSelectedRole, setSelectedRole] = useState<string | null>(() => {
         return localStorage.getItem(STORAGE_KEY);
     });
 
@@ -64,12 +80,12 @@ export default function App() {
 
     // PERSISTENCE : sauvegarde/supprime dans localStorage
     useEffect(() => {
-        if (selectedRole) localStorage.setItem(STORAGE_KEY, selectedRole);
+        if (rawSelectedRole) localStorage.setItem(STORAGE_KEY, rawSelectedRole);
         else localStorage.removeItem(STORAGE_KEY);
         
         if (token) localStorage.setItem("workhub.token", token);
         else localStorage.removeItem("workhub.token");
-    }, [selectedRole, token]);
+    }, [rawSelectedRole, token]);
 
     const handleSelectRole = (role: string) => setSelectedRole(role);
 
@@ -80,9 +96,14 @@ export default function App() {
 
     const handleLoginSuccess = (newToken: string, user: any) => {
         setToken(newToken);
-        // Note: we can read role from user.role or JWT. 
-        // Here we just keep selectedRole as what they chose on LandingPage.
+        const role = getRoleFromToken(newToken);
+        if (role) {
+            setSelectedRole(role);
+        }
     };
+
+    const activeRole = getRoleFromToken(token) || rawSelectedRole;
+    const selectedRole = activeRole;
 
     // landing publique
     if (!selectedRole) {

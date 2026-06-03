@@ -1,6 +1,6 @@
 import { Briefcase, Calendar, CheckCircle, Clock, XCircle, MapPin, TrendingUp } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser } from '@/lib/useUser';
 
 export default function MesCandidatures() {
   const { user } = useUser();
@@ -262,3 +262,4 @@ export default function MesCandidatures() {
     </div>
   );
 }
+
