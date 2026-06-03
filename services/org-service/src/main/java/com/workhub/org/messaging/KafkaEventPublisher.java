@@ -11,9 +11,9 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class KafkaEventPublisher {
 
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<Object, Object> kafkaTemplate;
 
-    public KafkaEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
+    public KafkaEventPublisher(KafkaTemplate<Object, Object> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
