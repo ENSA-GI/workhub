@@ -8,6 +8,8 @@ public record OrganizationResponse(
         String name,
         String legalName,
         String city,
+        String industry,
+        String country,
         Boolean active,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

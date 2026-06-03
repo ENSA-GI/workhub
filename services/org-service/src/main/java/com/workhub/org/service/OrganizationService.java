@@ -4,10 +4,13 @@ import com.workhub.org.api.exception.DuplicateResourceException;
 import com.workhub.org.api.exception.ResourceNotFoundException;
 import com.workhub.org.domain.Organization;
 import com.workhub.org.dto.CreateOrganizationRequest;
-import com.workhub.org.dto.OrganizationResponse;
-import com.workhub.org.dto.UpdateOrganizationRequest;
+import com.workhub.org.domain.OrganizationSettings;
+import com.workhub.org.dto.*;
 import com.workhub.org.mapper.OrganizationMapper;
 import com.workhub.org.repo.OrganizationRepository;
+import com.workhub.org.repo.OrganizationSettingsRepository;
+import com.workhub.org.repo.DepartmentRepository;
+import com.workhub.org.repo.PositionRepository;
 import com.workhub.org.event.OrganizationEvent;
 import com.workhub.org.messaging.KafkaEventPublisher;
 import com.workhub.org.repo.specification.OrganizationSpecifications;
@@ -24,11 +27,22 @@ import java.util.UUID;
 public class OrganizationService {
 
     private final OrganizationRepository orgRepo;
+    private final OrganizationSettingsRepository settingsRepo;
+    private final DepartmentRepository deptRepo;
+    private final PositionRepository posRepo;
     private final OrganizationMapper mapper;
     private final KafkaEventPublisher eventPublisher;
 
-    public OrganizationService(OrganizationRepository orgRepo, OrganizationMapper mapper, KafkaEventPublisher eventPublisher) {
+    public OrganizationService(OrganizationRepository orgRepo, 
+                               OrganizationSettingsRepository settingsRepo,
+                               DepartmentRepository deptRepo,
+                               PositionRepository posRepo,
+                               OrganizationMapper mapper, 
+                               KafkaEventPublisher eventPublisher) {
         this.orgRepo = orgRepo;
+        this.settingsRepo = settingsRepo;
+        this.deptRepo = deptRepo;
+        this.posRepo = posRepo;
         this.mapper = mapper;
         this.eventPublisher = eventPublisher;
     }
@@ -43,8 +57,16 @@ public class OrganizationService {
                 .name(req.name())
                 .legalName(req.legalName())
                 .city(req.city())
+                .industry(req.industry())
+                .country(req.country() != null ? req.country() : "Maroc")
                 .active(true)
                 .build();
+        
+        OrganizationSettings defaultSettings = OrganizationSettings.builder()
+                .organization(org)
+                .build();
+        org.setSettings(defaultSettings);
+
         Organization saved = orgRepo.save(org);
         eventPublisher.publishOrganizationEvent(new OrganizationEvent(saved.getId(), saved.getName(), "CREATED"));
         return mapper.toResponse(saved);
@@ -75,6 +97,8 @@ public class OrganizationService {
         org.setName(req.name());
         org.setLegalName(req.legalName());
         org.setCity(req.city());
+        if (req.industry() != null) org.setIndustry(req.industry());
+        if (req.country() != null) org.setCountry(req.country());
         if (req.active() != null) {
             org.setActive(req.active());
         }
@@ -89,5 +113,51 @@ public class OrganizationService {
         org.setActive(false);
         Organization saved = orgRepo.save(org);
         eventPublisher.publishOrganizationEvent(new OrganizationEvent(saved.getId(), saved.getName(), "DELETED"));
+    }
+
+    public OrganizationSettingsResponse getOrganizationSettings(UUID orgId) {
+        Organization org = getOrganizationEntityById(orgId);
+        OrganizationSettings settings = org.getSettings();
+        if (settings == null) {
+            settings = OrganizationSettings.builder().organization(org).build();
+            settings = settingsRepo.save(settings);
+        }
+        return new OrganizationSettingsResponse(
+                orgId,
+                settings.getLeavePolicyDaysPerYear(),
+                settings.getLeavePolicyMaxCarryOver(),
+                settings.getPayrollCnssRate(),
+                settings.getPayrollAmoRate(),
+                settings.getPayrollIrProgressiveScale(),
+                settings.getPayrollTemplateLogoUrl(),
+                settings.getPayrollTemplateLegalMentions()
+        );
+    }
+
+    @Transactional
+    public OrganizationSettingsResponse updateOrganizationSettings(UUID orgId, UpdateOrganizationSettingsRequest req) {
+        Organization org = getOrganizationEntityById(orgId);
+        OrganizationSettings settings = org.getSettings();
+        if (settings == null) {
+            settings = OrganizationSettings.builder().organization(org).build();
+        }
+        if (req.leavePolicyDaysPerYear() != null) settings.setLeavePolicyDaysPerYear(req.leavePolicyDaysPerYear());
+        if (req.leavePolicyMaxCarryOver() != null) settings.setLeavePolicyMaxCarryOver(req.leavePolicyMaxCarryOver());
+        if (req.payrollCnssRate() != null) settings.setPayrollCnssRate(req.payrollCnssRate());
+        if (req.payrollAmoRate() != null) settings.setPayrollAmoRate(req.payrollAmoRate());
+        if (req.payrollIrProgressiveScale() != null) settings.setPayrollIrProgressiveScale(req.payrollIrProgressiveScale());
+        if (req.payrollTemplateLogoUrl() != null) settings.setPayrollTemplateLogoUrl(req.payrollTemplateLogoUrl());
+        if (req.payrollTemplateLegalMentions() != null) settings.setPayrollTemplateLegalMentions(req.payrollTemplateLegalMentions());
+
+        settingsRepo.save(settings);
+        return getOrganizationSettings(orgId);
+    }
+
+    public OrgDashboardResponse getOrganizationDashboard(UUID orgId) {
+        // verify org exists
+        getOrganizationEntityById(orgId);
+        long activeDepts = deptRepo.countByOrganizationIdAndActiveTrue(orgId);
+        long activePos = posRepo.countByOrganizationIdAndActiveTrue(orgId);
+        return new OrgDashboardResponse(activeDepts, activePos);
     }
 }

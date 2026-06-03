@@ -5,5 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 public record CreateOrganizationRequest(
         @NotBlank String name,
         @NotBlank String legalName,
-        String city
+        String city,
+        String industry,
+        String country
 ) {}

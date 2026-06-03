@@ -6,5 +6,7 @@ public record UpdateOrganizationRequest(
         @NotBlank String name,
         @NotBlank String legalName,
         String city,
+        String industry,
+        String country,
         Boolean active
 ) {}

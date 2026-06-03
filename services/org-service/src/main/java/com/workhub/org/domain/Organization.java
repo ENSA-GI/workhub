@@ -23,6 +23,14 @@ public class Organization extends Auditable {
 
     private String city;
 
+    private String industry;
+
+    @Builder.Default
+    private String country = "Maroc";
+
+    @OneToOne(mappedBy = "organization", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private OrganizationSettings settings;
+
     @Builder.Default
     @Column(nullable = false)
     private Boolean active = true;
