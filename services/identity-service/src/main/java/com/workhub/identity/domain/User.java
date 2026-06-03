@@ -18,8 +18,8 @@ public class User {
     @Id
     private UUID id;
 
-    @Column(name = "clerk_id", nullable = false, unique = true)
-    private String clerkId;
+    @Column(nullable = false)
+    private String password;
 
     @Column(name = "organization_id")
     private UUID organizationId;

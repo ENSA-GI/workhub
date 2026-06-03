@@ -25,12 +25,12 @@ public class UserService {
     }
 
     @Transactional
-    public User createUser(String clerkId, UUID organizationId, String email,
+    public User createUser(UUID organizationId, String email, String password,
                            String firstName, String lastName, String phone,
                            String avatarUrl, Role role) {
         User u = User.builder()
                 .id(UUID.randomUUID())
-                .clerkId(clerkId)
+                .password(password)
                 .organizationId(organizationId)
                 .email(email)
                 .firstName(firstName)
@@ -46,7 +46,6 @@ public class UserService {
 
         publisher.userCreated(new UserCreatedEvent(
                 saved.getId(),
-                saved.getClerkId(),
                 saved.getOrganizationId(),
                 saved.getEmail(),
                 saved.getRole().name()
@@ -56,12 +55,11 @@ public class UserService {
     }
 
     @Transactional
-    public User provision(String clerkId, UUID organizationId, String email,
+    public User provision(UUID organizationId, String email, String password,
                           String firstName, String lastName, String phone,
                           String avatarUrl, Role role) {
-        return repo.findByClerkId(clerkId)
+        return repo.findByEmail(email)
                 .map(existing -> {
-                    existing.setEmail(email);
                     existing.setFirstName(firstName);
                     existing.setLastName(lastName);
                     existing.setPhone(phone);
@@ -70,19 +68,18 @@ public class UserService {
                     User updated = repo.save(existing);
                     publisher.userUpdated(new UserUpdatedEvent(
                             updated.getId(),
-                            updated.getClerkId(),
                             updated.getEmail(),
                             updated.getRole().name()
                     ));
                     return updated;
                 })
-                .orElseGet(() -> createUser(clerkId, organizationId, email,
+                .orElseGet(() -> createUser(organizationId, email, password,
                         firstName, lastName, phone, avatarUrl, role));
     }
 
     @Transactional
-    public void updateLastLogin(String clerkId) {
-        repo.findByClerkId(clerkId).ifPresent(u -> {
+    public void updateLastLogin(String email) {
+        repo.findByEmail(email).ifPresent(u -> {
             u.setLastLogin(Instant.now());
             repo.save(u);
         });
@@ -94,8 +91,7 @@ public class UserService {
             u.setActive(false);
             repo.save(u);
             publisher.userDeactivated(new UserDeactivatedEvent(
-                    u.getId(),
-                    u.getClerkId()
+                    u.getId()
             ));
         });
     }

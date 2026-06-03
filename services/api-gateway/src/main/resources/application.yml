@@ -5,11 +5,7 @@ spring:
   application:
     name: api-gateway
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: https://feasible-vervet-9.clerk.accounts.dev/.well-known/jwks.json
+
 
 workhub:
   gateway:

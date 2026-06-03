@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
+import Login from "./components/Login";
 
 import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
@@ -58,16 +58,30 @@ export default function App() {
         return localStorage.getItem(STORAGE_KEY);
     });
 
+    const [token, setToken] = useState<string | null>(() => {
+        return localStorage.getItem("workhub.token");
+    });
+
     // PERSISTENCE : sauvegarde/supprime dans localStorage
     useEffect(() => {
         if (selectedRole) localStorage.setItem(STORAGE_KEY, selectedRole);
         else localStorage.removeItem(STORAGE_KEY);
-    }, [selectedRole]);
+        
+        if (token) localStorage.setItem("workhub.token", token);
+        else localStorage.removeItem("workhub.token");
+    }, [selectedRole, token]);
 
     const handleSelectRole = (role: string) => setSelectedRole(role);
 
     const handleBackToHome = () => {
-        setSelectedRole(null); // => efface aussi localStorage via useEffect
+        setSelectedRole(null);
+        setToken(null);
+    };
+
+    const handleLoginSuccess = (newToken: string, user: any) => {
+        setToken(newToken);
+        // Note: we can read role from user.role or JWT. 
+        // Here we just keep selectedRole as what they chose on LandingPage.
     };
 
     // landing publique
@@ -77,17 +91,13 @@ export default function App() {
 
     return (
         <>
-            <SignedOut>
-                <div style={{ maxWidth: 420, margin: "40px auto" }}>
-                    {/*  IMPORTANT : forcer Clerk à revenir sur "/" après login/register */}
-                    <SignIn afterSignInUrl="/" afterSignUpUrl="/" />
-                </div>
-            </SignedOut>
-
-            <SignedIn>
-                {/* Candidate */}
-                {selectedRole === "candidate" && (
-                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
+            {!token ? (
+                <Login onLoginSuccess={handleLoginSuccess} />
+            ) : (
+                <>
+                    {/* Candidate */}
+                    {selectedRole === "candidate" && (
+                        <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                         <Routes>
                             <Route path="/" element={<OffresPubliques />} />
                             <Route path="/candidatures" element={<MesCandidatures />} />
@@ -203,7 +213,8 @@ export default function App() {
                         </Routes>
                     </Layout>
                 )}
-            </SignedIn>
+                </>
+            )}
         </>
     );
 }
