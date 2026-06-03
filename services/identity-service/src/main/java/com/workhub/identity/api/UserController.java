@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -21,16 +22,18 @@ public class UserController {
 
     private final UserRepository repo;
     private final UserService service;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserController(UserRepository repo, UserService service) {
+    public UserController(UserRepository repo, UserService service, PasswordEncoder passwordEncoder) {
         this.repo = repo;
         this.service = service;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public record CreateUserRequest(
-            @NotBlank String clerkId,
             UUID organizationId,
             @NotBlank @Email String email,
+            @NotBlank String password,
             String firstName,
             String lastName,
             String phone,
@@ -50,18 +53,18 @@ public class UserController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    @GetMapping("/by-clerk/{clerkId}")
-    public User byClerk(@PathVariable String clerkId) {
-        return repo.findByClerkId(clerkId)
+    @GetMapping("/by-email/{email}")
+    public User byEmail(@PathVariable String email) {
+        return repo.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
     @PostMapping
     public User create(@RequestBody @Valid CreateUserRequest req) {
         return service.createUser(
-                req.clerkId(),
                 req.organizationId(),
                 req.email(),
+                passwordEncoder.encode(req.password()),
                 req.firstName(),
                 req.lastName(),
                 req.phone(),
@@ -73,9 +76,9 @@ public class UserController {
     @PostMapping("/provision")
     public User provision(@RequestBody @Valid CreateUserRequest req) {
         return service.provision(
-                req.clerkId(),
                 req.organizationId(),
                 req.email(),
+                passwordEncoder.encode(req.password()),
                 req.firstName(),
                 req.lastName(),
                 req.phone(),
@@ -88,14 +91,4 @@ public class UserController {
     public void deactivate(@PathVariable UUID id) {
         service.deactivate(id);
     }
-
-    @PostMapping("/login")
-    public User login(@RequestBody @Valid LoginRequest req) {
-        User user = repo.findByClerkId(req.clerkId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        service.updateLastLogin(req.clerkId());
-        return user;
-    }
-
-    public record LoginRequest(@NotBlank String clerkId) {}
 }
