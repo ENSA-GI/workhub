@@ -1,6 +1,11 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import Login from "./components/Login";
+import { useEffect, useState, useCallback } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import Login from "./components/auth/Login";
+import MfaVerify from "./components/auth/MfaVerify";
+import ForgotPassword from "./components/auth/ForgotPassword";
+import ResetPassword from "./components/auth/ResetPassword";
+import ActivateAccount from "./components/auth/ActivateAccount";
+import ProfilePage from "./components/auth/ProfilePage";
 
 import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
@@ -45,197 +50,244 @@ import MesCandidatures from "./components/spaces/candidate/MesCandidatures";
 import MonProfilCandidat from "./components/spaces/candidate/MonProfilCandidat";
 import MesDocumentsCandidat from "./components/spaces/candidate/MesDocumentsCandidat";
 import NotificationsCandidat from "./components/spaces/candidate/NotificationsCandidat";
-
-//  RH Manager Employees (nouvelle page)
 import EmployeesListRH from "./components/spaces/rh-manager/EmployeesListRH";
 import PayrollDetailAdjustments from "./components/spaces/rh-manager/PayrollDetailAdjustments";
 
+import { clearAuthSession, touchActivity } from "@/lib/identityApi";
+import { useSessionTimeout } from "@/lib/useSessionTimeout";
+
 const STORAGE_KEY = "workhub.selectedRole";
 
-export default function App() {
-    const getRoleFromToken = (tokenStr: string | null) => {
-        if (!tokenStr) return null;
-        try {
-            const payload = JSON.parse(atob(tokenStr.split(".")[1]));
-            const role = payload.role;
-            if (role === "SUPER_ADMIN") return "super-admin";
-            if (role === "ORG_ADMIN") return "org-admin";
-            if (role === "RH_MANAGER") return "rh-manager";
-            if (role === "EMPLOYEE") return "employee";
-            if (role === "CANDIDATE") return "candidate";
-            return null;
-        } catch {
-            return null;
-        }
-    };
+function getRoleFromToken(tokenStr: string | null) {
+    if (!tokenStr) return null;
+    try {
+        const payload = JSON.parse(atob(tokenStr.split(".")[1]));
+        const role = payload.role;
+        if (role === "SUPER_ADMIN") return "super-admin";
+        if (role === "ORG_ADMIN") return "org-admin";
+        if (role === "RH_MANAGER") return "rh-manager";
+        if (role === "EMPLOYEE") return "employee";
+        if (role === "CANDIDATE") return "candidate";
+        return null;
+    } catch {
+        return null;
+    }
+}
 
-    // PERSISTENCE : récupère le rôle depuis localStorage au refresh / redirect Clerk
-    const [rawSelectedRole, setSelectedRole] = useState<string | null>(() => {
-        return localStorage.getItem(STORAGE_KEY);
-    });
+const PUBLIC_PATHS = ["/forgot-password", "/reset-password", "/activate"];
 
-    const [token, setToken] = useState<string | null>(() => {
-        return localStorage.getItem("workhub.token");
-    });
+function AppRoutes() {
+    const location = useLocation();
+    const isPublicAuthRoute = PUBLIC_PATHS.some((p) => location.pathname.startsWith(p));
 
-    // PERSISTENCE : sauvegarde/supprime dans localStorage
+    const [rawSelectedRole, setSelectedRole] = useState<string | null>(() =>
+        localStorage.getItem(STORAGE_KEY)
+    );
+    const [token, setToken] = useState<string | null>(() =>
+        localStorage.getItem("workhub.token")
+    );
+    const [mfaSessionToken, setMfaSessionToken] = useState<string | null>(null);
+
     useEffect(() => {
         if (rawSelectedRole) localStorage.setItem(STORAGE_KEY, rawSelectedRole);
         else localStorage.removeItem(STORAGE_KEY);
-        
-        if (token) localStorage.setItem("workhub.token", token);
-        else localStorage.removeItem("workhub.token");
+
+        if (token) {
+            localStorage.setItem("workhub.token", token);
+            touchActivity();
+        } else {
+            localStorage.removeItem("workhub.token");
+        }
     }, [rawSelectedRole, token]);
+
+    const handleLogout = useCallback(() => {
+        clearAuthSession();
+        setToken(null);
+        setMfaSessionToken(null);
+    }, []);
+
+    useSessionTimeout(handleLogout);
 
     const handleSelectRole = (role: string) => setSelectedRole(role);
 
     const handleBackToHome = () => {
+        clearAuthSession();
         setSelectedRole(null);
         setToken(null);
+        setMfaSessionToken(null);
     };
 
-    const handleLoginSuccess = (newToken: string, user: any) => {
+    const handleLoginSuccess = (newToken: string) => {
         setToken(newToken);
         const role = getRoleFromToken(newToken);
-        if (role) {
-            setSelectedRole(role);
-        }
+        if (role) setSelectedRole(role);
     };
 
     const activeRole = getRoleFromToken(token) || rawSelectedRole;
     const selectedRole = activeRole;
 
-    // landing publique
+    if (isPublicAuthRoute) {
+        return (
+            <Routes>
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/activate" element={<ActivateAccount />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        );
+    }
+
     if (!selectedRole) {
         return <LandingPage onSelectRole={handleSelectRole} />;
     }
 
+    if (mfaSessionToken) {
+        return (
+            <MfaVerify
+                mfaSessionToken={mfaSessionToken}
+                onSuccess={handleLoginSuccess}
+                onCancel={() => setMfaSessionToken(null)}
+            />
+        );
+    }
+
+    if (!token) {
+        return (
+            <Login
+                onLoginSuccess={(newToken) => handleLoginSuccess(newToken)}
+                onMfaRequired={setMfaSessionToken}
+            />
+        );
+    }
+
+    const profileRoute = (
+        <Route path="/profile" element={<ProfilePage onLogout={handleBackToHome} />} />
+    );
+
     return (
         <>
-            {!token ? (
-                <Login onLoginSuccess={handleLoginSuccess} />
-            ) : (
-                <>
-                    {/* Candidate */}
-                    {selectedRole === "candidate" && (
-                        <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
-                        <Routes>
-                            <Route path="/" element={<OffresPubliques />} />
-                            <Route path="/candidatures" element={<MesCandidatures />} />
-                            <Route path="/profil" element={<MonProfilCandidat />} />
-                            <Route path="/documents" element={<MesDocumentsCandidat />} />
-                            <Route path="/notifications" element={<NotificationsCandidat />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                )}
+            {selectedRole === "candidate" && (
+                <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
+                    <Routes>
+                        <Route path="/" element={<OffresPubliques />} />
+                        <Route path="/candidatures" element={<MesCandidatures />} />
+                        <Route path="/profil" element={<MonProfilCandidat />} />
+                        <Route path="/documents" element={<MesDocumentsCandidat />} />
+                        <Route path="/notifications" element={<NotificationsCandidat />} />
+                        {profileRoute}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
+            )}
 
-                {/* Employee */}
-                {selectedRole === "employee" && (
-                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
-                        <Routes>
-                            <Route path="/" element={<DashboardEmployee />} />
-                            <Route path="/profil" element={<MonProfilEmployee />} />
-                            <Route path="/bulletins" element={<MesBulletins />} />
-                            <Route path="/conges" element={<MesCongesEmployee />} />
-                            <Route path="/documents" element={<MesDocuments />} />
-                            <Route path="/notifications" element={<NotificationsEmployee />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                )}
+            {selectedRole === "employee" && (
+                <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
+                    <Routes>
+                        <Route path="/" element={<DashboardEmployee />} />
+                        <Route path="/profil" element={<MonProfilEmployee />} />
+                        <Route path="/bulletins" element={<MesBulletins />} />
+                        <Route path="/conges" element={<MesCongesEmployee />} />
+                        <Route path="/documents" element={<MesDocuments />} />
+                        <Route path="/notifications" element={<NotificationsEmployee />} />
+                        {profileRoute}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
+            )}
 
-                {/* Manager */}
-                {selectedRole === "manager" && (
-                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
-                        <Routes>
-                            <Route path="/" element={<ManagerSpace />} />
-                            <Route path="/leave" element={<LeaveManagementEnhanced />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                )}
+            {selectedRole === "manager" && (
+                <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
+                    <Routes>
+                        <Route path="/" element={<ManagerSpace />} />
+                        <Route path="/leave" element={<LeaveManagementEnhanced />} />
+                        {profileRoute}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
+            )}
 
-                {/* Recruiter */}
-                {selectedRole === "recruiter" && (
-                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome} isSimpleLayout>
-                        <Routes>
-                            <Route path="/" element={<RecruiterSpace />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                )}
+            {selectedRole === "recruiter" && (
+                <Layout userRole={selectedRole} onBackToHome={handleBackToHome} isSimpleLayout>
+                    <Routes>
+                        <Route path="/" element={<RecruiterSpace />} />
+                        {profileRoute}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
+            )}
 
-                {/* Org admin */}
-                {selectedRole === "org-admin" && (
-                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
-                        <Routes>
-                            <Route path="/" element={<DashboardOrgAdmin />} />
-                            <Route path="/employees" element={<EmployeesView />} />
-                            <Route path="/payroll" element={<PayrollAnalytics />} />
-                            <Route path="/payroll-settings" element={<PayrollSettings />} />
-                            <Route path="/leave" element={<CongesAnalytics />} />
-                            <Route path="/recruitment" element={<RecruitmentAnalytics />} />
-                            <Route path="/analytics" element={<AnalyticsOrgAdmin />} />
-                            <Route path="/rh-users" element={<RHUsersManagement />} />
-                            <Route path="/config" element={<ConfigurationOrg />} />
-                            <Route path="/audit" element={<AuditHistory />} />
-                            <Route path="/export" element={<ExportData />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                )}
+            {selectedRole === "org-admin" && (
+                <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
+                    <Routes>
+                        <Route path="/" element={<DashboardOrgAdmin />} />
+                        <Route path="/employees" element={<EmployeesView />} />
+                        <Route path="/payroll" element={<PayrollAnalytics />} />
+                        <Route path="/payroll-settings" element={<PayrollSettings />} />
+                        <Route path="/leave" element={<CongesAnalytics />} />
+                        <Route path="/recruitment" element={<RecruitmentAnalytics />} />
+                        <Route path="/analytics" element={<AnalyticsOrgAdmin />} />
+                        <Route path="/rh-users" element={<RHUsersManagement />} />
+                        <Route path="/config" element={<ConfigurationOrg />} />
+                        <Route path="/audit" element={<AuditHistory />} />
+                        <Route path="/export" element={<ExportData />} />
+                        {profileRoute}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
+            )}
 
-                {/* RH manager */}
-                {selectedRole === "rh-manager" && (
-                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
-                         <Routes>
-                             <Route path="/" element={<DashboardRHManager />} />
-                             <Route path="/employees" element={<EmployeesListRH />} />
-                             <Route path="/payroll" element={<PayrollEnhanced />} />
-                             <Route path="/payroll-generation" element={<PayrollGeneration />} />
-                             <Route path="/payroll-bulletins" element={<PayslipsManagement />} />
-                             <Route path="/payroll-details" element={<PayrollDetailAdjustments />} />
-                             <Route path="/payroll-history" element={<PayrollHistory />} />
-                             <Route path="/leave" element={<LeaveManagementEnhanced userRole="rh-manager" />} />
-                             <Route path="/recruitment" element={<RecruitmentEnhanced />} />
-                             <Route path="/analytics" element={<AnalyticsRHManager />} />
-                             <Route path="*" element={<Navigate to="/" replace />} />
-                         </Routes>
-                    </Layout>
-                )}
+            {selectedRole === "rh-manager" && (
+                <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
+                    <Routes>
+                        <Route path="/" element={<DashboardRHManager />} />
+                        <Route path="/employees" element={<EmployeesListRH />} />
+                        <Route path="/payroll" element={<PayrollEnhanced />} />
+                        <Route path="/payroll-generation" element={<PayrollGeneration />} />
+                        <Route path="/payroll-bulletins" element={<PayslipsManagement />} />
+                        <Route path="/payroll-details" element={<PayrollDetailAdjustments />} />
+                        <Route path="/payroll-history" element={<PayrollHistory />} />
+                        <Route path="/leave" element={<LeaveManagementEnhanced userRole="rh-manager" />} />
+                        <Route path="/recruitment" element={<RecruitmentEnhanced />} />
+                        <Route path="/analytics" element={<AnalyticsRHManager />} />
+                        {profileRoute}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
+            )}
 
-                {/* Super admin */}
-                {selectedRole === "super-admin" && (
-                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
-                        <Routes>
-                            <Route path="/" element={<DashboardSuperAdmin />} />
-                            <Route path="/organizations" element={<OrganizationsView />} />
-                            <Route path="/subscriptions" element={<Subscriptions />} />
-                            <Route path="/monitoring" element={<SystemMonitoringDashboard />} />
-                            <Route path="/logs" element={<SystemLogs />} />
-                            <Route path="/support" element={<SupportIncidents />} />
-                            <Route path="/config" element={<PlatformConfig />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                )}
+            {selectedRole === "super-admin" && (
+                <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
+                    <Routes>
+                        <Route path="/" element={<DashboardSuperAdmin />} />
+                        <Route path="/organizations" element={<OrganizationsView />} />
+                        <Route path="/subscriptions" element={<Subscriptions />} />
+                        <Route path="/monitoring" element={<SystemMonitoringDashboard />} />
+                        <Route path="/logs" element={<SystemLogs />} />
+                        <Route path="/support" element={<SupportIncidents />} />
+                        <Route path="/config" element={<PlatformConfig />} />
+                        {profileRoute}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
+            )}
 
-                {/* fallback */}
-                {!["candidate", "employee", "manager", "recruiter", "org-admin", "rh-manager", "super-admin"].includes(selectedRole) && (
-                    <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
-                        <Routes>
-                            <Route path="/" element={<Dashboard />} />
-                            <Route path="/employees" element={<EmployeesEnhanced />} />
-                            <Route path="/payroll" element={<PayrollEnhanced />} />
-                            <Route path="/leave" element={<LeaveManagementEnhanced />} />
-                            <Route path="/recruitment" element={<RecruitmentEnhanced />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
-                    </Layout>
-                )}
-                </>
+            {!["candidate", "employee", "manager", "recruiter", "org-admin", "rh-manager", "super-admin"].includes(selectedRole) && (
+                <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
+                    <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/employees" element={<EmployeesEnhanced />} />
+                        <Route path="/payroll" element={<PayrollEnhanced />} />
+                        <Route path="/leave" element={<LeaveManagementEnhanced />} />
+                        <Route path="/recruitment" element={<RecruitmentEnhanced />} />
+                        {profileRoute}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Layout>
             )}
         </>
     );
+}
+
+export default function App() {
+    return <AppRoutes />;
 }

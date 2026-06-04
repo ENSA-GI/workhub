@@ -20,7 +20,7 @@ public class SecurityConfig {
     @Order(1)
     public SecurityFilterChain publicLocalServicesSecurityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
         http
-                .securityMatcher("/actuator/**", "/leave/**", "/notifications/**")
+                .securityMatcher("/actuator/**", "/leave/**", "/notifications/**", "/identity/api/auth/**")
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
