@@ -1,5 +1,13 @@
 # Commandes de Lancement WorkHub
 docker-compose -f infra/compose.infra.yml -f infra/compose.apps.yml up -d --build
+docker-compose -f infra/compose.infra.yml -f infra/compose.apps.yml down -v
+
+
+# Arrêter les services et supprimer les volumes anonymes/liés
+docker compose -f infra/compose.apps.yml down -v
+
+# Relancer l'ensemble des services proprement
+docker compose -f infra/compose.apps.yml up -d --build
 
 Ce document contient les commandes nécessaires pour lancer le projet WorkHub selon différents scénarios.
 

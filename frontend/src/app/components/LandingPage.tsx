@@ -90,10 +90,17 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
 
             {/* Right Actions */}
             <div className="flex items-center space-x-4">
-              <button className="text-sm text-gray-700 hover:text-[#0A6ED1] transition-colors">
+              <button
+                onClick={() => navigate('/login')}
+                className="text-sm text-gray-700 hover:text-[#0A6ED1] transition-colors"
+              >
                 Connexion
               </button>
-              <button className="px-5 py-2 bg-[#0A6ED1] text-white text-sm hover:bg-[#0959b0] transition-colors">
+
+              <button
+                onClick={() => navigate('/login')}
+                className="px-5 py-2 bg-[#0A6ED1] text-white text-sm hover:bg-[#0959b0] transition-colors"
+              >
                 Commencer
               </button>
             </div>

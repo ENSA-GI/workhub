@@ -136,7 +136,14 @@ function AppRoutes() {
             </Routes>
         );
     }
-
+    if (location.pathname === "/login") {
+        return (
+            <Login
+                onLoginSuccess={handleLoginSuccess}
+                onMfaRequired={setMfaSessionToken}
+            />
+        );
+    }
     if (!selectedRole) {
         return <LandingPage onSelectRole={handleSelectRole} />;
     }
@@ -169,6 +176,12 @@ function AppRoutes() {
             {selectedRole === "candidate" && (
                 <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                     <Routes>
+                        <Route path="/login" element={
+                            <Login
+                                onLoginSuccess={(token) => handleLoginSuccess(token)}
+                                onMfaRequired={setMfaSessionToken}
+                            />
+                        } />
                         <Route path="/" element={<OffresPubliques />} />
                         <Route path="/candidatures" element={<MesCandidatures />} />
                         <Route path="/profil" element={<MonProfilCandidat />} />
