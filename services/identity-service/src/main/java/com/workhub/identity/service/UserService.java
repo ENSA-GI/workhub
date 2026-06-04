@@ -7,6 +7,7 @@ import com.workhub.identity.kafka.event.UserCreatedEvent;
 import com.workhub.identity.kafka.event.UserDeactivatedEvent;
 import com.workhub.identity.kafka.event.UserUpdatedEvent;
 import com.workhub.identity.repo.UserRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,16 +19,23 @@ public class UserService {
 
     private final UserRepository repo;
     private final UserEventsPublisher publisher;
+    private final AuthService authService;
+    private final AuditService auditService;
 
-    public UserService(UserRepository repo, UserEventsPublisher publisher) {
+    public UserService(UserRepository repo,
+                       UserEventsPublisher publisher,
+                       @Lazy AuthService authService,
+                       AuditService auditService) {
         this.repo = repo;
         this.publisher = publisher;
+        this.authService = authService;
+        this.auditService = auditService;
     }
 
     @Transactional
     public User createUser(UUID organizationId, String email, String password,
                            String firstName, String lastName, String phone,
-                           String avatarUrl, Role role) {
+                           String avatarUrl, Role role, boolean sendActivation) {
         User u = User.builder()
                 .id(UUID.randomUUID())
                 .password(password)
@@ -39,10 +47,16 @@ public class UserService {
                 .avatarUrl(avatarUrl)
                 .role(role)
                 .active(true)
-                .emailVerified(false)
+                .emailVerified(!sendActivation)
+                .failedAttempts(0)
+                .mfaEnabled(false)
                 .build();
 
         User saved = repo.save(u);
+
+        if (sendActivation) {
+            authService.createActivationToken(saved);
+        }
 
         publisher.userCreated(new UserCreatedEvent(
                 saved.getId(),
@@ -52,6 +66,13 @@ public class UserService {
         ));
 
         return saved;
+    }
+
+    @Transactional
+    public User createUser(UUID organizationId, String email, String password,
+                           String firstName, String lastName, String phone,
+                           String avatarUrl, Role role) {
+        return createUser(organizationId, email, password, firstName, lastName, phone, avatarUrl, role, false);
     }
 
     @Transactional
@@ -74,7 +95,23 @@ public class UserService {
                     return updated;
                 })
                 .orElseGet(() -> createUser(organizationId, email, password,
-                        firstName, lastName, phone, avatarUrl, role));
+                        firstName, lastName, phone, avatarUrl, role, true));
+    }
+
+    @Transactional
+    public User updateProfile(UUID userId, String firstName, String lastName, String phone, String avatarUrl) {
+        User user = repo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (firstName != null) user.setFirstName(firstName);
+        if (lastName != null) user.setLastName(lastName);
+        if (phone != null) user.setPhone(phone);
+        if (avatarUrl != null) user.setAvatarUrl(avatarUrl);
+
+        User saved = repo.save(user);
+        auditService.log(userId, "PROFILE_UPDATED", null, null);
+        publisher.userUpdated(new UserUpdatedEvent(saved.getId(), saved.getEmail(), saved.getRole().name()));
+        return saved;
     }
 
     @Transactional
@@ -90,9 +127,8 @@ public class UserService {
         repo.findById(userId).ifPresent(u -> {
             u.setActive(false);
             repo.save(u);
-            publisher.userDeactivated(new UserDeactivatedEvent(
-                    u.getId()
-            ));
+            auditService.log(userId, "USER_DEACTIVATED", null, null);
+            publisher.userDeactivated(new UserDeactivatedEvent(u.getId()));
         });
     }
 }

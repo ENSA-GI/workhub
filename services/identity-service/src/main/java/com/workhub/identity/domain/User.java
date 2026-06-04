@@ -1,5 +1,6 @@
 package com.workhub.identity.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -18,6 +19,7 @@ public class User {
     @Id
     private UUID id;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 
@@ -46,6 +48,29 @@ public class User {
     private Boolean emailVerified;
 
     private Instant lastLogin;
+
+    @Column(name = "failed_attempts", nullable = false)
+    @Builder.Default
+    private Integer failedAttempts = 0;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
+    @Column(name = "activation_token")
+    private String activationToken;
+
+    @Column(name = "activation_token_expires_at")
+    private Instant activationTokenExpiresAt;
+
+    @Column(name = "reset_token")
+    private String resetToken;
+
+    @Column(name = "reset_token_expires_at")
+    private Instant resetTokenExpiresAt;
+
+    @Column(name = "mfa_enabled", nullable = false)
+    @Builder.Default
+    private Boolean mfaEnabled = false;
 
     @Column(name = "created_at", updatable = false)
     private Instant createdAt;

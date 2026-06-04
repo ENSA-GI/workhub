@@ -18,5 +18,15 @@ export default defineConfig({
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
+  server: {
+    proxy: {
+      "/identity": {
+        target: "http://localhost:8088",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/identity/, ""),
+      },
+    },
+  },
+
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

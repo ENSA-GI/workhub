@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, DollarSign, Calendar, Briefcase, Bell, Search, Home, Building2, FileText, AlertTriangle, Settings, BarChart3, UserCog, Download, User, Folder, TrendingUp, Receipt } from 'lucide-react';
+import { LayoutDashboard, Users, DollarSign, Calendar, Briefcase, Bell, Search, Home, Building2, FileText, AlertTriangle, Settings, BarChart3, UserCog, Download, User, Folder, TrendingUp, Receipt, Shield } from 'lucide-react';
 import logo from '../../imports/Capture_d_écran_2026-04-20_185048-removebg-preview.png';
 import { useUser } from '@/lib/useUser';
 
@@ -54,6 +54,7 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
       { name: 'Logs', href: '/logs', icon: FileText },
       { name: 'Support', href: '/support', icon: AlertTriangle },
       { name: 'Configuration', href: '/config', icon: Settings },
+      { name: 'Profil & Sécurité', href: '/profile', icon: Shield },
     ];
 
     const orgAdminNav = [
@@ -68,6 +69,7 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
       { name: 'Configuration', href: '/config', icon: Settings },
       { name: 'Historique', href: '/audit', icon: FileText },
       { name: 'Export Données', href: '/export', icon: Download },
+      { name: 'Profil & Sécurité', href: '/profile', icon: Shield },
     ];
 
     const rhManagerNav = [
@@ -80,6 +82,7 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
       { name: 'Congés', href: '/leave', icon: Calendar },
       { name: 'Recrutement', href: '/recruitment', icon: Briefcase },
       { name: 'Analytique', href: '/analytics', icon: BarChart3 },
+      { name: 'Profil & Sécurité', href: '/profile', icon: Shield },
     ];
 
     const employeeNav = [
@@ -89,6 +92,7 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
       { name: 'Mes Congés', href: '/conges', icon: Calendar },
       { name: 'Mes Documents', href: '/documents', icon: Folder },
       { name: 'Notifications', href: '/notifications', icon: Bell },
+      { name: 'Profil & Sécurité', href: '/profile', icon: Shield },
     ];
 
     const candidateNav = [
@@ -97,6 +101,7 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
       { name: 'Mon Profil', href: '/profil', icon: User },
       { name: 'Mes Documents', href: '/documents', icon: Folder },
       { name: 'Notifications', href: '/notifications', icon: Bell },
+      { name: 'Profil & Sécurité', href: '/profile', icon: Shield },
     ];
 
     switch (role) {
@@ -110,6 +115,7 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
         return [
           { name: 'Mon Équipe', href: '/', icon: Users },
           { name: 'Congés', href: '/leave', icon: Calendar },
+          { name: 'Profil & Sécurité', href: '/profile', icon: Shield },
         ];
       case 'employee':
         return employeeNav;
