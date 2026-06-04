@@ -74,7 +74,7 @@ export function useUser() {
 
       // If no employeeId found and we have an organization ID, let's query the employee list to resolve it
       if (orgId) {
-        fetch(`/employee?organizationId=${orgId}&size=100`, {
+        fetch(`/employee/employees?organizationId=${orgId}&size=100`, {
           headers: {
             "Authorization": `Bearer ${token}`,
             "Accept": "application/json"
