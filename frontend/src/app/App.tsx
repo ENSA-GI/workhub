@@ -123,7 +123,7 @@ function AppRoutes() {
         if (role) setSelectedRole(role);
     };
 
-    const activeRole = getRoleFromToken(token) || rawSelectedRole;
+    const activeRole = token ? (getRoleFromToken(token) || rawSelectedRole) : null;
     const selectedRole = activeRole;
 
     if (isPublicAuthRoute) {
