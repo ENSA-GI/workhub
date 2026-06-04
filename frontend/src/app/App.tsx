@@ -55,6 +55,7 @@ import PayrollDetailAdjustments from "./components/spaces/rh-manager/PayrollDeta
 
 import { clearAuthSession, touchActivity } from "@/lib/identityApi";
 import { useSessionTimeout } from "@/lib/useSessionTimeout";
+import OrganizationRegistration from "./components/OrganizationRegistration"; // Import du composant public
 
 const STORAGE_KEY = "workhub.selectedRole";
 
@@ -74,7 +75,7 @@ function getRoleFromToken(tokenStr: string | null) {
     }
 }
 
-const PUBLIC_PATHS = ["/forgot-password", "/reset-password", "/activate"];
+const PUBLIC_PATHS = ["/forgot-password", "/reset-password", "/activate", "/register"];
 
 function AppRoutes() {
     const location = useLocation();
@@ -125,6 +126,11 @@ function AppRoutes() {
 
     const activeRole = token ? (getRoleFromToken(token) || rawSelectedRole) : null;
     const selectedRole = activeRole;
+
+    // Route d'inscription publique (sans authentification)
+    if (location.pathname === '/register') {
+        return <OrganizationRegistration />;
+    }
 
     if (isPublicAuthRoute) {
         return (
