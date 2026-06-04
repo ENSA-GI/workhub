@@ -1,5 +1,6 @@
 import { Calendar, TrendingUp, AlertTriangle, Search, Filter } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useUser } from '@/lib/useUser';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 
 const API_BASE = 'http://localhost:8080';
@@ -29,6 +30,9 @@ interface LeaveBalance {
 }
 
 export default function CongesAnalytics() {
+  const { user } = useUser();
+  const employeeId = user?.publicMetadata?.employeeId || DEMO_EMPLOYEE_ID;
+
   const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [balance, setBalance] = useState<LeaveBalance | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,9 +42,22 @@ export default function CongesAnalytics() {
 
   useEffect(() => {
     async function loadLeaveAnalytics() {
+      const token = localStorage.getItem("workhub.token");
+      const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+
       const [requestsRes, balanceRes] = await Promise.all([
-        fetch(`${API_BASE}/leave/leave-requests/all`, { headers: { Accept: 'application/json' } }),
-        fetch(`${API_BASE}/leave/leave-balances?employeeId=${DEMO_EMPLOYEE_ID}`, { headers: { Accept: 'application/json' } }),
+        fetch(`${API_BASE}/leave/leave-requests/all`, { 
+          headers: { 
+            Accept: 'application/json',
+            ...authHeader
+          } 
+        }),
+        fetch(`${API_BASE}/leave/leave-balances?employeeId=${employeeId}`, { 
+          headers: { 
+            Accept: 'application/json',
+            ...authHeader
+          } 
+        }),
       ]);
 
       if (requestsRes.ok) {
@@ -52,7 +69,7 @@ export default function CongesAnalytics() {
     }
 
     loadLeaveAnalytics().catch(err => console.error('Erreur analytics conges:', err));
-  }, []);
+  }, [employeeId]);
 
   const getEmployeeName = (request: LeaveRequest) =>
     request.employeeName || DEMO_EMPLOYEE_NAMES[request.employeeId] || 'Employe non reference';

@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Plus, Check, X, Clock, Download, Search, Filter, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { useOrganizationId } from '@/lib/useOrganizationId';
+import { useUser } from '@/lib/useUser';
 import LeaveRequestForm from './LeaveRequestForm';
 import NotificationToast from './NotificationToast';
 
@@ -134,16 +136,28 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
   });
 
   const rhId = '550e8400-e29b-41d4-a716-446655440000';
+  const orgId = useOrganizationId() || ORG_ID;
+  const { user } = useUser();
+  const reviewerId = user?.publicMetadata?.employeeId || rhId;
 
   useEffect(() => {
     const fetchRequests = async () => {
       try {
+        const token = localStorage.getItem("workhub.token");
+        const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
+
         const [res, employeesRes] = await Promise.all([
           fetch('http://localhost:8080/leave/leave-requests/all', {
-            headers: { Accept: 'application/json' },
+            headers: { 
+              Accept: 'application/json',
+              ...authHeader
+            },
           }),
-          fetch(`http://localhost:8080/employee/employees?organizationId=${ORG_ID}&status=ACTIVE&size=200`, {
-            headers: { Accept: 'application/json' },
+          fetch(`http://localhost:8080/employee/employees?organizationId=${orgId}&status=ACTIVE&size=200`, {
+            headers: { 
+              Accept: 'application/json',
+              ...authHeader
+            },
           }),
         ]);
 
@@ -182,10 +196,15 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
 
   const handleApprove = async (id: string | number) => {
     try {
+      const token = localStorage.getItem("workhub.token");
+      const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
       const res = await fetch(`http://localhost:8080/leave/leave-requests/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision: 'APPROVED', comment: 'Approuve via UI', reviewedBy: rhId }),
+        headers: { 
+          'Content-Type': 'application/json',
+          ...authHeader
+        },
+        body: JSON.stringify({ decision: 'APPROVED', comment: 'Approuve via UI', reviewedBy: reviewerId }),
       });
       if (res.ok) {
         setLeaveRequests(prev => prev.map(req => req.id === id ? { ...req, status: 'Approved' } : req));
@@ -198,10 +217,15 @@ export default function LeaveManagementEnhanced({ userRole }: LeaveManagementEnh
 
   const handleReject = async (id: string | number) => {
     try {
+      const token = localStorage.getItem("workhub.token");
+      const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
       const res = await fetch(`http://localhost:8080/leave/leave-requests/${id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ decision: 'REJECTED', comment: 'Rejete via UI', reviewedBy: rhId }),
+        headers: { 
+          'Content-Type': 'application/json',
+          ...authHeader
+        },
+        body: JSON.stringify({ decision: 'REJECTED', comment: 'Rejete via UI', reviewedBy: reviewerId }),
       });
       if (res.ok) {
         setLeaveRequests(prev => prev.map(req => req.id === id ? { ...req, status: 'Rejected' } : req));

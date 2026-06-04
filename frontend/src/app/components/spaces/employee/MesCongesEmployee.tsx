@@ -107,17 +107,24 @@ export default function MesCongesEmployee() {
     DEMO_EMPLOYEE_ID
   ) as string;
 
+  const organizationId = (
+    user?.publicMetadata?.orgId ||
+    ORG_ID
+  ) as string;
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem("workhub.token");
       const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       };
 
       const [reqRes, balRes, typesRes] = await Promise.all([
         fetch(`${API_BASE}/leave/leave-requests?employeeId=${employeeId}`, { headers }),
         fetch(`${API_BASE}/leave/leave-balances?employeeId=${employeeId}`, { headers }),
-        fetch(`${API_BASE}/leave/leave-types?organizationId=${ORG_ID}`, { headers }),
+        fetch(`${API_BASE}/leave/leave-types?organizationId=${organizationId}`, { headers }),
       ]);
 
       if (reqRes.ok) {
@@ -253,10 +260,12 @@ export default function MesCongesEmployee() {
         reason: formData.reason
       };
 
+      const token = localStorage.getItem("workhub.token");
       const response = await fetch(`${API_BASE}/leave/leave-requests`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
         body: JSON.stringify(requestBody),
       });
@@ -301,10 +310,12 @@ export default function MesCongesEmployee() {
     }
 
     try {
+      const token = localStorage.getItem("workhub.token");
       const response = await fetch(`${API_BASE}/leave/leave-requests/${requestId}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       });
 

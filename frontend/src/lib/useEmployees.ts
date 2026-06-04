@@ -111,7 +111,7 @@ export const useEmployees = (organizationId: string, page = 0, size = 20, status
 
     return useQuery<PageResponse<Employee>>({
         queryKey: ['employees', organizationId, page, size, status],
-        queryFn: () => apiFetch(`/employee?organizationId=${organizationId}&status=${status}&page=${page}&size=${size}`),
+        queryFn: () => apiFetch(`/employee/employees?organizationId=${organizationId}&status=${status}&page=${page}&size=${size}`),
         enabled: !!organizationId,
     });
 };
@@ -121,7 +121,7 @@ export const useEmployeeById = (employeeId: string, organizationId: string) => {
 
     return useQuery<Employee>({
         queryKey: ['employee', employeeId],
-        queryFn: () => apiFetch(`/employee/${employeeId}?organizationId=${organizationId}`),
+        queryFn: () => apiFetch(`/employee/employees/${employeeId}?organizationId=${organizationId}`),
         enabled: !!employeeId && !!organizationId,
     });
 };
@@ -131,7 +131,7 @@ export const useSearchEmployees = (organizationId: string, query: string, page =
 
     return useQuery<PageResponse<Employee>>({
         queryKey: ['employees-search', organizationId, query, page, size],
-        queryFn: () => apiFetch(`/employee/search?organizationId=${organizationId}&query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
+        queryFn: () => apiFetch(`/employee/employees/search?organizationId=${organizationId}&query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
         enabled: !!organizationId && query.length > 0,
     });
 };
@@ -141,7 +141,7 @@ export const useCreateEmployee = () => {
     const queryClient = useQueryClient();
 
     return useMutation<Employee, Error, CreateEmployeeRequest>({
-        mutationFn: (data) => apiFetch('/employee', { method: 'POST', body: JSON.stringify(data) }),
+        mutationFn: (data) => apiFetch('/employee/employees', { method: 'POST', body: JSON.stringify(data) }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['employees'] });
         },
@@ -154,7 +154,7 @@ export const useUpdateEmployee = () => {
 
     return useMutation<Employee, Error, { id: string; organizationId: string; data: UpdateEmployeeRequest }>({
         mutationFn: ({ id, organizationId, data }) =>
-            apiFetch(`/employee/${id}?organizationId=${organizationId}`, { method: 'PUT', body: JSON.stringify(data) }),
+            apiFetch(`/employee/employees/${id}?organizationId=${organizationId}`, { method: 'PUT', body: JSON.stringify(data) }),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['employees'] });
             queryClient.invalidateQueries({ queryKey: ['employee', variables.id] });
@@ -168,7 +168,7 @@ export const useArchiveEmployee = () => {
 
     return useMutation<void, Error, { id: string; organizationId: string; data: ArchiveEmployeeRequest }>({
         mutationFn: ({ id, organizationId, data }) =>
-            apiFetch(`/employee/${id}/archive?organizationId=${organizationId}`, { method: 'POST', body: JSON.stringify(data) }),
+            apiFetch(`/employee/employees/${id}/archive?organizationId=${organizationId}`, { method: 'POST', body: JSON.stringify(data) }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['employees'] });
         },
