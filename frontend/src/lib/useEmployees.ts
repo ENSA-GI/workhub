@@ -1,5 +1,6 @@
 import { useApi } from './useApi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { UserProfile } from './identityApi';
 
 // Types
 export interface Employee {
@@ -172,5 +173,15 @@ export const useArchiveEmployee = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['employees'] });
         },
+    });
+};
+
+export const useUsers = (organizationId: string) => {
+    const apiFetch = useApi();
+
+    return useQuery<UserProfile[]>({
+        queryKey: ['users', organizationId],
+        queryFn: () => apiFetch(`/identity/api/users?organizationId=${organizationId}`),
+        enabled: !!organizationId,
     });
 };

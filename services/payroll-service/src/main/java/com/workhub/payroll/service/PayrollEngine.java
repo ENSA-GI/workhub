@@ -68,6 +68,28 @@ public class PayrollEngine {
         }
     }
 
+    public void validateIrBrackets(String bracketsJson) {
+        try {
+            List<IrBracket> brackets = objectMapper.readValue(bracketsJson, new TypeReference<>() {});
+            if (brackets.isEmpty()) {
+                throw new IllegalArgumentException("Le barème IR doit contenir au moins une tranche.");
+            }
+            for (IrBracket bracket : brackets) {
+                if (bracket.min() == null || bracket.rate() == null
+                        || bracket.min().signum() < 0
+                        || bracket.rate().signum() < 0
+                        || bracket.rate().compareTo(BigDecimal.ONE) > 0
+                        || (bracket.max() != null && bracket.max().compareTo(bracket.min()) <= 0)) {
+                    throw new IllegalArgumentException("Une tranche IR est invalide.");
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Le barème IR doit être un JSON valide.");
+        }
+    }
+
     // Objet interne pour retourner les résultats
     public record CalculationResult(
             BigDecimal gross, BigDecimal cnss, BigDecimal amo,

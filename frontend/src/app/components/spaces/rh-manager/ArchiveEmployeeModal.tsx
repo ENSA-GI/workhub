@@ -56,7 +56,7 @@ export default function ArchiveEmployeeModal({ employee, organizationId, onClose
                         <strong>{employee.cin}</strong> • {employee.personalEmail}
                     </p>
                     <p className="text-xs text-gray-600 mt-1">
-                        Cette action passera l'employé en statut "Archivé". Le compte Clerk sera désactivé.
+                        Cette action passera l'employé en statut "Archivé". Le compte sera désactivé.
                     </p>
                 </div>
 

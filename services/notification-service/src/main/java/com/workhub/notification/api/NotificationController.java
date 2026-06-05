@@ -7,6 +7,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +21,14 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "*")
+@Slf4j
 public class NotificationController {
 
     private final NotificationRepository repo;
     private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.username:}")
+    private String senderEmail;
 
     public NotificationController(NotificationRepository repo, JavaMailSender mailSender) {
         this.repo = repo;
@@ -89,12 +96,29 @@ public class NotificationController {
     }
 
     @PostMapping("/notifications/send-test-email")
-    public String sendTestEmail(@RequestBody @Valid SendTestEmailRequest req) {
-        SimpleMailMessage msg = new SimpleMailMessage();
-        msg.setTo(req.to());
-        msg.setSubject(req.subject());
-        msg.setText(req.body());
-        mailSender.send(msg);
-        return "sent";
+    public ResponseEntity<String> sendTestEmail(@RequestBody @Valid SendTestEmailRequest req) {
+        try {
+            SimpleMailMessage msg = new SimpleMailMessage();
+            if (senderEmail != null && !senderEmail.isBlank()) {
+                msg.setFrom(senderEmail);
+            }
+            msg.setTo(req.to());
+            msg.setSubject(req.subject());
+            msg.setText(req.body());
+            mailSender.send(msg);
+            return ResponseEntity.ok("sent from " + (senderEmail == null || senderEmail.isBlank() ? "configured SMTP account" : senderEmail));
+        } catch (Exception e) {
+            String diagnostic = rootCauseMessage(e);
+            log.error("SMTP test email failed: {}", diagnostic, e);
+            return ResponseEntity.status(502).body("SMTP_SEND_FAILED: " + diagnostic);
+        }
+    }
+
+    private String rootCauseMessage(Throwable throwable) {
+        Throwable current = throwable;
+        while (current.getCause() != null) {
+            current = current.getCause();
+        }
+        return current.getMessage() != null ? current.getMessage() : throwable.getMessage();
     }
 }

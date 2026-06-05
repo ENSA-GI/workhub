@@ -50,7 +50,7 @@ export default function ConfigurationOrg() {
   if (!organizationId) {
     return (
       <div className="p-6 text-center">
-        <p className="text-red-600">Erreur : ID d'organisation manquant dans Clerk publicMetadata.</p>
+        <p className="text-red-600">Erreur : ID d'organisation manquant dans la session.</p>
       </div>
     );
   }

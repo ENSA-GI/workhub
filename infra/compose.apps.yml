@@ -1,5 +1,6 @@
 services:
   api-gateway:
+    init: true
     build: { context: ../services/api-gateway }
     ports: [ "8080:8080" ]
     environment:
@@ -25,6 +26,7 @@ services:
     networks: [ workhub ]
 
   org-service:
+    init: true
     build: { context: ../services/org-service }
     ports: [ "8081:8081" ]
     environment:
@@ -38,6 +40,7 @@ services:
     networks: [ workhub ]
 
   identity-service:
+    init: true
     build: { context: ../services/identity-service }
     ports: [ "8088:8088" ]
     environment:
@@ -51,6 +54,7 @@ services:
     networks: [ workhub ]
 
   employee-service:
+    init: true
     build: { context: ../services/employee-service }
     environment:
       SERVER_PORT: 8080
@@ -62,6 +66,7 @@ services:
     networks: [ workhub ]
 
   leave-service:
+    init: true
     build: { context: ../services/leave-service }
     environment:
       SERVER_PORT: 8080
@@ -73,6 +78,7 @@ services:
     networks: [ workhub ]
 
   payroll-service:
+    init: true
     build: { context: ../services/payroll-service }
     ports:
       - "8084:8080"
@@ -86,10 +92,13 @@ services:
       MINIO_ACCESS_KEY: minioadmin
       MINIO_SECRET_KEY: minioadminpassword
       MINIO_BUCKET_NAME: payslips
+      WORKHUB_GATEWAY_EMPLOYEE: http://employee-service:8080
+      WORKHUB_GATEWAY_IDENTITY: http://identity-service:8088
     depends_on: [ postgres, kafka, minio ]
     networks: [ workhub ]
 
   recruitment-service:
+    init: true
     build: { context: ../services/recruitment-service }
     environment:
       SERVER_PORT: 8080
@@ -104,6 +113,7 @@ services:
     networks: [ workhub ]
 
   document-service:
+    init: true
     build: { context: ../services/document-service }
     environment:
       SERVER_PORT: 8080
@@ -114,19 +124,30 @@ services:
     networks: [ workhub ]
 
   notification-service:
+    init: true
     build: { context: ../services/notification-service }
     environment:
       SERVER_PORT: 8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
-      SPRING_MAIL_HOST: mailhog
-      SPRING_MAIL_PORT: 1025
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-localhost}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-1025}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_AUTH: ${SPRING_MAIL_AUTH:-false}
+      SPRING_MAIL_STARTTLS: ${SPRING_MAIL_STARTTLS:-false}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+      MINIO_BUCKET_NAME: payslips
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-    depends_on: [ postgres, mailhog, kafka ]
+
+    depends_on: [ postgres, mailhog, kafka, minio ]
     networks: [ workhub ]
 
   audit-service:
+    init: true
     build: { context: ../services/audit-service }
     environment:
       SERVER_PORT: 8080
@@ -137,6 +158,7 @@ services:
     networks: [ workhub ]
 
   frontend:
+    init: true
     build:
       context: ../frontend
       args:

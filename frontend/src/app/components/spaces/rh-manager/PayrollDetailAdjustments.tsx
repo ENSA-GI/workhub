@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
-import { Plus, Trash2, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Plus, Trash2, AlertCircle, CheckCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { usePayrollItems, usePayrolls, payrollValue, useAddPayrollAdjustment, useDeletePayrollAdjustment } from '@/lib/usePayroll';
 import NotificationToast from '../../NotificationToast';
 import { useOrganizationId } from '@/lib/useOrganizationId';
+import { useEmployees, useUsers } from '@/lib/useEmployees';
 
 interface PayrollAdjustment {
   id: string;
@@ -16,35 +18,73 @@ interface PayrollAdjustment {
 
 
 export default function PayrollDetailAdjustments() {
+  const [searchParams] = useSearchParams();
+  const payrollId = searchParams.get('id');
+  const navigate = useNavigate();
+
   const organizationId = useOrganizationId();
 
   const { data: payrolls = [] } = usePayrolls(organizationId);
-  const activePayroll = payrolls[0];
+  const activePayroll = payrolls.find((p) => p.id === payrollId) || payrolls[0];
   const { data: payrollItems = [] } = usePayrollItems(activePayroll?.id || '');
 
   const addAdjustmentMutation = useAddPayrollAdjustment();
   const deleteAdjustmentMutation = useDeletePayrollAdjustment();
 
   const [selectedItemId, setSelectedItemId] = useState<string>('');
+  const [checkedItemIds, setCheckedItemIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const { data: employeesData } = useEmployees(organizationId, 0, 100);
+  const { data: usersData = [] } = useUsers(organizationId);
+
+  const employeeUserMap = useMemo(() => {
+    const map = new Map<string, { userId: string; email: string }>();
+    if (employeesData?.content) {
+      employeesData.content.forEach((emp) => {
+        map.set(emp.id, { userId: emp.userId, email: emp.personalEmail });
+      });
+    }
+    return map;
+  }, [employeesData]);
+
+  const userNamesMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (Array.isArray(usersData)) {
+      usersData.forEach((user) => {
+        const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        map.set(user.id, name);
+      });
+    }
+    return map;
+  }, [usersData]);
+
+  const getEmployeeFullName = (employeeId: string) => {
+    const empInfo = employeeUserMap.get(employeeId);
+    if (!empInfo) return employeeId;
+    const name = userNamesMap.get(empInfo.userId);
+    return name || empInfo.email || employeeId;
+  };
 
   // Form state
   const [formData, setFormData] = useState({
     type: 'OVERTIME' as 'OVERTIME' | 'BONUS' | 'DEDUCTION',
     amount: '',
     description: '',
+    preset: 'OVERTIME'
   });
 
   const selectedItem = useMemo(() => payrollItems.find((item) => item.id === selectedItemId) || payrollItems[0], [payrollItems, selectedItemId]);
 
   const filteredItems = useMemo(() => {
     return payrollItems.filter((item) => {
-      const target = `${item.employeeId}`.toLowerCase();
+      const fullName = getEmployeeFullName(item.employeeId);
+      const target = `${fullName} ${item.employeeId}`.toLowerCase();
       return target.includes(searchTerm.toLowerCase());
     });
-  }, [payrollItems, searchTerm]);
+  }, [payrollItems, searchTerm, employeeUserMap, userNamesMap]);
 
   const selectedAdjustments = (selectedItem as any)?.adjustments || [];
   const overtimeTotal = selectedAdjustments
@@ -70,18 +110,22 @@ export default function PayrollDetailAdjustments() {
   };
 
   const handleAddAdjustment = async () => {
-    if (!selectedItem || !formData.amount) {
-      setNotification({ type: 'error', message: 'Veuillez remplir tous les champs obligatoires' });
+    const targetItems = checkedItemIds.length > 0 ? checkedItemIds : (selectedItem ? [selectedItem.id] : []);
+
+    if (targetItems.length === 0 || !formData.amount) {
+      setNotification({ type: 'error', message: 'Veuillez sélectionner au moins un employé et remplir le montant' });
       return;
     }
 
     try {
-      await addAdjustmentMutation.mutateAsync({
-        payrollItemId: selectedItem.id,
-        type: formData.type,
-        amount: parseFloat(formData.amount),
-        description: formData.description,
-      });
+      await Promise.all(targetItems.map(itemId =>
+        addAdjustmentMutation.mutateAsync({
+          payrollItemId: itemId,
+          type: formData.type,
+          amount: parseFloat(formData.amount),
+          description: formData.description,
+        })
+      ));
 
       setNotification({
         type: 'success',
@@ -89,7 +133,8 @@ export default function PayrollDetailAdjustments() {
       });
 
       // Réinitialiser le formulaire
-      setFormData({ type: 'OVERTIME', amount: '', description: '' });
+      setFormData({ type: 'OVERTIME', amount: '', description: '', preset: 'OVERTIME' });
+      setCheckedItemIds([]);
       setShowAddForm(false);
     } catch (error: any) {
       setNotification({
@@ -117,7 +162,20 @@ export default function PayrollDetailAdjustments() {
     }
   };
 
-  if (!organizationId) {
+  const handleCheckAll = () => {
+    const filteredItemIds = filteredItems.map((item) => item.id);
+    const areAllFilteredItemsChecked = filteredItemIds.every((id) => checkedItemIds.includes(id));
+
+    if (areAllFilteredItemsChecked) {
+      setCheckedItemIds((current) => current.filter((id) => !filteredItemIds.includes(id)));
+    } else {
+      setCheckedItemIds((current) => Array.from(new Set([...current, ...filteredItemIds])));
+    }
+  };
+
+  const isReadOnly = activePayroll?.status !== 'DRAFT';
+
+  if (!activePayroll) {
     return <div className="p-6 text-center text-red-600">ID d'organisation manquant</div>;
   }
 
@@ -136,33 +194,53 @@ export default function PayrollDetailAdjustments() {
 
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Détail des Salaires - {activePayroll ? `${activePayroll.month}/${activePayroll.year}` : 'N/A'}</h1>
-          <p className="text-sm text-gray-600 mt-1">Ajoutez des heures supplémentaires, primes et déductions</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Détails et Ajustements</h1>
+          <p className="text-sm text-gray-600 mt-1">Période : {new Date(activePayroll.year, activePayroll.month - 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })} - Statut : <span className={`font-semibold ${isReadOnly ? 'text-green-600' : 'text-orange-600'}`}>{activePayroll.status}</span></p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-[#0A6ED1] text-white hover:bg-[#0959b0] flex items-center rounded"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Ajouter Prime Collective
-        </button>
+        <div className="flex items-center space-x-3">
+          <button onClick={() => navigate('/payroll')} className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center rounded">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Retour au tableau
+          </button>
+          {!isReadOnly && (
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="px-4 py-2 bg-[#0A6ED1] text-white hover:bg-[#0959b0] flex items-center rounded"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Ajouter Ajustement
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Formulaire d'ajout */}
-      {showAddForm && (
+      {showAddForm && !isReadOnly && (
         <div className="bg-white border border-gray-200 p-4 mb-6 rounded">
-          <h3 className="font-semibold text-gray-900 mb-4">Ajouter un Ajustement</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">Ajouter un Ajustement {checkedItemIds.length > 0 ? `(${checkedItemIds.length} employés sélectionnés)` : ''}</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
               <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                value={formData.preset}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'OVERTIME') {
+                    setFormData({ ...formData, preset: val, type: 'OVERTIME', description: '' });
+                  } else if (val.startsWith('BONUS_')) {
+                    setFormData({ ...formData, preset: val, type: 'BONUS', description: val.split('_')[1] });
+                  } else if (val === 'BONUS') {
+                    setFormData({ ...formData, preset: val, type: 'BONUS', description: '' });
+                  } else if (val === 'DEDUCTION') {
+                    setFormData({ ...formData, preset: val, type: 'DEDUCTION', description: '' });
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] rounded"
               >
                 <option value="OVERTIME">Heures Supplémentaires</option>
-                <option value="BONUS">Prime</option>
-                <option value="DEDUCTION">Déduction</option>
+                <option value="BONUS_Prime de rendement (Exceptionnelle)">Prime de rendement (Exceptionnelle)</option>
+                <option value="BONUS_Prime de projet">Prime de projet</option>
+                <option value="BONUS_Prime de déplacement">Prime de déplacement</option>
+                <option value="BONUS">Autre prime spécifique...</option>
+                <option value="DEDUCTION">Déduction (Retard, Absence...)</option>
               </select>
             </div>
             <div>
@@ -209,7 +287,6 @@ export default function PayrollDetailAdjustments() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Sélecteur d'employé */}
         <div className="lg:col-span-1 bg-white border border-gray-200 rounded">
           <div className="p-4 border-b border-gray-200">
             <h3 className="font-semibold text-gray-900">Employés ({filteredItems.length})</h3>
@@ -220,32 +297,56 @@ export default function PayrollDetailAdjustments() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full mt-3 px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] rounded text-sm"
             />
+            {!isReadOnly && (
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-gray-500">Cochez pour appliquer en masse</span>
+                <button
+                  onClick={handleCheckAll}
+                  className="text-xs text-[#0A6ED1] hover:underline"
+                >
+                  {checkedItemIds.length === filteredItems.length ? 'Désélectionner tout' : 'Sélectionner tout'}
+                </button>
+              </div>
+            )}
           </div>
-          <div className="divide-y divide-gray-200 max-h-[500px] overflow-y-auto">
+          <div className="divide-y divide-gray-200 max-h-[600px] overflow-y-auto">
             {filteredItems.map((item) => (
               <div
                 key={item.id}
-                onClick={() => setSelectedItemId(item.id)}
-                className={`p-4 cursor-pointer transition-all ${
+                className={`p-4 cursor-pointer transition-colors flex items-center ${
                   selectedItem?.id === item.id ? 'bg-blue-50 border-l-4 border-[#0A6ED1]' : 'hover:bg-gray-50'
                 }`}
               >
-                <p className="text-sm font-medium text-gray-900">{item.employeeId}</p>
-                <p className="text-xs text-gray-600 mt-1">MAD {payrollValue(item.netSalary).toLocaleString('fr-FR')}</p>
+                <div className="flex items-center space-x-3 w-full" onClick={() => setSelectedItemId(item.id)}>
+                  {!isReadOnly && (
+                    <input
+                      type="checkbox"
+                      checked={checkedItemIds.includes(item.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) setCheckedItemIds([...checkedItemIds, item.id]);
+                        else setCheckedItemIds(checkedItemIds.filter(id => id !== item.id));
+                      }}
+                      className="w-4 h-4 text-[#0A6ED1] border-gray-300 rounded focus:ring-[#0A6ED1]"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{getEmployeeFullName(item.employeeId)}</p>
+                    <p className="text-xs text-gray-600 mt-1">MAD {payrollValue(item.netSalary).toLocaleString('fr-FR')}</p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Détails et tableau */}
         <div className="lg:col-span-2">
           {selectedItem ? (
             <div className="bg-white border border-gray-200 rounded overflow-hidden">
               <div className="p-4 border-b border-gray-200 bg-gray-50">
-                <h3 className="font-semibold text-gray-900">Détail des Salaires - {selectedItem.employeeId}</h3>
+                <h3 className="font-semibold text-gray-900">Détail des Salaires - {getEmployeeFullName(selectedItem.employeeId)}</h3>
               </div>
 
-              {/* Tableau des composantes */}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200">
@@ -303,12 +404,11 @@ export default function PayrollDetailAdjustments() {
                 </table>
               </div>
 
-              {/* Ajustements */}
-              {selectedItem && Array.isArray((selectedItem as any).adjustments) && (selectedItem as any).adjustments.length > 0 && (
+              {selectedAdjustments.length > 0 && (
                 <div className="p-4 border-t border-gray-200 bg-blue-50">
                   <h4 className="font-medium text-gray-900 mb-3">Ajustements Appliqués</h4>
                   <div className="space-y-2">
-                    {(selectedItem as any).adjustments.map((adj: PayrollAdjustment) => (
+                    {selectedAdjustments.map((adj: PayrollAdjustment) => (
                       <div key={adj.id} className="flex items-center justify-between bg-white p-3 rounded border border-gray-200">
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-900">{adj.type === 'OVERTIME' ? '⏱️ H. Supp.' : adj.type === 'BONUS' ? '⭐ Prime' : '📉 Déduction'}</p>
@@ -318,12 +418,14 @@ export default function PayrollDetailAdjustments() {
                           <span className={`font-medium ${adj.type === 'DEDUCTION' ? 'text-red-600' : 'text-green-600'}`}>
                             {adj.type === 'DEDUCTION' ? '-' : '+'} MAD {Math.abs(adj.amount).toLocaleString('fr-FR')}
                           </span>
-                          <button
-                            onClick={() => handleDeleteAdjustment(adj.id)}
-                            className="p-1 hover:bg-red-50 rounded text-red-600"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!isReadOnly && (
+                            <button
+                              onClick={() => handleDeleteAdjustment(adj.id)}
+                              className="p-1 hover:bg-red-50 rounded text-red-600"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

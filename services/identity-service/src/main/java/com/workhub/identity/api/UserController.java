@@ -189,6 +189,7 @@ public class UserController {
     }
 
     private void assertAccess(Jwt jwt, User user) {
+        if (jwt == null) return;
         String role = jwt.getClaimAsString("role");
         if ("SUPER_ADMIN".equals(role)) return;
 

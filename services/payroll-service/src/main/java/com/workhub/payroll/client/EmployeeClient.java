@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-@FeignClient(name = "employee-service", url = "${WORKHUB_GATEWAY_EMPLOYEE:http://employee-service:8080}")
+@FeignClient(name = "employee-service", url = "${WORKHUB_GATEWAY_EMPLOYEE:http://localhost:8082}")
 public interface EmployeeClient {
 
     // On utilise la bonne URL et le bon paramètre "organizationId"
@@ -29,9 +29,12 @@ public interface EmployeeClient {
     @Data
     class EmployeeResponse {
         private UUID id;
+        private UUID userId;
         private String firstName;
         private String lastName;
         private BigDecimal baseSalary;
+        private BigDecimal transportBonus;
+        private BigDecimal mealBonus;
         private Integer childrenCount;
         private String department;
     }

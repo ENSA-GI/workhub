@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FileText, Download, Eye, CheckCircle, Clock, Calendar, Search, Filter, Loader2 } from 'lucide-react';
 import { useMarkPayslipAsRead, usePayrollItems, usePayrolls, payrollValue } from '@/lib/usePayroll';
 import { useOrganizationId } from '@/lib/useOrganizationId';
+import { useEmployees, useUsers } from '@/lib/useEmployees';
 
 export default function PayslipsManagement() {
   const organizationId = useOrganizationId();
@@ -15,10 +16,41 @@ export default function PayslipsManagement() {
   const { data: items = [], isLoading } = usePayrollItems(activePayroll?.id || '');
   const markAsRead = useMarkPayslipAsRead();
 
+  const { data: employeesData } = useEmployees(organizationId, 0, 100);
+  const { data: usersData = [] } = useUsers(organizationId);
+
+  const employeeUserMap = useMemo(() => {
+    const map = new Map<string, { userId: string; email: string }>();
+    if (employeesData?.content) {
+      employeesData.content.forEach((emp) => {
+        map.set(emp.id, { userId: emp.userId, email: emp.personalEmail });
+      });
+    }
+    return map;
+  }, [employeesData]);
+
+  const userNamesMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (Array.isArray(usersData)) {
+      usersData.forEach((user) => {
+        const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        map.set(user.id, name);
+      });
+    }
+    return map;
+  }, [usersData]);
+
+  const getEmployeeFullName = (employeeId: string) => {
+    const empInfo = employeeUserMap.get(employeeId);
+    if (!empInfo) return employeeId;
+    const name = userNamesMap.get(empInfo.userId);
+    return name || empInfo.email || employeeId;
+  };
+
   const payslips = items.map((item) => ({
     id: item.id,
     employeId: item.employeeId,
-    nom: item.employeeId,
+    nom: getEmployeeFullName(item.employeeId),
     departement: '—',
     poste: '—',
     mois: activePayroll ? `${String(activePayroll.year)}-${String(activePayroll.month).padStart(2, '0')}` : filterMonth,
@@ -41,7 +73,7 @@ export default function PayslipsManagement() {
   const totalNet = payslips.reduce((sum, p) => sum + p.salaireNet, 0);
 
   if (!organizationId) {
-    return <div className="p-6 text-center text-red-600">ID d'organisation manquant dans Clerk.</div>;
+    return <div className="p-6 text-center text-red-600">ID d'organisation manquant dans la session.</div>;
   }
 
   const handleDownload = (itemId: string) => {
@@ -58,7 +90,7 @@ export default function PayslipsManagement() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Gestion des Bulletins de Paie</h1>
-          <p className="text-sm text-gray-600 mt-1">Bulletins récupérés depuis le backend</p>
+          <p className="text-sm text-gray-600 mt-1">Bulletins centralisés</p>
         </div>
         <div className="flex items-center space-x-3">
           <button className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center">
@@ -67,7 +99,7 @@ export default function PayslipsManagement() {
           </button>
           <button className="px-4 py-2 bg-[#0A6ED1] text-white hover:bg-[#0959b0] flex items-center" disabled>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Email via backend à connecter
+            Envoyer par email
           </button>
         </div>
       </div>
@@ -126,14 +158,14 @@ export default function PayslipsManagement() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <button onClick={() => handleDownload(selectedPayslipDetail.id)} className="px-3 py-1 border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 flex items-center"><Download className="w-4 h-4 mr-1" />Télécharger</button>
-                  <button className="px-3 py-1 bg-[#0A6ED1] text-white text-sm hover:bg-[#0959b0] flex items-center" disabled><Loader2 className="w-4 h-4 mr-1 animate-spin" />Envoyer backend</button>
+                  <button className="px-3 py-1 bg-[#0A6ED1] text-white text-sm hover:bg-[#0959b0] flex items-center" disabled><Loader2 className="w-4 h-4 mr-1 animate-spin" />Envoyer</button>
                 </div>
               </div>
 
               <div className="p-6 bg-gray-50">
                 <div className="bg-white border-2 border-gray-300 p-8 shadow-lg max-w-2xl mx-auto">
                   <div className="flex items-start justify-between mb-8 pb-6 border-b-2 border-gray-300">
-                    <div><h2 className="text-2xl font-bold text-gray-900 mb-2">WorkHub</h2><p className="text-sm text-gray-600">Bulletin généré depuis le backend</p></div>
+                    <div><h2 className="text-2xl font-bold text-gray-900 mb-2">WorkHub</h2><p className="text-sm text-gray-600">Bulletin généré par le système</p></div>
                     <div className="text-right"><h3 className="text-lg font-semibold text-gray-900 mb-2">BULLETIN DE PAIE</h3><p className="text-sm text-gray-600">Période: {filterMonth}</p></div>
                   </div>
 

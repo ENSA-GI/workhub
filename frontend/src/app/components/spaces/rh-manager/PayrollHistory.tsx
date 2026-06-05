@@ -9,6 +9,8 @@ export default function PayrollHistory() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   const { data: payrolls = [] } = usePayrolls(organizationId);
   const { data: trend = [], isLoading: trendLoading } = usePayrollTrend(organizationId, selectedYear);
@@ -24,8 +26,34 @@ export default function PayrollHistory() {
     { name: 'IR', value: payrollValue(charges?.totalIr), color: '#F59E0B' },
   ].filter((item) => item.value > 0);
 
+  const handleExportReport = async () => {
+    setIsExporting(true);
+    setExportError('');
+
+    try {
+      const token = localStorage.getItem('workhub.token');
+      const response = await fetch(`/payroll/payrolls/export/report?orgId=${organizationId}&year=${selectedYear}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`);
+
+      const url = window.URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rapport_professionnel_paie_${selectedYear}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Impossible d'exporter le rapport");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (!organizationId) {
-    return <div className="p-6 text-center text-red-600">ID d'organisation manquant dans Clerk.</div>;
+    return <div className="p-6 text-center text-red-600">ID d'organisation manquant dans la session.</div>;
   }
 
   return (
@@ -33,7 +61,7 @@ export default function PayrollHistory() {
       <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Historique et Statistiques de Paie</h1>
-          <p className="text-sm text-gray-600 mt-1">Historique calculé depuis les données backend</p>
+          <p className="text-sm text-gray-600 mt-1">Historique des données consolidées</p>
         </div>
         <div className="flex items-center space-x-3">
           <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="px-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]">
@@ -42,12 +70,13 @@ export default function PayrollHistory() {
           <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))} className="px-4 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]">
             {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => <option key={month} value={month}>Mois {month}</option>)}
           </select>
-          <button className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center">
-            <Download className="w-4 h-4 mr-2" />
-            Exporter Rapport
+          <button onClick={handleExportReport} disabled={isExporting} className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center disabled:opacity-50 disabled:cursor-not-allowed">
+            {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            {isExporting ? 'Export en cours...' : 'Exporter Rapport PDF'}
           </button>
         </div>
       </div>
+      {exportError && <div className="mb-4 border border-red-200 bg-red-50 p-3 text-sm text-red-700">{exportError}</div>}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white border border-gray-200 p-6"><h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Masse Salariale Brute YTD</h3><p className="text-3xl font-semibold text-gray-900">MAD {payrollValue(budget?.spentAmount).toLocaleString('fr-FR')}</p></div>

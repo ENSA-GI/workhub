@@ -19,17 +19,25 @@ spring:
     enabled: true
 
   mail:
-    host: localhost
-    port: 1025
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${SPRING_MAIL_AUTH:false}
           starttls:
-            enable: false
+            enable: ${SPRING_MAIL_STARTTLS:false}
 
   kafka:
     bootstrap-servers: localhost:9094
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadminpassword}
+  bucket-name: ${MINIO_BUCKET_NAME:payslips}
 
 management:
   endpoints:
