@@ -157,6 +157,19 @@ services:
     depends_on: [ postgres ]
     networks: [ workhub ]
 
+  ai-service:
+    init: true
+    build: { context: ../services/ai-service }
+    ports: [ "8000:8080" ]
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:-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}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [ kafka, minio ]
+    networks: [ workhub ]
+
   frontend:
     init: true
     build:
