@@ -4,6 +4,7 @@ import { Calendar, Download, CheckCircle, Search, Loader2, AlertCircle } from 'l
 import { useGeneratePayroll, usePayrollItems, usePayrolls, payrollValue } from '@/lib/usePayroll';
 import { useOrganizationId } from '@/lib/useOrganizationId';
 import { useUser } from '@/lib/useUser';
+import { useEmployees, useUsers } from '@/lib/useEmployees';
 
 function monthLabel(selectedMonth: string) {
   return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(new Date(`${selectedMonth}-01`));
@@ -13,7 +14,7 @@ export default function PayrollGeneration() {
   const navigate = useNavigate();
   const { user } = useUser();
   const organizationId = useOrganizationId();
-  const generatedBy = (user?.publicMetadata?.employeeId as string) || '';
+  const generatedBy = (user?.publicMetadata?.employeeId as string) || user?.id || '';
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [monthTouched, setMonthTouched] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +27,37 @@ export default function PayrollGeneration() {
   const selectedPayroll = useMemo(() => payrolls.find((payroll) => payroll.year === selectedYear && payroll.month === selectedMonthNumber) || null, [payrolls, selectedYear, selectedMonthNumber]);
   const { data: selectedPayrollItems = [], isLoading: selectedPayrollItemsLoading } = usePayrollItems(selectedPayroll?.id || '');
 
+  const { data: employeesData } = useEmployees(organizationId, 0, 100);
+  const { data: usersData = [] } = useUsers(organizationId);
+
+  const employeeUserMap = useMemo(() => {
+    const map = new Map<string, { userId: string; email: string }>();
+    if (employeesData?.content) {
+      employeesData.content.forEach((emp) => {
+        map.set(emp.id, { userId: emp.userId, email: emp.personalEmail });
+      });
+    }
+    return map;
+  }, [employeesData]);
+
+  const userNamesMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (Array.isArray(usersData)) {
+      usersData.forEach((user) => {
+        const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+        map.set(user.id, name);
+      });
+    }
+    return map;
+  }, [usersData]);
+
+  const getEmployeeFullName = (employeeId: string) => {
+    const empInfo = employeeUserMap.get(employeeId);
+    if (!empInfo) return employeeId;
+    const name = userNamesMap.get(empInfo.userId);
+    return name || empInfo.email || employeeId;
+  };
+
   const payrollRows = useMemo(() => selectedPayrollItems.map((item) => {
     const adjustments = Array.isArray(item.adjustments) ? item.adjustments : [];
     const adjustmentTotal = adjustments.reduce((sum, adj) => {
@@ -36,14 +68,15 @@ export default function PayrollGeneration() {
     return {
       id: item.id,
       employeeId: item.employeeId,
+      name: getEmployeeFullName(item.employeeId),
       estimatedGross: payrollValue(item.grossSalary),
       estimatedNet: payrollValue(item.netSalary),
       adjustmentTotal,
     };
-  }), [selectedPayrollItems]);
+  }), [selectedPayrollItems, employeeUserMap, userNamesMap]);
 
   const filteredEmployees = payrollRows.filter((emp) => {
-    const searchTarget = `${emp.id} ${emp.employeeId}`.toLowerCase();
+    const searchTarget = `${emp.name} ${emp.employeeId}`.toLowerCase();
     return searchTarget.includes(searchTerm.toLowerCase());
   });
 
@@ -57,23 +90,23 @@ export default function PayrollGeneration() {
 
   const handleGeneratePayroll = async () => {
     if (!organizationId || !generatedBy) {
-      alert('Organization ID ou generatedBy manquant dans Clerk.');
+      alert('Organization ID ou generatedBy manquant dans la session.');
       return;
     }
 
     const [yearStr, monthStr] = selectedMonth.split('-');
-    await generatePayroll.mutateAsync({
+    const newPayroll = await generatePayroll.mutateAsync({
       organizationId,
       generatedBy,
       year: Number(yearStr),
       month: Number(monthStr),
     });
 
-    navigate('/payroll');
+    navigate(`/payroll-details?id=${newPayroll.id}`);
   };
 
   if (!organizationId) {
-    return <div className="p-6 text-center text-red-600">Aucune organisation active trouvée dans Clerk. Vérifie que l'utilisateur est bien rattaché à une organisation.</div>;
+    return <div className="p-6 text-center text-red-600">Aucune organisation active trouvée dans la session. Vérifie que l'utilisateur est bien rattaché à une organisation.</div>;
   }
 
   return (
@@ -83,8 +116,8 @@ export default function PayrollGeneration() {
           <h1 className="text-2xl font-semibold text-gray-900">Génération de la Paie</h1>
           <p className="text-sm text-gray-600 mt-1">
             {hasGeneratedPayroll
-              ? 'Paie générée pour cette période chargée depuis le backend'
-              : 'Aucune paie backend pour cette période. Le tableau restera vide tant qu’elle n’existe pas.'}
+              ? 'Paie générée pour cette période (données consolidées)'
+              : 'Aucune paie générée pour cette période. Le tableau restera vide tant qu’elle n’existe pas.'}
           </p>
         </div>
         <div className="flex items-center space-x-3">
@@ -115,8 +148,8 @@ export default function PayrollGeneration() {
           </div>
           <div className="flex items-center space-x-6">
             <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Période</p><p className="text-sm font-medium text-gray-900">{selectedPeriodLabel}</p></div>
-            <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Lignes backend</p><p className="text-lg font-semibold text-gray-900">{selectedPayrollItems.length}</p></div>
-            <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Source</p><p className="text-sm font-medium text-gray-900">{hasGeneratedPayroll ? 'Backend paie' : 'Aucune paie'}</p></div>
+            <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Lignes traitées</p><p className="text-lg font-semibold text-gray-900">{selectedPayrollItems.length}</p></div>
+            <div className="text-center"><p className="text-xs text-gray-500 uppercase mb-1">Source</p><p className="text-sm font-medium text-gray-900">{hasGeneratedPayroll ? 'Système paie' : 'Aucune paie'}</p></div>
           </div>
         </div>
       </div>
@@ -124,7 +157,7 @@ export default function PayrollGeneration() {
       <div className="bg-white border border-gray-200 mb-6">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-base font-semibold text-gray-900">Détail des Salaires - {selectedPeriodLabel}</h3>
-          <span className="text-sm text-gray-500">{hasGeneratedPayroll ? 'Données réelles de la paie générée avec ajustements backend' : 'Tableau vide tant qu’aucune paie backend n’existe'}</span>
+          <span className="text-sm text-gray-500">{hasGeneratedPayroll ? 'Données réelles de la paie générée avec ajustements' : 'Tableau vide tant qu’aucune paie n’est générée'}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -139,7 +172,10 @@ export default function PayrollGeneration() {
             <tbody className="divide-y divide-gray-200">
               {hasRenderableRows && filteredEmployees.map((emp) => (
                 <tr key={emp.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900">{emp.id.slice(0, 8)}</td>
+                  <td className="px-4 py-4 text-sm font-medium text-gray-900">
+                    <div className="font-semibold text-gray-900">{emp.name}</div>
+                    <div className="text-xs text-gray-500">{emp.employeeId.slice(0, 8)}</div>
+                  </td>
                   <td className="px-4 py-4 text-sm text-right text-gray-600">MAD {emp.adjustmentTotal.toLocaleString('fr-FR')}</td>
                   <td className="px-4 py-4 text-sm text-right text-gray-900">MAD {emp.estimatedGross.toLocaleString('fr-FR')}</td>
                   <td className="px-4 py-4 text-sm text-right font-semibold text-gray-900">MAD {emp.estimatedNet.toLocaleString('fr-FR')}</td>
@@ -155,7 +191,7 @@ export default function PayrollGeneration() {
                       <AlertCircle className="w-10 h-10 text-gray-400 mb-3" />
                       <p className="font-medium text-gray-900 mb-1">Aucune paie générée pour {selectedPeriodLabel}</p>
                       <p className="text-sm max-w-xl">
-                        Le tableau reste vide tant qu’aucune paie backend n’existe pour cette période.
+                        Le tableau reste vide tant qu’aucune paie n’existe pour cette période.
                         Lancez la génération pour charger les lignes réelles et les ajustements.
                       </p>
                     </div>

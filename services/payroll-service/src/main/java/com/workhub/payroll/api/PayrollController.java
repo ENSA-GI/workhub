@@ -90,7 +90,7 @@ public class PayrollController {
      */
     @GetMapping("/items/{itemId}/download")
     public ResponseEntity<byte[]> downloadPayslipPdf(@PathVariable UUID itemId) {
-        byte[] pdfContent = payrollService.getPayslipPdfContent(itemId);
+        byte[] pdfContent = payrollService.generateFreshPayslipPdf(itemId);
 
         return ResponseEntity.ok()
                 .header("Content-Type", "application/pdf")
@@ -189,14 +189,34 @@ public class PayrollController {
     @GetMapping("/export/csv")
     public void exportPayrollHistoryToCsv(
             @RequestParam UUID orgId,
+            @RequestParam(required = false) Integer year,
             jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
 
         // Configuration des en-têtes HTTP pour déclencher un téléchargement de fichier
         response.setContentType("text/csv");
         response.setCharacterEncoding("UTF-8");
-        response.setHeader("Content-Disposition", "attachment; filename=\"payroll_history_org_" + orgId + ".csv\"");
+        String period = year != null ? year.toString() : "all";
+        response.setHeader("Content-Disposition", "attachment; filename=\"payroll_history_" + period + ".csv\"");
 
-        payrollService.exportPayrollHistoryToCsv(orgId, response.getWriter());
+        payrollService.exportPayrollHistoryToCsv(orgId, year, response.getWriter());
+    }
+
+    /**
+     * GET /api/payrolls/export/report
+     * Genere un rapport PDF professionnel de l'historique des paies.
+     */
+    @GetMapping("/export/report")
+    public ResponseEntity<byte[]> exportPayrollHistoryReport(
+            @RequestParam UUID orgId,
+            @RequestParam(required = false) Integer year) {
+
+        String period = year != null ? year.toString() : "all";
+        byte[] report = payrollService.generatePayrollHistoryReportPdf(orgId, year);
+
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition", "attachment; filename=\"rapport_paie_" + period + ".pdf\"")
+                .body(report);
     }
 
     /**

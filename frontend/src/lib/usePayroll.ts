@@ -248,6 +248,23 @@ export function useUpdatePayrollStatus() {
   });
 }
 
+export function useExportPayslipsZip() {
+  const apiFetch = useApi();
+  return useMutation<Blob, Error, string>({
+    mutationFn: async (payrollId) => {
+      const response = await fetch(`/payroll/payrolls/${payrollId}/payslips/export-zip`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('workhub.token')}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to export payslips');
+      }
+      return response.blob();
+    }
+  });
+}
+
 export function usePayPayroll() {
   const apiFetch = useApi();
   const queryClient = useQueryClient();
@@ -282,7 +299,7 @@ export function useUpdatePayrollConfig() {
   const apiFetch = useApi();
   const queryClient = useQueryClient();
 
-  return useMutation<PayrollParameter, Error, { orgId: string; data: PayrollParameter }>({
+  return useMutation<PayrollParameter, Error, { orgId: string; data: Partial<PayrollParameter> }>({
     mutationFn: ({ orgId, data }) => apiFetch(`${payrollBase}/config?orgId=${orgId}`, { method: 'PUT', body: JSON.stringify(data) }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payroll-config', variables.orgId] });

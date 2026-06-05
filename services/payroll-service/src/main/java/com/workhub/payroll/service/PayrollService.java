@@ -1,6 +1,7 @@
 package com.workhub.payroll.service;
 
 import com.workhub.payroll.client.EmployeeClient;
+import com.workhub.payroll.client.IdentityClient;
 import com.workhub.payroll.domain.*;
 import com.workhub.payroll.dto.PayrollAnalyticsDTOs;
 import com.workhub.payroll.dto.PayrollAdjustmentDTO;
@@ -14,6 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,6 +31,7 @@ public class PayrollService {
     private final PayrollParameterRepository paramsRepo;
     private final PayrollAdjustmentRepository adjustmentRepo;
     private final EmployeeClient employeeClient;
+    private final IdentityClient identityClient;
     private final PayrollEngine engine;
     private final PayrollEventsPublisher eventsPublisher;
     private final PayrollBudgetRepository budgetRepo;
@@ -78,19 +83,29 @@ public class PayrollService {
 
         BigDecimal grandTotalGross = BigDecimal.ZERO;
         BigDecimal grandTotalNet = BigDecimal.ZERO;
+        BigDecimal grandTotalCnss = BigDecimal.ZERO;
+        BigDecimal grandTotalAmo = BigDecimal.ZERO;
+        BigDecimal grandTotalIr = BigDecimal.ZERO;
 
         for (EmployeeClient.EmployeeResponse emp : employees) {
             BigDecimal baseSalary = emp.getBaseSalary() != null ? emp.getBaseSalary() : BigDecimal.ZERO;
             int children = emp.getChildrenCount() != null ? emp.getChildrenCount() : 0;
 
+            BigDecimal transportBonus = emp.getTransportBonus() != null ? emp.getTransportBonus() : BigDecimal.ZERO;
+            BigDecimal mealBonus = emp.getMealBonus() != null ? emp.getMealBonus() : BigDecimal.ZERO;
+            BigDecimal totalEmployeeBonuses = transportBonus.add(mealBonus);
+
             // 1. Calcul des salaires
-            PayrollEngine.CalculationResult result = engine.calculate(baseSalary, BigDecimal.ZERO, params, children);
+            PayrollEngine.CalculationResult result = engine.calculate(baseSalary, totalEmployeeBonuses, params, children);
 
             // 2. Préparation du bulletin en base
             PayrollItem item = new PayrollItem();
             item.setPayroll(payroll);
             item.setEmployeeId(emp.getId());
             item.setBaseSalary(baseSalary);
+            item.setTransportBonus(transportBonus);
+            item.setMealBonus(mealBonus);
+            item.setPerformanceBonus(BigDecimal.ZERO);
             item.setGrossSalary(result.gross());
             item.setNetSalary(result.net());
             item.setCnssDeduction(result.cnss());
@@ -98,9 +113,23 @@ public class PayrollService {
             item.setTaxableIncome(result.taxable());
             item.setIrDeduction(result.ir());
 
-            // 3. --- GÉNÉRATION ET STOCKAGE DU PDF ---
+            // 3. --- RÉCUPÉRATION DU NOM RÉEL DEPUIS IDENTITY-SERVICE ---
+            String empName = "Employe " + emp.getId().toString().substring(0, 8);
+            if (emp.getUserId() != null) {
+                try {
+                    IdentityClient.UserResponse userResp = identityClient.getUserById(emp.getUserId());
+                    if (userResp != null && userResp.getFirstName() != null) {
+                        empName = userResp.getFirstName() + " " + userResp.getLastName();
+                    }
+                } catch (Exception e) {
+                    log.warn("Impossible de recuperer le nom pour le user {}: {}", emp.getUserId(), e.getMessage());
+                }
+            } else if (emp.getFirstName() != null && emp.getLastName() != null) {
+                empName = emp.getFirstName() + " " + emp.getLastName();
+            }
+
+            // 4. --- GÉNÉRATION ET STOCKAGE DU PDF ---
             try {
-                String empName = emp.getFirstName() + " " + emp.getLastName();
                 String monthName = getMonthName(month);
 
                 // Génération du tableau d'octets PDF
@@ -117,15 +146,21 @@ public class PayrollService {
                 log.error("Échec de la génération/upload du PDF pour l'employé {}: {}", emp.getId(), e.getMessage());
             }
 
-            // 4. Sauvegarde finale de la ligne de paie
+            // 5. Sauvegarde finale de la ligne de paie
             itemRepo.save(item);
 
             grandTotalGross = grandTotalGross.add(result.gross());
             grandTotalNet = grandTotalNet.add(result.net());
+            grandTotalCnss = grandTotalCnss.add(result.cnss());
+            grandTotalAmo = grandTotalAmo.add(result.amo());
+            grandTotalIr = grandTotalIr.add(result.ir());
         }
 
         payroll.setTotalGrossSalary(grandTotalGross);
         payroll.setTotalNetSalary(grandTotalNet);
+        payroll.setTotalCnss(grandTotalCnss);
+        payroll.setTotalAmo(grandTotalAmo);
+        payroll.setTotalIr(grandTotalIr);
 
         // Publication de l'événement Kafka
         eventsPublisher.sendPayrollGenerated(new PayrollGeneratedEvent(
@@ -176,12 +211,20 @@ public class PayrollService {
         Payroll payroll = payrollRepo.findById(payrollId)
                 .orElseThrow(() -> new RuntimeException("Paie non trouvée."));
 
+        if (newStatus == PayrollStatus.VALIDATED && payroll.getStatus() != PayrollStatus.DRAFT) {
+            throw new RuntimeException("Seule une paie en brouillon peut être validée.");
+        }
+
         payroll.setStatus(newStatus);
         payroll.setValidatedAt(java.time.LocalDateTime.now());
         payroll.setValidatedBy(updatedBy);
 
         log.info("Payroll {} status updated to {}", payrollId, newStatus);
-        return payrollRepo.save(payroll);
+        Payroll savedPayroll = payrollRepo.save(payroll);
+        if (newStatus == PayrollStatus.VALIDATED) {
+            publishPayslipNotifications(savedPayroll);
+        }
+        return savedPayroll;
     }
 
     /**
@@ -198,10 +241,12 @@ public class PayrollService {
 
         for (Payroll p : payrolls) {
             if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
-                totalGross = totalGross.add(p.getTotalGrossSalary());
-                totalNet = totalNet.add(p.getTotalNetSalary());
+                totalGross = totalGross.add(resolvePayrollTotal(p, p.getTotalGrossSalary(), PayrollItem::getGrossSalary));
+                totalNet = totalNet.add(resolvePayrollTotal(p, p.getTotalNetSalary(), PayrollItem::getNetSalary));
 
-                BigDecimal socialForMonth = p.getTotalCnss().add(p.getTotalAmo()).add(p.getTotalIr());
+                BigDecimal socialForMonth = resolvePayrollTotal(p, p.getTotalCnss(), PayrollItem::getCnssDeduction)
+                        .add(resolvePayrollTotal(p, p.getTotalAmo(), PayrollItem::getAmoDeduction))
+                        .add(resolvePayrollTotal(p, p.getTotalIr(), PayrollItem::getIrDeduction));
                 totalSocial = totalSocial.add(socialForMonth);
 
                 List<PayrollItem> items = itemRepo.findAllByPayrollId(p.getId());
@@ -226,12 +271,15 @@ public class PayrollService {
 
         return payrolls.stream()
                 .filter(p -> p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT)
+                .sorted(java.util.Comparator.comparing(Payroll::getMonth))
                 .map(p -> {
-                    BigDecimal social = p.getTotalCnss().add(p.getTotalAmo()).add(p.getTotalIr());
+                    BigDecimal social = resolvePayrollTotal(p, p.getTotalCnss(), PayrollItem::getCnssDeduction)
+                            .add(resolvePayrollTotal(p, p.getTotalAmo(), PayrollItem::getAmoDeduction))
+                            .add(resolvePayrollTotal(p, p.getTotalIr(), PayrollItem::getIrDeduction));
                     return new PayrollAnalyticsDTOs.MonthlyTrendDTO(
                             getMonthName(p.getMonth()),
-                            p.getTotalGrossSalary(),
-                            p.getTotalNetSalary(),
+                            resolvePayrollTotal(p, p.getTotalGrossSalary(), PayrollItem::getGrossSalary),
+                            resolvePayrollTotal(p, p.getTotalNetSalary(), PayrollItem::getNetSalary),
                             social
                     );
                 })
@@ -250,9 +298,9 @@ public class PayrollService {
 
         for (Payroll p : payrolls) {
             if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
-                cnss = cnss.add(p.getTotalCnss() != null ? p.getTotalCnss() : BigDecimal.ZERO);
-                amo = amo.add(p.getTotalAmo() != null ? p.getTotalAmo() : BigDecimal.ZERO);
-                ir = ir.add(p.getTotalIr() != null ? p.getTotalIr() : BigDecimal.ZERO);
+                cnss = cnss.add(resolvePayrollTotal(p, p.getTotalCnss(), PayrollItem::getCnssDeduction));
+                amo = amo.add(resolvePayrollTotal(p, p.getTotalAmo(), PayrollItem::getAmoDeduction));
+                ir = ir.add(resolvePayrollTotal(p, p.getTotalIr(), PayrollItem::getIrDeduction));
             }
         }
 
@@ -277,6 +325,9 @@ public class PayrollService {
         if (payrollOpt.isEmpty()) {
             return java.util.List.of();
         }
+        if (payrollOpt.get().getStatus() == PayrollStatus.DRAFT) {
+            return java.util.List.of();
+        }
 
         List<PayrollItem> items = itemRepo.findAllByPayrollId(payrollOpt.get().getId());
 
@@ -285,9 +336,7 @@ public class PayrollService {
             employees = employeeClient.getActiveEmployees(orgId).getContent();
         } catch (Exception e) {
             log.warn("Impossible de récupérer les départements réels (service employé en panne).");
-            return java.util.List.of(
-                    new com.workhub.payroll.dto.PayrollAnalyticsDTOs.DepartmentCostDTO("R&D (Fictif)", payrollOpt.get().getTotalGrossSalary(), items.size())
-            );
+            return java.util.List.of();
         }
 
         java.util.Map<UUID, String> empDeptMap = new java.util.HashMap<>();
@@ -301,7 +350,7 @@ public class PayrollService {
         for (PayrollItem item : items) {
             String dept = empDeptMap.getOrDefault(item.getEmployeeId(), "Non spécifié");
 
-            deptCostMap.put(dept, deptCostMap.getOrDefault(dept, BigDecimal.ZERO).add(item.getGrossSalary()));
+            deptCostMap.put(dept, deptCostMap.getOrDefault(dept, BigDecimal.ZERO).add(nvl(item.getGrossSalary())));
             deptCountMap.put(dept, deptCountMap.getOrDefault(dept, 0L) + 1);
         }
 
@@ -329,6 +378,7 @@ public class PayrollService {
     @Transactional
     public PayrollParameter updateConfig(UUID orgId, PayrollParameter newParams) {
         log.info("Updating payroll configuration for organization: {}", orgId);
+        validatePayrollParameters(newParams);
 
         paramsRepo.findFirstByOrganizationIdAndActiveTrueOrderByEffectiveDateDesc(orgId)
                 .ifPresent(existingConfig -> {
@@ -347,31 +397,154 @@ public class PayrollService {
         return paramsRepo.save(newParams);
     }
 
+    private void validatePayrollParameters(PayrollParameter params) {
+        if (params.getCnssEmployeeRate() == null || params.getCnssEmployeeRate().signum() < 0
+                || params.getCnssEmployeeRate().compareTo(BigDecimal.ONE) > 0) {
+            throw new IllegalArgumentException("Le taux CNSS doit être compris entre 0 % et 100 %.");
+        }
+        if (params.getAmoEmployeeRate() == null || params.getAmoEmployeeRate().signum() < 0
+                || params.getAmoEmployeeRate().compareTo(BigDecimal.ONE) > 0) {
+            throw new IllegalArgumentException("Le taux AMO doit être compris entre 0 % et 100 %.");
+        }
+        if (params.getChildDeduction() == null || params.getChildDeduction().signum() < 0) {
+            throw new IllegalArgumentException("La déduction par enfant doit être positive.");
+        }
+        if (params.getMaxChildrenDeduction() == null || params.getMaxChildrenDeduction() < 0) {
+            throw new IllegalArgumentException("Le nombre maximal d'enfants doit être positif.");
+        }
+        if (params.getIrBrackets() == null || params.getIrBrackets().isBlank()) {
+            throw new IllegalArgumentException("Le barème IR est obligatoire.");
+        }
+        engine.validateIrBrackets(params.getIrBrackets());
+    }
+
     /**
      * Génère un fichier CSV d'historique des paies directement dans le flux de réponse.
      */
-    public void exportPayrollHistoryToCsv(UUID orgId, java.io.PrintWriter writer) {
-        log.info("Generating payroll history CSV for organization: {}", orgId);
+    public void exportPayrollHistoryToCsv(UUID orgId, Integer year, java.io.PrintWriter writer) {
+        log.info("Generating payroll history CSV for organization {} and year {}", orgId, year);
 
         List<Payroll> payrolls = payrollRepo.findByOrganizationIdOrderByYearDescMonthDesc(orgId);
 
         writer.println("ID Paie,Annee,Mois,Statut,Total Brut (MAD),Total Net (MAD),CNSS (MAD),AMO (MAD),IR (MAD),Date Generation");
 
         for (Payroll p : payrolls) {
+            if (year != null && p.getYear() != year) {
+                continue;
+            }
             writer.printf("%s,%d,%d,%s,%.2f,%.2f,%.2f,%.2f,%.2f,%s\n",
                     p.getId(),
                     p.getYear(),
                     p.getMonth(),
                     p.getStatus().toString(),
-                    p.getTotalGrossSalary(),
-                    p.getTotalNetSalary(),
-                    p.getTotalCnss() != null ? p.getTotalCnss() : java.math.BigDecimal.ZERO,
-                    p.getTotalAmo() != null ? p.getTotalAmo() : java.math.BigDecimal.ZERO,
-                    p.getTotalIr() != null ? p.getTotalIr() : java.math.BigDecimal.ZERO,
+                    nvl(p.getTotalGrossSalary()),
+                    nvl(p.getTotalNetSalary()),
+                    nvl(p.getTotalCnss()),
+                    nvl(p.getTotalAmo()),
+                    nvl(p.getTotalIr()),
                     p.getGeneratedAt()
             );
         }
         writer.flush();
+    }
+
+    public byte[] generatePayrollHistoryReportPdf(UUID orgId, Integer year) {
+        log.info("Generating professional payroll history report for organization {} and year {}", orgId, year);
+
+        List<Payroll> payrolls = payrollRepo.findByOrganizationIdOrderByYearDescMonthDesc(orgId).stream()
+                .filter(p -> year == null || p.getYear().equals(year))
+                .sorted(Comparator.comparing(Payroll::getYear).thenComparing(Payroll::getMonth))
+                .toList();
+
+        List<PdfGenerator.PayrollReportRow> rows = new ArrayList<>();
+        int payslipCount = 0;
+        int financialPayrollCount = 0;
+        int financialPayslipCount = 0;
+        int draftCount = 0;
+        int validatedCount = 0;
+        int paidCount = 0;
+        BigDecimal totalGross = BigDecimal.ZERO;
+        BigDecimal totalNet = BigDecimal.ZERO;
+        BigDecimal totalCnss = BigDecimal.ZERO;
+        BigDecimal totalAmo = BigDecimal.ZERO;
+        BigDecimal totalIr = BigDecimal.ZERO;
+        BigDecimal topGross = BigDecimal.ZERO;
+        String topPeriod = "N/A";
+
+        for (Payroll payroll : payrolls) {
+            List<PayrollItem> items = itemRepo.findAllByPayrollId(payroll.getId());
+            int monthlyPayslipCount = items.size();
+            payslipCount += monthlyPayslipCount;
+
+            BigDecimal gross = resolvePayrollTotal(payroll, payroll.getTotalGrossSalary(), PayrollItem::getGrossSalary);
+            BigDecimal net = resolvePayrollTotal(payroll, payroll.getTotalNetSalary(), PayrollItem::getNetSalary);
+            BigDecimal cnss = resolvePayrollTotal(payroll, payroll.getTotalCnss(), PayrollItem::getCnssDeduction);
+            BigDecimal amo = resolvePayrollTotal(payroll, payroll.getTotalAmo(), PayrollItem::getAmoDeduction);
+            BigDecimal ir = resolvePayrollTotal(payroll, payroll.getTotalIr(), PayrollItem::getIrDeduction);
+            BigDecimal charges = cnss.add(amo).add(ir);
+
+            if (payroll.getStatus() == PayrollStatus.DRAFT) {
+                draftCount++;
+            } else {
+                financialPayrollCount++;
+                financialPayslipCount += monthlyPayslipCount;
+                totalGross = totalGross.add(gross);
+                totalNet = totalNet.add(net);
+                totalCnss = totalCnss.add(cnss);
+                totalAmo = totalAmo.add(amo);
+                totalIr = totalIr.add(ir);
+                if (gross.compareTo(topGross) > 0) {
+                    topGross = gross;
+                    topPeriod = getMonthName(payroll.getMonth()) + " " + payroll.getYear();
+                }
+                if (payroll.getStatus() == PayrollStatus.VALIDATED) {
+                    validatedCount++;
+                } else if (payroll.getStatus() == PayrollStatus.PAID) {
+                    paidCount++;
+                }
+            }
+
+            rows.add(new PdfGenerator.PayrollReportRow(
+                    getMonthName(payroll.getMonth()) + " " + payroll.getYear(),
+                    payroll.getStatus() != null ? payroll.getStatus().name() : null,
+                    monthlyPayslipCount,
+                    gross,
+                    net,
+                    cnss,
+                    amo,
+                    ir,
+                    charges,
+                    payroll.getGeneratedAt()
+            ));
+        }
+
+        BigDecimal totalCharges = totalCnss.add(totalAmo).add(totalIr);
+        BigDecimal averageNet = financialPayslipCount > 0
+                ? totalNet.divide(BigDecimal.valueOf(financialPayslipCount), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        PdfGenerator.PayrollReportSummary summary = new PdfGenerator.PayrollReportSummary(
+                orgId,
+                year != null ? "Annee " + year : "Toutes periodes",
+                payrolls.size(),
+                payslipCount,
+                financialPayrollCount,
+                draftCount,
+                validatedCount,
+                paidCount,
+                totalGross.setScale(2, RoundingMode.HALF_UP),
+                totalNet.setScale(2, RoundingMode.HALF_UP),
+                totalCnss.setScale(2, RoundingMode.HALF_UP),
+                totalAmo.setScale(2, RoundingMode.HALF_UP),
+                totalIr.setScale(2, RoundingMode.HALF_UP),
+                totalCharges.setScale(2, RoundingMode.HALF_UP),
+                averageNet,
+                topPeriod,
+                topGross.setScale(2, RoundingMode.HALF_UP),
+                LocalDateTime.now()
+        );
+
+        return pdfGenerator.generatePayrollHistoryReport(summary, rows);
     }
 
     /**
@@ -382,14 +555,14 @@ public class PayrollService {
 
         BigDecimal annualBudget = budgetRepo.findByOrganizationIdAndBudgetYear(orgId, year)
                 .map(PayrollBudget::getTotalBudget)
-                .orElse(new BigDecimal("2400000.00"));
+                .orElse(BigDecimal.ZERO);
 
         List<Payroll> payrolls = payrollRepo.findAllByOrganizationId(orgId);
         BigDecimal spentAmount = BigDecimal.ZERO;
 
         for (Payroll p : payrolls) {
             if (p.getYear() == year && p.getStatus() != PayrollStatus.DRAFT) {
-                spentAmount = spentAmount.add(p.getTotalGrossSalary());
+                spentAmount = spentAmount.add(resolvePayrollTotal(p, p.getTotalGrossSalary(), PayrollItem::getGrossSalary));
             }
         }
 
@@ -413,6 +586,9 @@ public class PayrollService {
     @Transactional
     public PayrollBudget saveOrUpdateBudget(UUID orgId, int year, BigDecimal totalBudget) {
         log.info("Saving annual budget of {} MAD for org {} in {}", totalBudget, orgId, year);
+        if (totalBudget == null || totalBudget.signum() < 0) {
+            throw new IllegalArgumentException("Le budget annuel doit être positif.");
+        }
 
         PayrollBudget budget = budgetRepo.findByOrganizationIdAndBudgetYear(orgId, year)
                 .orElse(new PayrollBudget());
@@ -437,7 +613,7 @@ public class PayrollService {
 
             for (PayrollItem item : items) {
                 if (item.getBulletinPdfUrl() != null) {
-                    byte[] pdfBytes = storageService.downloadPdf(item.getBulletinPdfUrl());
+                    byte[] pdfBytes = generateFreshPayslipPdf(item.getId());
 
                     String entryName = String.format("bulletin_employe_%s.pdf", item.getEmployeeId());
                     java.util.zip.ZipEntry zipEntry = new java.util.zip.ZipEntry(entryName);
@@ -464,6 +640,21 @@ public class PayrollService {
     public List<Payroll> searchPayrolls(UUID orgId, Integer year, Integer month, PayrollStatus status) {
         log.info("Searching payrolls for org {} (filters: year={}, month={}, status={})", orgId, year, month, status);
         return payrollRepo.searchPayrolls(orgId, year, month, status);
+    }
+
+    public byte[] generateFreshPayslipPdf(UUID itemId) {
+        PayrollItem item = itemRepo.findById(itemId)
+                .orElseThrow(() -> new RuntimeException("Bulletin non trouve."));
+
+        try {
+            return generatePayslipPdfBytes(item);
+        } catch (Exception e) {
+            log.warn("Impossible de regenerer le PDF du bulletin {}. Lecture du fichier stocke si disponible.", itemId, e);
+            if (item.getBulletinPdfUrl() != null) {
+                return storageService.downloadPdf(item.getBulletinPdfUrl());
+            }
+            throw new RuntimeException("Impossible de generer le bulletin PDF.", e);
+        }
     }
 
     /**
@@ -524,8 +715,11 @@ public class PayrollService {
         payroll.setValidatedAt(java.time.LocalDateTime.now());
         payroll.setValidatedBy(updatedBy);
 
+        payroll = payrollRepo.save(payroll);
+
         log.info("Payroll {} has been paid. Bank file generated: {}", payrollId, fileUrl);
-        return payrollRepo.save(payroll);
+
+        return payroll;
     }
 
     /**
@@ -554,6 +748,8 @@ public class PayrollService {
         PayrollItem item = itemRepo.findById(payrollItemId)
                 .orElseThrow(() -> new RuntimeException("Bulletin de paie introuvable."));
 
+        ensurePayrollIsDraft(item);
+
         PayrollAdjustment adjustment = PayrollAdjustment.builder()
                 .payrollItem(item)
                 .type(PayrollAdjustment.AdjustmentType.valueOf(dto.getType().toUpperCase()))
@@ -577,11 +773,101 @@ public class PayrollService {
         PayrollAdjustment adjustment = adjustmentRepo.findById(adjustmentId)
                 .orElseThrow(() -> new RuntimeException("Ajustement introuvable."));
 
+        ensurePayrollIsDraft(adjustment.getPayrollItem());
         UUID payrollItemId = adjustment.getPayrollItem().getId();
 
         adjustmentRepo.delete(adjustment);
         recalculateItemAndPayroll(payrollItemId);
         log.info("Adjustment deleted successfully");
+    }
+
+    private void ensurePayrollIsDraft(PayrollItem item) {
+        if (item.getPayroll().getStatus() != PayrollStatus.DRAFT) {
+            throw new RuntimeException("Impossible de modifier les ajustements d'une paie déjà validée.");
+        }
+    }
+
+    private byte[] generatePayslipPdfBytes(PayrollItem item) {
+        Payroll payroll = item.getPayroll();
+        String monthName = payroll != null && payroll.getMonth() != null
+                ? getMonthName(payroll.getMonth())
+                : "";
+        int year = payroll != null && payroll.getYear() != null
+                ? payroll.getYear()
+                : LocalDateTime.now().getYear();
+        UUID organizationId = payroll != null ? payroll.getOrganizationId() : null;
+        String employeeName = resolveEmployeeDisplayName(item.getEmployeeId(), organizationId);
+
+        return pdfGenerator.generatePayslipPdf(item, employeeName, monthName, year);
+    }
+
+    private String resolveEmployeeDisplayName(UUID employeeId, UUID organizationId) {
+        if (employeeId == null) {
+            return "Employe";
+        }
+
+        String fallbackName = "Employe " + employeeId.toString().substring(0, 8);
+        if (organizationId == null) {
+            return fallbackName;
+        }
+
+        try {
+            EmployeeClient.EmployeeResponse employee = employeeClient.getEmployeeById(employeeId, organizationId);
+            if (employee == null) {
+                return fallbackName;
+            }
+            if (employee.getUserId() != null) {
+                IdentityClient.UserResponse user = identityClient.getUserById(employee.getUserId());
+                if (user != null && user.getFirstName() != null) {
+                    return (user.getFirstName() + " " + (user.getLastName() != null ? user.getLastName() : "")).trim();
+                }
+            }
+            if (employee.getFirstName() != null || employee.getLastName() != null) {
+                return ((employee.getFirstName() != null ? employee.getFirstName() : "") + " "
+                        + (employee.getLastName() != null ? employee.getLastName() : "")).trim();
+            }
+        } catch (Exception e) {
+            log.warn("Impossible de recuperer le nom de l'employe {} pour le PDF: {}", employeeId, e.getMessage());
+        }
+
+        return fallbackName;
+    }
+
+    private void publishPayslipNotifications(Payroll payroll) {
+        for (PayrollItem item : itemRepo.findAllByPayrollId(payroll.getId())) {
+            refreshPayslipPdf(item, payroll);
+            String employeeEmail = null;
+            try {
+                EmployeeClient.EmployeeResponse employee = employeeClient.getEmployeeById(
+                        item.getEmployeeId(), payroll.getOrganizationId());
+                if (employee != null && employee.getUserId() != null) {
+                    IdentityClient.UserResponse user = identityClient.getUserById(employee.getUserId());
+                    employeeEmail = user != null ? user.getEmail() : null;
+                }
+            } catch (Exception e) {
+                log.warn("Impossible de récupérer l'email de l'employé {}: {}", item.getEmployeeId(), e.getMessage());
+            }
+
+            eventsPublisher.sendPayslipGenerated(new com.workhub.payroll.kafka.event.PayslipGeneratedEvent(
+                    item.getId(), item.getEmployeeId(), employeeEmail, payroll.getOrganizationId(),
+                    String.valueOf(payroll.getMonth()), payroll.getYear(), item.getNetSalary(), item.getBulletinPdfUrl()
+            ));
+        }
+    }
+
+    private void refreshPayslipPdf(PayrollItem item, Payroll payroll) {
+        try {
+            byte[] pdfBytes = generatePayslipPdfBytes(item);
+            String filename = String.format("bulletin_%s_%d_%s.pdf",
+                    getMonthName(payroll.getMonth()),
+                    payroll.getYear(),
+                    item.getEmployeeId());
+            String pdfUrl = storageService.uploadPdf(filename, pdfBytes);
+            item.setBulletinPdfUrl(pdfUrl);
+            itemRepo.save(item);
+        } catch (Exception e) {
+            log.warn("Impossible de regenerer le PDF du bulletin {} avant notification: {}", item.getId(), e.getMessage());
+        }
     }
 
     private void recalculateItemAndPayroll(UUID payrollItemId) {
@@ -647,5 +933,19 @@ public class PayrollService {
 
     private BigDecimal nvl(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private BigDecimal resolvePayrollTotal(
+            Payroll payroll,
+            BigDecimal storedTotal,
+            java.util.function.Function<PayrollItem, BigDecimal> itemAmount
+    ) {
+        if (storedTotal != null) {
+            return storedTotal;
+        }
+        return itemRepo.findAllByPayrollId(payroll.getId()).stream()
+                .map(itemAmount)
+                .map(this::nvl)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

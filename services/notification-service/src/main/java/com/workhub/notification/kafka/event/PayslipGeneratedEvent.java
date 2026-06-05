@@ -1,4 +1,4 @@
-package com.workhub.payroll.kafka.event;
+package com.workhub.notification.kafka.event;
 
 import java.math.BigDecimal;
 import java.util.UUID;

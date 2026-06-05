@@ -231,7 +231,7 @@ export default function EmployeeFormModal({ organizationId, employee, onClose }:
             console.error(err);
             const data = err?.response?.data;
 
-            // Si backend renvoie un JSON {field: message}
+            // Si le serveur renvoie un JSON {field: message}
             if (data && typeof data === "object") {
                 setErrors(data);
             } else {
@@ -352,7 +352,7 @@ export default function EmployeeFormModal({ organizationId, employee, onClose }:
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {!isEdit && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">User ID (Clerk) *</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">User ID *</label>
                                     <input
                                         value={values.userId || ""}
                                         onChange={(e) => setField("userId", e.target.value)}

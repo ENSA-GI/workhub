@@ -25,6 +25,38 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/identity/, ""),
       },
+      "/org": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/employee": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/leave": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/notifications": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/payroll": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/recruitment": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/documents": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/audit": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
 

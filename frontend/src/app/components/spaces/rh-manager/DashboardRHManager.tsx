@@ -23,7 +23,7 @@ export default function DashboardRHManager() {
   ].filter((item) => item.value > 0);
 
   if (!organizationId) {
-    return <div className="p-6 text-center text-red-600">ID d'organisation manquant dans Clerk.</div>;
+    return <div className="p-6 text-center text-red-600">ID d'organisation manquant dans la session.</div>;
   }
 
   return (

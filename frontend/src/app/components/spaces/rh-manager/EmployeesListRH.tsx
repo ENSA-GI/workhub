@@ -51,7 +51,7 @@ export default function EmployeesListRH() {
     if (!organizationId) {
         return (
             <div className="p-6 text-center">
-                <p className="text-red-600">Erreur : Organization ID manquant dans les métadonnées Clerk</p>
+                <p className="text-red-600">Erreur : Organization ID manquant dans la session</p>
             </div>
         );
     }
