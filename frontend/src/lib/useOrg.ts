@@ -1,5 +1,6 @@
 import { useApi } from './useApi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { UserProfile } from './identityApi';
 
 export interface OrganizationSettings {
     leavePolicyDaysPerYear?: number;
@@ -122,6 +123,16 @@ export const useUpdateOrganizationSettings = () => {
     });
 };
 
+export const useOrganizationAdmin = (orgId: string) => {
+    const apiFetch = useApi();
+    return useQuery<UserProfile[]>({
+        queryKey: ['organization-users', orgId],
+        queryFn: () => apiFetch(`/identity/api/users?organizationId=${orgId}`),
+        enabled: !!orgId,
+        select: (users: UserProfile[]) => users.filter(u => u.role === 'ORG_ADMIN'),
+    });
+};
+
 // Department Hooks
 export const useDepartments = (orgId: string, page = 0, size = 50, active?: boolean) => {
     const apiFetch = useApi();
@@ -217,11 +228,15 @@ export interface RegisterOrganizationResponse {
 
 export const useRegisterOrganization = () => {
     const apiFetch = useApi();
+    const queryClient = useQueryClient();
 
     return useMutation<RegisterOrganizationResponse, Error, RegisterOrganizationRequest>({
         mutationFn: (data) => apiFetch('/org/orgs/register', {
             method: 'POST',
             body: JSON.stringify(data),
         }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['organizations'] });
+        },
     });
 };

@@ -10,6 +10,11 @@ public record OrganizationResponse(
         String city,
         String industry,
         String country,
+        String email,
+        String phone,
+        String taxId,
+        String plan,
+        Integer maxEmployees,
         Boolean active,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
