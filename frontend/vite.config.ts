@@ -21,7 +21,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/org": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8888",
         changeOrigin: true,
       },
       "/identity": {
@@ -29,36 +29,32 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/identity/, ""),
       },
-      "/org": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
       "/employee": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8888",
         changeOrigin: true,
       },
       "/leave": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8888",
         changeOrigin: true,
       },
       "/notifications": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8888",
         changeOrigin: true,
       },
       "/payroll": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8888",
         changeOrigin: true,
       },
       "/recruitment": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8888",
         changeOrigin: true,
       },
       "/documents": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8888",
         changeOrigin: true,
       },
       "/audit": {
-        target: "http://localhost:8080",
+        target: "http://localhost:8888",
         changeOrigin: true,
       },
     },
