@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Download, ChevronRight, Loader2, MoreVertical } from 'lucide-react';
+import { Plus, Download, ChevronRight, Loader2, MoreVertical, Search } from 'lucide-react';
 import { usePayPayroll, usePayrollItems, usePayrolls, payrollValue, Payroll, useUpdatePayrollStatus, useExportPayslipsZip } from '@/lib/usePayroll';
 import { useOrganizationId } from '@/lib/useOrganizationId';
 import { useUser } from '@/lib/useUser';
@@ -17,7 +17,18 @@ export default function PayrollEnhanced() {
 
   const { data: payrolls = [], isLoading, error } = usePayrolls(organizationId);
   const [selectedPayrollId, setSelectedPayrollId] = useState<string | null>(null);
-  const selectedPayroll = useMemo(() => payrolls.find((payroll) => payroll.id === selectedPayrollId) ?? payrolls[0] ?? null, [payrolls, selectedPayrollId]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const filteredPayrolls = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return payrolls;
+
+    return payrolls.filter((payroll) => {
+      const numericPeriod = `${String(payroll.month).padStart(2, '0')}/${payroll.year}`;
+      const target = `${monthLabel(payroll)} ${numericPeriod} ${payroll.status} ${payroll.id}`.toLowerCase();
+      return target.includes(query);
+    });
+  }, [payrolls, searchTerm]);
+  const selectedPayroll = useMemo(() => filteredPayrolls.find((payroll) => payroll.id === selectedPayrollId) ?? filteredPayrolls[0] ?? null, [filteredPayrolls, selectedPayrollId]);
   const { data: selectedItems = [] } = usePayrollItems(selectedPayroll?.id || '');
   const statusMutation = useUpdatePayrollStatus();
   const payMutation = usePayPayroll();
@@ -86,12 +97,24 @@ export default function PayrollEnhanced() {
               <h3 className="text-base font-semibold text-gray-900">Historique Mensuel de la Paie</h3>
               {isLoading && <Loader2 className="h-4 w-4 animate-spin text-gray-500" />}
             </div>
+            <div className="p-4 border-b border-gray-200">
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par periode, statut ou reference..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] rounded text-sm"
+                />
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200"><tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employés</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Brut</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Net</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th><th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th></tr></thead>
                 <tbody className="divide-y divide-gray-200">
-                  {!isLoading && payrolls.length === 0 && <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">Aucune paie trouvée pour cette organisation.</td></tr>}
-                  {payrolls.map((payroll) => (
+                  {!isLoading && filteredPayrolls.length === 0 && <tr><td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">{payrolls.length === 0 ? 'Aucune paie trouvée pour cette organisation.' : 'Aucune paie ne correspond à la recherche.'}</td></tr>}
+                  {filteredPayrolls.map((payroll) => (
                     <tr key={payroll.id} className={`hover:bg-gray-50 cursor-pointer ${selectedPayroll?.id === payroll.id ? 'bg-blue-50' : ''}`} onClick={() => setSelectedPayrollId(payroll.id)}>
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">{monthLabel(payroll)}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{selectedItems.length || '—'}</td>

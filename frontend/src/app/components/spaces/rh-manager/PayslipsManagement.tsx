@@ -12,7 +12,10 @@ export default function PayslipsManagement() {
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
 
   const { data: payrolls = [] } = usePayrolls(organizationId);
-  const activePayroll = useMemo(() => payrolls[0], [payrolls]);
+  const activePayroll = useMemo(() => {
+    const [year, month] = filterMonth.split('-').map(Number);
+    return payrolls.find((payroll) => payroll.year === year && payroll.month === month) || null;
+  }, [payrolls, filterMonth]);
   const { data: items = [], isLoading } = usePayrollItems(activePayroll?.id || '');
   const markAsRead = useMarkPayslipAsRead();
 
@@ -63,7 +66,8 @@ export default function PayslipsManagement() {
   }));
 
   const filteredPayslips = payslips.filter((p) => {
-    const matchSearch = `${p.nom} ${p.employeId}`.toLowerCase().includes(searchTerm.toLowerCase());
+    const query = searchTerm.trim().toLowerCase();
+    const matchSearch = !query || `${p.nom} ${p.employeId} ${p.mois}`.toLowerCase().includes(query);
     const matchStatus = filterStatus === 'Tous' || p.statut === filterStatus;
     return matchSearch && matchStatus;
   });

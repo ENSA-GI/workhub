@@ -19,7 +19,16 @@ export function useApi() {
             throw new Error(`API ${res.status} on ${path}: ${txt}`);
         }
 
+        if (res.status === 204) {
+            return undefined;
+        }
+
         const ct = res.headers.get("content-type") || "";
-        return ct.includes("application/json") ? res.json() : res.text();
+        const text = await res.text();
+        if (!text) {
+            return undefined;
+        }
+
+        return ct.includes("application/json") ? JSON.parse(text) : text;
     };
 }

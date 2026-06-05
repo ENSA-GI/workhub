@@ -7,11 +7,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.UUID;
+import java.util.Optional;
 
 public interface DepartmentRepository extends JpaRepository<Department, UUID>, JpaSpecificationExecutor<Department> {
     Page<Department> findByOrganizationId(UUID organizationId, Pageable pageable);
     Page<Department> findByOrganizationIdAndNameContainingIgnoreCase(UUID organizationId, String name, Pageable pageable);
+    Optional<Department> findByOrganizationIdAndName(UUID organizationId, String name);
     boolean existsByOrganizationIdAndName(UUID organizationId, String name);
     boolean existsByOrganizationIdAndNameAndIdNot(UUID organizationId, String name, UUID id);
     long countByOrganizationIdAndActiveTrue(UUID organizationId);
-}
+}

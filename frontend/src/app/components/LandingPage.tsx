@@ -4,10 +4,6 @@ import footerLogo from '../../imports/Capture_d_écran_2026-04-20_185048-removeb
 import { useNavigate } from 'react-router-dom';
 
 
-interface LandingPageProps {
-  onSelectRole: (role: string) => void;
-}
-
 const generateMockToken = (role: string) => {
   const payload = {
     sub: `demo-${role}`,
@@ -21,7 +17,7 @@ const generateMockToken = (role: string) => {
   return `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${base64Payload}.fake_signature`;
 };
 
-export default function LandingPage({ onSelectRole }: LandingPageProps) {
+export default function LandingPage() {
   const navigate = useNavigate();
 
   const handleRoleClick = (role: string) => {
@@ -92,24 +88,16 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => navigate('/login')}
-                className="text-sm text-gray-700 hover:text-[#0A6ED1] transition-colors"
-              >
-                Connexion
-              </button>
-
-              <button
-                onClick={() => navigate('/login')}
                 className="px-5 py-2 bg-[#0A6ED1] text-white text-sm hover:bg-[#0959b0] transition-colors"
               >
-                Commencer
+                Connexion
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Access Portals Bar */}
-      <div className="bg-gradient-to-r from-[#1F3A5F] to-[#2D5A8F] border-b border-[#0A6ED1]/20">
+      <div className="hidden">
         <div className="max-w-7xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <span className="text-xs text-white/80 uppercase tracking-wide">Accès Rapide:</span>
@@ -148,9 +136,11 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
                 Conçu pour les entreprises modernes qui exigent efficacité, conformité et évolutivité.
               </p>
               <div className="flex items-center space-x-4">
-                <button className="px-6 py-3 bg-[#0A6ED1] text-white hover:bg-[#0959b0] transition-colors flex items-center">
-                  Commencer
-                  <ChevronRight className="w-4 h-4 ml-2" />
+                <button
+                  onClick={() => navigate('/login')}
+                  className="px-6 py-3 bg-[#0A6ED1] text-white hover:bg-[#0959b0] transition-colors flex items-center"
+                >
+                  Connexion
                 </button>
                 <button className="px-6 py-3 border-2 border-gray-300 text-gray-700 hover:border-[#0A6ED1] hover:text-[#0A6ED1] transition-colors flex items-center">
                   <Play className="w-4 h-4 mr-2" />
@@ -444,8 +434,11 @@ export default function LandingPage({ onSelectRole }: LandingPageProps) {
             Commencez votre essai gratuit ou planifiez une démo personnalisée avec notre équipe.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <button className="w-full sm:w-auto px-8 py-4 bg-white text-[#0A6ED1] font-semibold hover:bg-gray-100 transition-colors">
-              Commencer Gratuitement
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full sm:w-auto px-8 py-4 bg-white text-[#0A6ED1] font-semibold hover:bg-gray-100 transition-colors"
+            >
+              Connexion
             </button>
             <button className="w-full sm:w-auto px-8 py-4 border-2 border-white text-white font-semibold hover:bg-white hover:text-[#0A6ED1] transition-colors">
               Contacter les Ventes

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, DollarSign, Calendar, Briefcase, Bell, Search, Home, Building2, FileText, AlertTriangle, Settings, BarChart3, UserCog, Download, User, Folder, TrendingUp, Receipt, Shield } from 'lucide-react';
+import { LayoutDashboard, Users, DollarSign, Calendar, Briefcase, Bell, Search, Home, Building2, FileText, AlertTriangle, Settings, BarChart3, UserCog, User, Folder, TrendingUp, Receipt, Shield } from 'lucide-react';
 import logo from '../../imports/Capture_d_écran_2026-04-20_185048-removebg-preview.png';
 import { useUser } from '@/lib/useUser';
 
@@ -68,7 +68,6 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
       { name: 'Utilisateurs RH', href: '/rh-users', icon: UserCog },
       { name: 'Configuration', href: '/config', icon: Settings },
       { name: 'Historique', href: '/audit', icon: FileText },
-      { name: 'Export Données', href: '/export', icon: Download },
       { name: 'Profil & Sécurité', href: '/profile', icon: Shield },
     ];
 

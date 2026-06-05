@@ -185,3 +185,50 @@ export const useUsers = (organizationId: string) => {
         enabled: !!organizationId,
     });
 };
+
+export interface CreateUserRequest {
+    organizationId: string;
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    avatarUrl?: string;
+    role: 'SUPER_ADMIN' | 'ORG_ADMIN' | 'RH_MANAGER' | 'EMPLOYEE' | 'CANDIDATE';
+}
+
+export const useCreateUser = () => {
+    const apiFetch = useApi();
+    const queryClient = useQueryClient();
+
+    return useMutation<UserProfile, Error, CreateUserRequest>({
+        mutationFn: (data) => apiFetch('/identity/api/users', { method: 'POST', body: JSON.stringify(data) }),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['users', variables.organizationId] });
+        },
+    });
+};
+
+export const useDeactivateUser = () => {
+    const apiFetch = useApi();
+    const queryClient = useQueryClient();
+
+    return useMutation<UserProfile, Error, { userId: string; organizationId: string }>({
+        mutationFn: ({ userId }) => apiFetch(`/identity/api/users/${userId}/deactivate`, { method: 'PATCH' }),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['users', variables.organizationId] });
+        },
+    });
+};
+
+export const useReactivateUser = () => {
+    const apiFetch = useApi();
+    const queryClient = useQueryClient();
+
+    return useMutation<UserProfile, Error, { userId: string; organizationId: string }>({
+        mutationFn: ({ userId }) => apiFetch(`/identity/api/users/${userId}/reactivate`, { method: 'PATCH' }),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['users', variables.organizationId] });
+        },
+    });
+};
