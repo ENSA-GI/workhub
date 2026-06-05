@@ -127,11 +127,7 @@ function AppRoutes() {
     const activeRole = token ? (getRoleFromToken(token) || rawSelectedRole) : null;
     const selectedRole = activeRole;
 
-    // #region debug-point C:login-route-gate
-    if (location.pathname === "/login" && token) {
-        fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "login-empty-response", runId: "post-fix", hypothesisId: "C", location: "App.tsx", msg: "[DEBUG] Login route rendered while token exists", data: { pathname: location.pathname, tokenPresent: Boolean(token), rawSelectedRole, activeRole }, ts: Date.now() }) }).catch(() => {});
-    }
-    // #endregion
+
 
     // Route d'inscription publique (sans authentification)
     if (location.pathname === '/register') {
