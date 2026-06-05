@@ -163,3 +163,43 @@ export const useDeletePosition = () => {
         },
     });
 };
+
+// ==================================================
+// Public registration (organization + admin)
+// ==================================================
+
+export interface RegisterOrganizationRequest {
+    organization: {
+        name: string;
+        legalName: string;
+        taxId?: string;
+        email: string;
+        phone?: string;
+        active: boolean;
+        plan: string;
+        maxEmployees: number;
+    };
+    adminUser: {
+        email: string;
+        password: string;
+        firstName?: string;
+        lastName?: string;
+    };
+}
+
+export interface RegisterOrganizationResponse {
+    organizationId: string;
+    userId: string;
+    message: string;
+}
+
+export const useRegisterOrganization = () => {
+    const apiFetch = useApi();
+
+    return useMutation<RegisterOrganizationResponse, Error, RegisterOrganizationRequest>({
+        mutationFn: (data) => apiFetch('/org/orgs/register', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
+    });
+};

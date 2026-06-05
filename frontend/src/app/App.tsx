@@ -55,6 +55,7 @@ import PayrollDetailAdjustments from "./components/spaces/rh-manager/PayrollDeta
 
 import { clearAuthSession, touchActivity } from "@/lib/identityApi";
 import { useSessionTimeout } from "@/lib/useSessionTimeout";
+import OrganizationRegistration from "./components/OrganizationRegistration"; // Import du composant public
 
 const STORAGE_KEY = "workhub.selectedRole";
 
@@ -74,7 +75,7 @@ function getRoleFromToken(tokenStr: string | null) {
     }
 }
 
-const PUBLIC_PATHS = ["/forgot-password", "/reset-password", "/activate"];
+const PUBLIC_PATHS = ["/forgot-password", "/reset-password", "/activate", "/register"];
 
 function AppRoutes() {
     const location = useLocation();
@@ -123,8 +124,13 @@ function AppRoutes() {
         if (role) setSelectedRole(role);
     };
 
-    const activeRole = getRoleFromToken(token) || rawSelectedRole;
+    const activeRole = token ? (getRoleFromToken(token) || rawSelectedRole) : null;
     const selectedRole = activeRole;
+
+    // Route d'inscription publique (sans authentification)
+    if (location.pathname === '/register') {
+        return <OrganizationRegistration />;
+    }
 
     if (isPublicAuthRoute) {
         return (
@@ -136,7 +142,14 @@ function AppRoutes() {
             </Routes>
         );
     }
-
+    if (location.pathname === "/login") {
+        return (
+            <Login
+                onLoginSuccess={handleLoginSuccess}
+                onMfaRequired={setMfaSessionToken}
+            />
+        );
+    }
     if (!selectedRole) {
         return <LandingPage onSelectRole={handleSelectRole} />;
     }
@@ -169,6 +182,12 @@ function AppRoutes() {
             {selectedRole === "candidate" && (
                 <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                     <Routes>
+                        <Route path="/login" element={
+                            <Login
+                                onLoginSuccess={(token) => handleLoginSuccess(token)}
+                                onMfaRequired={setMfaSessionToken}
+                            />
+                        } />
                         <Route path="/" element={<OffresPubliques />} />
                         <Route path="/candidatures" element={<MesCandidatures />} />
                         <Route path="/profil" element={<MonProfilCandidat />} />
