@@ -18,6 +18,7 @@ services:
 
   kafka:
     image: apache/kafka:latest
+    hostname: kafka
     ports:
       - "9092:9092"
       - "9094:9094"
