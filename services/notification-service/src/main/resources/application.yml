@@ -39,6 +39,14 @@ minio:
   secret-key: ${MINIO_SECRET_KEY:minioadminpassword}
   bucket-name: ${MINIO_BUCKET_NAME:payslips}
 
+# Configuration pour les services externes
+employee-service:
+  url: ${EMPLOYEE_SERVICE_URL:http://localhost:8082}
+
+employee:
+  organization-id: ${EMPLOYEE_ORGANIZATION_ID:00000000-0000-0000-0000-000000000000}
+  default-approver-name: ${EMPLOYEE_DEFAULT_APPROVER:Gestionnaire RH}
+
 management:
   endpoints:
     web:

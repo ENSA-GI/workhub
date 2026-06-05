@@ -1,0 +1,410 @@
+{
+  "info": {
+    "_postman_id": "super-admin-real-data-01",
+    "name": "Super-Admin Real Data APIs",
+    "description": "Collection pour tester les vraies données du Super-Admin\n\n✅ 5 sources de données réelles:\n1. Audit Logs\n2. Health Check Services\n3. CPU Metrics\n4. Memory Metrics\n5. HTTP Traffic Metrics",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "26062024"
+  },
+  "item": [
+    {
+      "name": "🔐 AUTH & SETUP",
+      "item": [
+        {
+          "name": "Get Auth Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@workhub.ma\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:8080/api/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📋 LOGS SYSTÈME (Audit Logs)",
+      "item": [
+        {
+          "name": "Get All Audit Logs",
+          "description": "SOURCE: Audit Service Database\nEndpoint: GET /api/audit-logs\nRETURNS: Array of audit logs (vraies actions utilisateurs)\n\n✅ DONNÉES RÉELLES",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+            }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/audit-logs",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "audit-logs"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Audit Logs by Organization",
+          "description": "SOURCE: Audit Service filtered by organizationId\nEndpoint: GET /api/audit-logs?organizationId={{org_id}}\nRETURNS: Logs pour une organisation spécifique",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/audit-logs?organizationId=550e8400-e29b-41d4-a716-446655440000",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "audit-logs"],
+              "query": [
+                {
+                  "key": "organizationId",
+                  "value": "550e8400-e29b-41d4-a716-446655440000"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Audit Logs by Entity Type",
+          "description": "SOURCE: Audit Service filtered by entityType\nEndpoint: GET /api/audit-logs?entityType=Employee\nRETURNS: Logs pour un type d'entité spécifique",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://localhost:8080/api/audit-logs?entityType=Employee",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["api", "audit-logs"],
+              "query": [
+                {
+                  "key": "entityType",
+                  "value": "Employee"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏥 HEALTH CHECK (Services)",
+      "item": [
+        {
+          "name": "Health - API Gateway (8080)",
+          "description": "SOURCE: Spring Boot Actuator (API Gateway)\nEndpoint: GET /actuator/health\nRETURNS: { status: UP | DOWN | DEGRADED }\n\n✅ DONNÉES RÉELLES - Health check du service",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health - Auth Service (8081)",
+          "description": "SOURCE: Spring Boot Actuator (Auth Service)\nEndpoint: GET /actuator/health\nRETURNS: { status: UP | DOWN | DEGRADED }",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8081/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8081",
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health - Employee Service (8082)",
+          "description": "SOURCE: Spring Boot Actuator (Employee Service)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8082/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8082",
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health - Org Service (8083)",
+          "description": "SOURCE: Spring Boot Actuator (Org Service)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8083/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8083",
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health - Leave Service (8084)",
+          "description": "SOURCE: Spring Boot Actuator (Leave Service)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8084/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8084",
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health - Payroll Service (8085)",
+          "description": "SOURCE: Spring Boot Actuator (Payroll Service)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8085/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8085",
+              "path": ["actuator", "health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 METRICS - CPU (Actuator)",
+      "item": [
+        {
+          "name": "CPU Usage %",
+          "description": "SOURCE: Spring Boot Micrometer (Actuator)\nEndpoint: GET /actuator/metrics/process.cpu.usage\nRETURNS: { measurements: [{ value: <0-1 percentage> }] }\n\n✅ DONNÉES RÉELLES - CPU Usage en temps réel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/metrics/process.cpu.usage",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "metrics", "process.cpu.usage"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "CPU System Load",
+          "description": "SOURCE: Spring Boot Micrometer\nEndpoint: GET /actuator/metrics/system.load.average.1m\nRETURNS: System load average (1 minute)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/metrics/system.load.average.1m",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "metrics", "system.load.average.1m"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💾 METRICS - MEMORY (Actuator)",
+      "item": [
+        {
+          "name": "JVM Memory Used (bytes)",
+          "description": "SOURCE: Spring Boot Micrometer (Actuator)\nEndpoint: GET /actuator/metrics/jvm.memory.used\nRETURNS: { measurements: [{ value: <bytes> }] }\n\n✅ DONNÉES RÉELLES - Memory usage en bytes (convertir en GB: /1024/1024/1024)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/metrics/jvm.memory.used",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "metrics", "jvm.memory.used"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "JVM Memory Max",
+          "description": "SOURCE: Spring Boot Micrometer\nEndpoint: GET /actuator/metrics/jvm.memory.max",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/metrics/jvm.memory.max",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "metrics", "jvm.memory.max"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "JVM Memory Committed",
+          "description": "SOURCE: Spring Boot Micrometer\nEndpoint: GET /actuator/metrics/jvm.memory.committed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/metrics/jvm.memory.committed",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "metrics", "jvm.memory.committed"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🚀 METRICS - HTTP TRAFFIC (Actuator)",
+      "item": [
+        {
+          "name": "HTTP Requests Count",
+          "description": "SOURCE: Spring Boot Micrometer (Actuator)\nEndpoint: GET /actuator/metrics/http.server.requests.count\nRETURNS: { measurements: [{ value: <total count> }] }\n\n✅ DONNÉES RÉELLES - Nombre total de requêtes HTTP",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/metrics/http.server.requests.count",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "metrics", "http.server.requests.count"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "HTTP Requests Duration",
+          "description": "SOURCE: Spring Boot Micrometer\nEndpoint: GET /actuator/metrics/http.server.requests\nRETURNS: Detailed HTTP metrics with timers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/metrics/http.server.requests",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "metrics", "http.server.requests"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔧 ACTUATOR - INFO & CONFIG",
+      "item": [
+        {
+          "name": "Actuator Info",
+          "description": "SOURCE: Spring Boot Actuator\nEndpoint: GET /actuator/info\nRETURNS: Application info (name, version, etc)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/info",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "info"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List All Available Metrics",
+          "description": "SOURCE: Spring Boot Actuator\nEndpoint: GET /actuator/metrics\nRETURNS: List of all available metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:8080/actuator/metrics",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["actuator", "metrics"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "auth_token",
+      "value": "YOUR_AUTH_TOKEN_HERE",
+      "type": "string"
+    },
+    {
+      "key": "org_id",
+      "value": "550e8400-e29b-41d4-a716-446655440000",
+      "type": "string"
+    },
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}
+
