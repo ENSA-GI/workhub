@@ -32,19 +32,22 @@ public class OrganizationService {
     private final PositionRepository posRepo;
     private final OrganizationMapper mapper;
     private final KafkaEventPublisher eventPublisher;
+    private final com.workhub.org.client.IdentityServiceClient identityServiceClient;
 
     public OrganizationService(OrganizationRepository orgRepo, 
                                OrganizationSettingsRepository settingsRepo,
                                DepartmentRepository deptRepo,
                                PositionRepository posRepo,
                                OrganizationMapper mapper, 
-                               KafkaEventPublisher eventPublisher) {
+                               KafkaEventPublisher eventPublisher,
+                               com.workhub.org.client.IdentityServiceClient identityServiceClient) {
         this.orgRepo = orgRepo;
         this.settingsRepo = settingsRepo;
         this.deptRepo = deptRepo;
         this.posRepo = posRepo;
         this.mapper = mapper;
         this.eventPublisher = eventPublisher;
+        this.identityServiceClient = identityServiceClient;
     }
 
     @Transactional
@@ -70,6 +73,48 @@ public class OrganizationService {
         Organization saved = orgRepo.save(org);
         eventPublisher.publishOrganizationEvent(new OrganizationEvent(saved.getId(), saved.getName(), "CREATED"));
         return mapper.toResponse(saved);
+    }
+
+    @Transactional
+    public RegisterOrganizationResponse registerOrganization(RegisterOrganizationRequest req) {
+        // Create the organization
+        if (orgRepo.existsByName(req.name())) {
+            throw new DuplicateResourceException("Une organisation avec le nom '" + req.name() + "' existe déjà");
+        }
+        Organization org = Organization.builder()
+                .id(UUID.randomUUID())
+                .name(req.name())
+                .legalName(req.legalName())
+                .city(req.city())
+                .industry(req.industry())
+                .country(req.country() != null ? req.country() : "Maroc")
+                .active(true)
+                .build();
+        
+        OrganizationSettings defaultSettings = OrganizationSettings.builder()
+                .organization(org)
+                .build();
+        org.setSettings(defaultSettings);
+
+        Organization savedOrg = orgRepo.save(org);
+        eventPublisher.publishOrganizationEvent(new OrganizationEvent(savedOrg.getId(), savedOrg.getName(), "CREATED"));
+
+        // Create the admin user
+        UUID adminUserId = identityServiceClient.createAdminUser(
+                savedOrg.getId(),
+                req.adminEmail(),
+                req.adminPassword(),
+                req.adminFirstName(),
+                req.adminLastName(),
+                req.adminPhone()
+        );
+
+        return new RegisterOrganizationResponse(
+                savedOrg.getId(),
+                savedOrg.getName(),
+                adminUserId,
+                req.adminEmail()
+        );
     }
 
     public Page<OrganizationResponse> getAllOrganizations(String name, String city, Boolean active, Pageable pageable) {

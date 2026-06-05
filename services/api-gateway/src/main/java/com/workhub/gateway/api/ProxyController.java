@@ -116,7 +116,7 @@ public class ProxyController {
         while (headerNames.hasMoreElements()) {
             String headerName = headerNames.nextElement();
             // L'en-tête Host doit être celui de la cible, pas de la gateway, donc on l'ignore.
-            if (!headerName.equalsIgnoreCase("host")
+            if (shouldForwardHeader(headerName)
                     && !(stripAuthorization && headerName.equalsIgnoreCase("authorization"))) {
                 headers.add(headerName, req.getHeader(headerName));
             }
@@ -141,5 +141,12 @@ public class ProxyController {
             }
             return builder.body(StreamUtils.copyToByteArray(response.getBody()));
         });
+    }
+
+    private boolean shouldForwardHeader(String headerName) {
+        return !headerName.equalsIgnoreCase("host")
+                && !headerName.equalsIgnoreCase("origin")
+                && !headerName.equalsIgnoreCase("access-control-request-method")
+                && !headerName.equalsIgnoreCase("access-control-request-headers");
     }
 }

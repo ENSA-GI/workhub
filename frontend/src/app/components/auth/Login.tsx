@@ -40,6 +40,10 @@ export default function Login({ onLoginSuccess, onMfaRequired }: LoginProps) {
 
       if (!data.token) throw new Error("Authentication failed");
 
+      // #region debug-point B:login-success
+      fetch("http://127.0.0.1:7777/event", { method: "POST", body: JSON.stringify({ sessionId: "login-empty-response", runId: "post-fix", hypothesisId: "B", location: "Login.tsx", msg: "[DEBUG] Login success callback about to run", data: { pathname: window.location.pathname, hasToken: Boolean(data.token), userRole: data.user?.role ?? null }, ts: Date.now() }) }).catch(() => {});
+      // #endregion
+
       saveAuthSession(data);
       onLoginSuccess(data.token, data.user);
     } catch (err: unknown) {

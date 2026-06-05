@@ -10,6 +10,10 @@ spring:
     username: workhub
     password: workhub
 
+identity:
+  service:
+    url: ${IDENTITY_SERVICE_URL:http://localhost:8088}
+
 
   jpa:
     hibernate:

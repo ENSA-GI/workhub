@@ -31,6 +31,12 @@ public class OrgController {
     }
 
     // ---------- Organizations ----------
+    @PostMapping("/orgs/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RegisterOrganizationResponse registerOrg(@RequestBody @Valid RegisterOrganizationRequest req) {
+        return orgService.registerOrganization(req);
+    }
+
     @PostMapping("/orgs")
     @ResponseStatus(HttpStatus.CREATED)
     public OrganizationResponse createOrg(@RequestBody @Valid CreateOrganizationRequest req) {

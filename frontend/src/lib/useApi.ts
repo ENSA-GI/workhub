@@ -1,5 +1,7 @@
 export function useApi() {
     return async function apiFetch(path: string, init: RequestInit = {}) {
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+        const url = path.startsWith("http") ? path : `${apiBaseUrl}${path}`;
         const token = localStorage.getItem("workhub.token");
 
         const headers = new Headers(init.headers);
@@ -10,7 +12,7 @@ export function useApi() {
             headers.set("Content-Type", "application/json");
         }
 
-        const res = await fetch(path, { ...init, headers });
+        const res = await fetch(url, { ...init, headers });
 
         if (!res.ok) {
             const txt = await res.text();

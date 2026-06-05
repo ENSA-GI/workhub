@@ -169,22 +169,16 @@ export const useDeletePosition = () => {
 // ==================================================
 
 export interface RegisterOrganizationRequest {
-    organization: {
-        name: string;
-        legalName: string;
-        taxId?: string;
-        email: string;
-        phone?: string;
-        active: boolean;
-        plan: string;
-        maxEmployees: number;
-    };
-    adminUser: {
-        email: string;
-        password: string;
-        firstName?: string;
-        lastName?: string;
-    };
+    name: string;
+    legalName: string;
+    city?: string;
+    industry?: string;
+    country?: string;
+    adminEmail: string;
+    adminPassword: string;
+    adminFirstName?: string;
+    adminLastName?: string;
+    adminPhone?: string;
 }
 
 export interface RegisterOrganizationResponse {

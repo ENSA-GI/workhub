@@ -32,6 +32,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/org_db
       SPRING_DATASOURCE_USERNAME: workhub
       SPRING_DATASOURCE_PASSWORD: workhub
+      IDENTITY_SERVICE_URL: http://identity-service:8088
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     depends_on: [ postgres ]
     networks: [ workhub ]
 

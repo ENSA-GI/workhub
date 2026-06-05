@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useRegisterOrganization } from '@/lib/useOrg';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
+const PASSWORD_REQUIREMENTS_MESSAGE =
+    'Le mot de passe doit contenir au moins 12 caracteres, une majuscule, une minuscule, un chiffre et un caractere special';
+const PASSWORD_COMPLEXITY_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z0-9]).+$/;
+
 export default function OrganizationRegistration() {
     const navigate = useNavigate();
     const registerOrg = useRegisterOrganization();
@@ -56,28 +60,23 @@ export default function OrganizationRegistration() {
             return;
         }
         if (adminPassword.length < 12) {
-            setError('Le mot de passe doit contenir au moins 12 caractères');
+            setError(PASSWORD_REQUIREMENTS_MESSAGE);
+            return;
+        }
+        if (!PASSWORD_COMPLEXITY_PATTERN.test(adminPassword)) {
+            setError(PASSWORD_REQUIREMENTS_MESSAGE);
             return;
         }
 
         try {
             await registerOrg.mutateAsync({
-                organization: {
-                    name,
-                    legalName,
-                    taxId: taxId || undefined,
-                    email: contactEmail,
-                    phone: phone || undefined,
-                    active: true,
-                    plan: 'STANDARD',
-                    maxEmployees: 50,
-                },
-                adminUser: {
-                    email: adminEmail,
-                    password: adminPassword,
-                    firstName: adminFirstName || undefined,
-                    lastName: adminLastName || undefined,
-                },
+                name: name.trim(),
+                legalName: legalName.trim(),
+                adminEmail: adminEmail.trim(),
+                adminPassword,
+                adminFirstName: adminFirstName.trim() || undefined,
+                adminLastName: adminLastName.trim() || undefined,
+                adminPhone: phone.trim() || undefined,
             });
             navigate('/login?registered=true');
         } catch (err: any) {
@@ -239,10 +238,11 @@ export default function OrganizationRegistration() {
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 required
+                                autoComplete="new-password"
                                 value={adminPassword}
                                 onChange={(e) => setAdminPassword(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
-                                placeholder="Minimum 12 caractères"
+                                placeholder="Minimum 12 caracteres"
                             />
                             <button
                                 type="button"
@@ -252,6 +252,9 @@ export default function OrganizationRegistration() {
                                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                         </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                            12 caracteres minimum avec majuscule, minuscule, chiffre et caractere special.
+                        </p>
                     </div>
 
                     <div>
@@ -261,6 +264,7 @@ export default function OrganizationRegistration() {
                         <input
                             type={showPassword ? 'text' : 'password'}
                             required
+                            autoComplete="new-password"
                             value={adminConfirmPassword}
                             onChange={(e) => setAdminConfirmPassword(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
