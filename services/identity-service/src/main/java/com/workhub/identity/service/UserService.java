@@ -5,6 +5,7 @@ import com.workhub.identity.domain.User;
 import com.workhub.identity.kafka.UserEventsPublisher;
 import com.workhub.identity.kafka.event.UserCreatedEvent;
 import com.workhub.identity.kafka.event.UserDeactivatedEvent;
+import com.workhub.identity.kafka.event.UserReactivatedEvent;
 import com.workhub.identity.kafka.event.UserUpdatedEvent;
 import com.workhub.identity.repo.UserRepository;
 import org.springframework.context.annotation.Lazy;
@@ -123,12 +124,41 @@ public class UserService {
     }
 
     @Transactional
-    public void deactivate(UUID userId) {
-        repo.findById(userId).ifPresent(u -> {
-            u.setActive(false);
-            repo.save(u);
-            auditService.log(userId, "USER_DEACTIVATED", null, null);
-            publisher.userDeactivated(new UserDeactivatedEvent(u.getId()));
-        });
+    public User deactivate(UUID userId) {
+        User user = repo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setActive(false);
+        User saved = repo.save(user);
+        auditService.log(userId, "USER_DEACTIVATED", null, null);
+        publisher.userDeactivated(new UserDeactivatedEvent(saved.getId()));
+        return saved;
+    }
+
+    @Transactional
+    public User reactivate(UUID userId, String encodedTemporaryPassword, String temporaryPassword) {
+        User user = repo.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setActive(true);
+        user.setEmailVerified(true);
+        user.setPassword(encodedTemporaryPassword);
+        user.setFailedAttempts(0);
+        user.setLockedUntil(null);
+        user.setResetToken(null);
+        user.setResetTokenExpiresAt(null);
+        user.setActivationToken(null);
+        user.setActivationTokenExpiresAt(null);
+
+        User saved = repo.save(user);
+        auditService.log(userId, "USER_REACTIVATED", null, null);
+        publisher.userReactivated(new UserReactivatedEvent(
+                saved.getId(),
+                saved.getOrganizationId(),
+                saved.getEmail(),
+                saved.getFirstName(),
+                saved.getLastName(),
+                saved.getRole().name(),
+                temporaryPassword
+        ));
+        return saved;
     }
 }

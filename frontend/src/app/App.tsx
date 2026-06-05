@@ -28,7 +28,6 @@ import AnalyticsOrgAdmin from "./components/spaces/org-admin/AnalyticsOrgAdmin";
 import RHUsersManagement from "./components/spaces/org-admin/RHUsersManagement";
 import ConfigurationOrg from "./components/spaces/org-admin/ConfigurationOrg";
 import AuditHistory from "./components/spaces/org-admin/AuditHistory";
-import ExportData from "./components/spaces/org-admin/ExportData";
 import PayrollAnalytics from "./components/spaces/org-admin/PayrollAnalytics";
 import CongesAnalytics from "./components/spaces/org-admin/CongesAnalytics";
 import RecruitmentAnalytics from "./components/spaces/org-admin/RecruitmentAnalytics";
@@ -109,8 +108,6 @@ function AppRoutes() {
 
     useSessionTimeout(handleLogout);
 
-    const handleSelectRole = (role: string) => setSelectedRole(role);
-
     const handleBackToHome = () => {
         clearAuthSession();
         setSelectedRole(null);
@@ -173,7 +170,7 @@ function AppRoutes() {
     }
 
     if (!selectedRole) {
-        return <LandingPage onSelectRole={handleSelectRole} />;
+        return <LandingPage />;
     }
 
     if (!token) {
@@ -260,7 +257,6 @@ function AppRoutes() {
                         <Route path="/rh-users" element={<RHUsersManagement />} />
                         <Route path="/config" element={<ConfigurationOrg />} />
                         <Route path="/audit" element={<AuditHistory />} />
-                        <Route path="/export" element={<ExportData />} />
                         {profileRoute}
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>

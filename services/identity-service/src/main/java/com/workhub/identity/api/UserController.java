@@ -20,12 +20,16 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.security.SecureRandom;
 import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
+
+    private static final String TEMP_PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository repo;
     private final UserService service;
@@ -183,9 +187,20 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/deactivate")
-    public void deactivate(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
-        assertCanManageUsers(jwt, null);
-        service.deactivate(id);
+    public UserDto deactivate(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        User target = repo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        assertCanManageUsers(jwt, target.getOrganizationId());
+        return UserDto.from(service.deactivate(id));
+    }
+
+    @PatchMapping("/{id}/reactivate")
+    public UserDto reactivate(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
+        User target = repo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        assertCanManageUsers(jwt, target.getOrganizationId());
+        String temporaryPassword = generateTemporaryPassword();
+        return UserDto.from(service.reactivate(id, passwordEncoder.encode(temporaryPassword), temporaryPassword));
     }
 
     private void assertAccess(Jwt jwt, User user) {
@@ -222,5 +237,21 @@ public class UserController {
         String orgId = jwt.getClaimAsString("org_id");
         if (orgId == null || orgId.isBlank()) return null;
         return UUID.fromString(orgId);
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder password = new StringBuilder();
+        password.append(randomFrom("ABCDEFGHJKLMNPQRSTUVWXYZ"));
+        password.append(randomFrom("abcdefghijkmnopqrstuvwxyz"));
+        password.append(randomFrom("23456789"));
+        password.append(randomFrom("!@#$%"));
+        while (password.length() < 14) {
+            password.append(randomFrom(TEMP_PASSWORD_CHARS));
+        }
+        return password.toString();
+    }
+
+    private char randomFrom(String source) {
+        return source.charAt(SECURE_RANDOM.nextInt(source.length()));
     }
 }

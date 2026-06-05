@@ -160,13 +160,15 @@ public class OrganizationService {
         eventPublisher.publishOrganizationEvent(new OrganizationEvent(saved.getId(), saved.getName(), "DELETED"));
     }
 
+    @Transactional
     public OrganizationSettingsResponse getOrganizationSettings(UUID orgId) {
         Organization org = getOrganizationEntityById(orgId);
-        OrganizationSettings settings = org.getSettings();
-        if (settings == null) {
-            settings = OrganizationSettings.builder().organization(org).build();
-            settings = settingsRepo.save(settings);
-        }
+        OrganizationSettings settings = settingsRepo.findById(orgId)
+                .orElseGet(() -> {
+                    OrganizationSettings created = OrganizationSettings.builder().organization(org).build();
+                    org.setSettings(created);
+                    return settingsRepo.save(created);
+                });
         return new OrganizationSettingsResponse(
                 orgId,
                 settings.getLeavePolicyDaysPerYear(),
@@ -182,10 +184,12 @@ public class OrganizationService {
     @Transactional
     public OrganizationSettingsResponse updateOrganizationSettings(UUID orgId, UpdateOrganizationSettingsRequest req) {
         Organization org = getOrganizationEntityById(orgId);
-        OrganizationSettings settings = org.getSettings();
-        if (settings == null) {
-            settings = OrganizationSettings.builder().organization(org).build();
-        }
+        OrganizationSettings settings = settingsRepo.findById(orgId)
+                .orElseGet(() -> {
+                    OrganizationSettings created = OrganizationSettings.builder().organization(org).build();
+                    org.setSettings(created);
+                    return created;
+                });
         if (req.leavePolicyDaysPerYear() != null) settings.setLeavePolicyDaysPerYear(req.leavePolicyDaysPerYear());
         if (req.leavePolicyMaxCarryOver() != null) settings.setLeavePolicyMaxCarryOver(req.leavePolicyMaxCarryOver());
         if (req.payrollCnssRate() != null) settings.setPayrollCnssRate(req.payrollCnssRate());

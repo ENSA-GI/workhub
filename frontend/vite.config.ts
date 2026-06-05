@@ -20,10 +20,6 @@ export default defineConfig({
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   server: {
     proxy: {
-      "/org": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
       "/identity": {
         target: "http://localhost:8088",
         changeOrigin: true,
