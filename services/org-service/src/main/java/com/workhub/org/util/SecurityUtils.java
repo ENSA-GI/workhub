@@ -21,6 +21,12 @@ public class SecurityUtils {
         }
 
         if (authentication.getPrincipal() instanceof Jwt jwt) {
+            // Bypass validation for SUPER_ADMIN role
+            String role = jwt.getClaimAsString("role");
+            if ("SUPER_ADMIN".equals(role)) {
+                return;
+            }
+
             String tokenOrgId = jwt.getClaimAsString("org_id");
             
             if (tokenOrgId == null || tokenOrgId.isBlank()) {

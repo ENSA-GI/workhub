@@ -175,7 +175,7 @@ export default function OrganizationsView() {
     
     updateOrgMutation.mutate({
       id: selectedOrg.id,
-      data: { active: newStatus }
+      data: { ...editForm, active: newStatus }
     }, {
       onSuccess: () => {
         toast.success(`Organisation ${newStatus ? 'activée' : 'désactivée'} avec succès`);

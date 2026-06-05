@@ -11,6 +11,11 @@ public record RegisterOrganizationRequest(
         String city,
         String industry,
         String country,
+        String email,
+        String phone,
+        String taxId,
+        String plan,
+        Integer maxEmployees,
 
         // Admin user fields
         @NotBlank @Email String adminEmail,

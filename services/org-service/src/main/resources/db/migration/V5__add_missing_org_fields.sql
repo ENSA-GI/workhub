@@ -1,0 +1,6 @@
+-- V5: Add missing fields to organizations table
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS phone VARCHAR(255);
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS tax_id VARCHAR(255);
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'FREE';
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS max_employees INT DEFAULT 10;

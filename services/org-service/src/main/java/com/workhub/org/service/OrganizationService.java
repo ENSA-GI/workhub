@@ -93,6 +93,11 @@ public class OrganizationService {
                 .city(req.city())
                 .industry(req.industry())
                 .country(req.country() != null ? req.country() : "Maroc")
+                .email(req.email())
+                .phone(req.phone())
+                .taxId(req.taxId())
+                .plan(req.plan() != null ? req.plan() : "FREE")
+                .maxEmployees(req.maxEmployees() != null ? req.maxEmployees() : 10)
                 .active(true)
                 .build();
         
