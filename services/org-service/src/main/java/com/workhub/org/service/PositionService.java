@@ -3,6 +3,7 @@ package com.workhub.org.service;
 import com.workhub.org.api.exception.DuplicateResourceException;
 import com.workhub.org.api.exception.ResourceNotFoundException;
 import com.workhub.org.domain.Position;
+import com.workhub.org.domain.ProfessionalCategory;
 import com.workhub.org.dto.CreatePositionRequest;
 import com.workhub.org.dto.PositionResponse;
 import com.workhub.org.dto.UpdatePositionRequest;
@@ -11,9 +12,9 @@ import com.workhub.org.mapper.PositionMapper;
 import com.workhub.org.messaging.KafkaEventPublisher;
 import com.workhub.org.repo.PositionRepository;
 import com.workhub.org.repo.specification.PositionSpecifications;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +29,10 @@ public class PositionService {
     private final PositionMapper mapper;
     private final KafkaEventPublisher eventPublisher;
 
-    public PositionService(PositionRepository posRepo, OrganizationService orgService,
-                           PositionMapper mapper, KafkaEventPublisher eventPublisher) {
+    public PositionService(PositionRepository posRepo,
+                           OrganizationService orgService,
+                           PositionMapper mapper,
+                           KafkaEventPublisher eventPublisher) {
         this.posRepo = posRepo;
         this.orgService = orgService;
         this.mapper = mapper;
@@ -38,12 +41,20 @@ public class PositionService {
 
     @Transactional
     public PositionResponse createPosition(CreatePositionRequest req) {
-        // Validate organization exists
         orgService.getOrganizationById(req.organizationId());
-        // Check duplicate title in same organization
-        if (posRepo.existsByOrganizationIdAndTitle(req.organizationId(), req.title())) {
+        Position existing = posRepo.findByOrganizationIdAndTitle(req.organizationId(), req.title()).orElse(null);
+        if (existing != null && Boolean.TRUE.equals(existing.getActive())) {
             throw new DuplicateResourceException(
-                "Un poste '" + req.title() + "' existe déjà dans cette organisation");
+                    "Un poste '" + req.title() + "' existe deja dans cette organisation");
+        }
+        if (existing != null) {
+            existing.setDescription(req.description());
+            existing.setCategory(req.category());
+            existing.setActive(true);
+            Position saved = posRepo.save(existing);
+            eventPublisher.publishPositionEvent(new PositionEvent(
+                    saved.getId(), saved.getOrganizationId(), saved.getTitle(), "UPDATED"));
+            return mapper.toResponse(saved);
         }
 
         Position p = Position.builder()
@@ -60,9 +71,11 @@ public class PositionService {
         return mapper.toResponse(saved);
     }
 
-    public Page<PositionResponse> getPositionsByOrganizationId(UUID orgId, String title,
-                                                               com.workhub.org.domain.ProfessionalCategory category,
-                                                               Boolean active, Pageable pageable) {
+    public Page<PositionResponse> getPositionsByOrganizationId(UUID orgId,
+                                                               String title,
+                                                               ProfessionalCategory category,
+                                                               Boolean active,
+                                                               Pageable pageable) {
         Specification<Position> spec = Specification.where(PositionSpecifications.hasOrganizationId(orgId))
                 .and(PositionSpecifications.hasTitle(title))
                 .and(PositionSpecifications.hasCategory(category))
@@ -82,10 +95,9 @@ public class PositionService {
     @Transactional
     public PositionResponse updatePosition(UUID id, UpdatePositionRequest req) {
         Position pos = getPositionEntityById(id);
-        // Check duplicate title (excluding current position)
         if (posRepo.existsByOrganizationIdAndTitleAndIdNot(pos.getOrganizationId(), req.title(), id)) {
             throw new DuplicateResourceException(
-                "Un poste '" + req.title() + "' existe déjà dans cette organisation");
+                    "Un poste '" + req.title() + "' existe deja dans cette organisation");
         }
         pos.setTitle(req.title());
         pos.setDescription(req.description());

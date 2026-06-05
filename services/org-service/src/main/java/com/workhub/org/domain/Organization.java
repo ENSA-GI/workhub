@@ -28,6 +28,20 @@ public class Organization extends Auditable {
     @Builder.Default
     private String country = "Maroc";
 
+    private String email;
+
+    private String phone;
+
+    @Column(name = "tax_id")
+    private String taxId;
+
+    @Builder.Default
+    private String plan = "FREE";
+
+    @Builder.Default
+    @Column(name = "max_employees")
+    private Integer maxEmployees = 10;
+
     @OneToOne(mappedBy = "organization", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private OrganizationSettings settings;
 

@@ -1,6 +1,6 @@
 export function useApi() {
     return async function apiFetch(path: string, init: RequestInit = {}) {
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8888";
         const url = path.startsWith("http") ? path : `${apiBaseUrl}${path}`;
         const token = localStorage.getItem("workhub.token");
 
@@ -19,7 +19,16 @@ export function useApi() {
             throw new Error(`API ${res.status} on ${path}: ${txt}`);
         }
 
+        if (res.status === 204) {
+            return undefined;
+        }
+
         const ct = res.headers.get("content-type") || "";
-        return ct.includes("application/json") ? res.json() : res.text();
+        const text = await res.text();
+        if (!text) {
+            return undefined;
+        }
+
+        return ct.includes("application/json") ? JSON.parse(text) : text;
     };
 }

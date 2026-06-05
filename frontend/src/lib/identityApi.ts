@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8888";
 const IDENTITY_BASE = import.meta.env.VITE_IDENTITY_URL || "http://localhost:8088";
 
 export interface UserProfile {
@@ -135,6 +135,33 @@ export const identityApi = {
       method: "DELETE",
       headers: authHeaders(),
     }),
+
+  deactivateUser: (userId: string) =>
+    identityFetch(`/api/users/${userId}/deactivate`, {
+      method: "PATCH",
+      headers: authHeaders(),
+    }) as Promise<UserProfile>,
+
+  reactivateUser: (userId: string) =>
+    identityFetch(`/api/users/${userId}/reactivate`, {
+      method: "PATCH",
+      headers: authHeaders(),
+    }) as Promise<UserProfile>,
+
+  provisionUser: (data: {
+    organizationId: string;
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    role: string;
+  }) =>
+    identityFetch("/api/users/provision", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(data),
+    }) as Promise<UserProfile>,
 };
 
 export function saveAuthSession(data: AuthResponse) {

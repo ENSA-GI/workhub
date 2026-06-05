@@ -62,6 +62,11 @@ public class OrganizationService {
                 .city(req.city())
                 .industry(req.industry())
                 .country(req.country() != null ? req.country() : "Maroc")
+                .email(req.email())
+                .phone(req.phone())
+                .taxId(req.taxId())
+                .plan(req.plan() != null ? req.plan() : "FREE")
+                .maxEmployees(req.maxEmployees() != null ? req.maxEmployees() : 10)
                 .active(true)
                 .build();
         
@@ -144,6 +149,11 @@ public class OrganizationService {
         org.setCity(req.city());
         if (req.industry() != null) org.setIndustry(req.industry());
         if (req.country() != null) org.setCountry(req.country());
+        if (req.email() != null) org.setEmail(req.email());
+        if (req.phone() != null) org.setPhone(req.phone());
+        if (req.taxId() != null) org.setTaxId(req.taxId());
+        if (req.plan() != null) org.setPlan(req.plan());
+        if (req.maxEmployees() != null) org.setMaxEmployees(req.maxEmployees());
         if (req.active() != null) {
             org.setActive(req.active());
         }
@@ -160,13 +170,15 @@ public class OrganizationService {
         eventPublisher.publishOrganizationEvent(new OrganizationEvent(saved.getId(), saved.getName(), "DELETED"));
     }
 
+    @Transactional
     public OrganizationSettingsResponse getOrganizationSettings(UUID orgId) {
         Organization org = getOrganizationEntityById(orgId);
-        OrganizationSettings settings = org.getSettings();
-        if (settings == null) {
-            settings = OrganizationSettings.builder().organization(org).build();
-            settings = settingsRepo.save(settings);
-        }
+        OrganizationSettings settings = settingsRepo.findById(orgId)
+                .orElseGet(() -> {
+                    OrganizationSettings created = OrganizationSettings.builder().organization(org).build();
+                    org.setSettings(created);
+                    return settingsRepo.save(created);
+                });
         return new OrganizationSettingsResponse(
                 orgId,
                 settings.getLeavePolicyDaysPerYear(),
@@ -182,10 +194,12 @@ public class OrganizationService {
     @Transactional
     public OrganizationSettingsResponse updateOrganizationSettings(UUID orgId, UpdateOrganizationSettingsRequest req) {
         Organization org = getOrganizationEntityById(orgId);
-        OrganizationSettings settings = org.getSettings();
-        if (settings == null) {
-            settings = OrganizationSettings.builder().organization(org).build();
-        }
+        OrganizationSettings settings = settingsRepo.findById(orgId)
+                .orElseGet(() -> {
+                    OrganizationSettings created = OrganizationSettings.builder().organization(org).build();
+                    org.setSettings(created);
+                    return created;
+                });
         if (req.leavePolicyDaysPerYear() != null) settings.setLeavePolicyDaysPerYear(req.leavePolicyDaysPerYear());
         if (req.leavePolicyMaxCarryOver() != null) settings.setLeavePolicyMaxCarryOver(req.leavePolicyMaxCarryOver());
         if (req.payrollCnssRate() != null) settings.setPayrollCnssRate(req.payrollCnssRate());

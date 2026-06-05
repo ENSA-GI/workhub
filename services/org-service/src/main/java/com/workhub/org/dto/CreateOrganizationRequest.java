@@ -7,5 +7,10 @@ public record CreateOrganizationRequest(
         @NotBlank String legalName,
         String city,
         String industry,
-        String country
+        String country,
+        String email,
+        String phone,
+        String taxId,
+        String plan,
+        Integer maxEmployees
 ) {}

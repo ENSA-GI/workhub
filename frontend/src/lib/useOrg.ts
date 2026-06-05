@@ -1,13 +1,15 @@
 import { useApi } from './useApi';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { UserProfile } from './identityApi';
 
 export interface OrganizationSettings {
-    annual_leave_days: number;
-    work_days_per_week: number;
-    currency: string;
-    timezone: string;
-    language: string;
-    fiscal_year_start: string;
+    leavePolicyDaysPerYear?: number;
+    leavePolicyMaxCarryOver?: number;
+    payrollCnssRate?: number;
+    payrollAmoRate?: number;
+    payrollIrProgressiveScale?: boolean;
+    payrollTemplateLogoUrl?: string;
+    payrollTemplateLegalMentions?: string;
 }
 
 export interface Organization {
@@ -100,12 +102,44 @@ export const useUpdateOrganization = () => {
     });
 };
 
-// Department Hooks
-export const useDepartments = (orgId: string, page = 0, size = 50) => {
+export const useOrganizationSettings = (orgId: string) => {
     const apiFetch = useApi();
+    return useQuery<OrganizationSettings>({
+        queryKey: ['organization-settings', orgId],
+        queryFn: () => apiFetch(`/org/orgs/${orgId}/settings`),
+        enabled: !!orgId,
+    });
+};
+
+export const useUpdateOrganizationSettings = () => {
+    const apiFetch = useApi();
+    const queryClient = useQueryClient();
+    return useMutation<OrganizationSettings, Error, { id: string; data: Partial<OrganizationSettings> }>({
+        mutationFn: ({ id, data }) => apiFetch(`/org/orgs/${id}/settings`, { method: 'PUT', body: JSON.stringify(data) }),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['organization-settings', variables.id] });
+            queryClient.invalidateQueries({ queryKey: ['organization', variables.id] });
+        },
+    });
+};
+
+export const useOrganizationAdmin = (orgId: string) => {
+    const apiFetch = useApi();
+    return useQuery<UserProfile[]>({
+        queryKey: ['organization-users', orgId],
+        queryFn: () => apiFetch(`/identity/api/users?organizationId=${orgId}`),
+        enabled: !!orgId,
+        select: (users: UserProfile[]) => users.filter(u => u.role === 'ORG_ADMIN'),
+    });
+};
+
+// Department Hooks
+export const useDepartments = (orgId: string, page = 0, size = 50, active?: boolean) => {
+    const apiFetch = useApi();
+    const activeQuery = active === undefined ? '' : `&active=${active}`;
     return useQuery<PageResponse<Department>>({
-        queryKey: ['departments', orgId, page, size],
-        queryFn: () => apiFetch(`/org/orgs/${orgId}/departments?page=${page}&size=${size}`),
+        queryKey: ['departments', orgId, page, size, active],
+        queryFn: () => apiFetch(`/org/orgs/${orgId}/departments?page=${page}&size=${size}${activeQuery}`),
         enabled: !!orgId,
     });
 };
@@ -117,6 +151,7 @@ export const useCreateDepartment = () => {
         mutationFn: (data) => apiFetch('/org/departments', { method: 'POST', body: JSON.stringify(data) }),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['departments', variables.organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['departments'] });
         },
     });
 };
@@ -128,16 +163,18 @@ export const useDeleteDepartment = () => {
         mutationFn: ({ id }) => apiFetch(`/org/departments/${id}`, { method: 'DELETE' }),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['departments', variables.organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['departments'] });
         },
     });
 };
 
 // Position Hooks
-export const usePositions = (orgId: string, page = 0, size = 50) => {
+export const usePositions = (orgId: string, page = 0, size = 50, active?: boolean) => {
     const apiFetch = useApi();
+    const activeQuery = active === undefined ? '' : `&active=${active}`;
     return useQuery<PageResponse<Position>>({
-        queryKey: ['positions', orgId, page, size],
-        queryFn: () => apiFetch(`/org/orgs/${orgId}/positions?page=${page}&size=${size}`),
+        queryKey: ['positions', orgId, page, size, active],
+        queryFn: () => apiFetch(`/org/orgs/${orgId}/positions?page=${page}&size=${size}${activeQuery}`),
         enabled: !!orgId,
     });
 };
@@ -149,6 +186,7 @@ export const useCreatePosition = () => {
         mutationFn: (data) => apiFetch('/org/positions', { method: 'POST', body: JSON.stringify(data) }),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['positions', variables.organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['positions'] });
         },
     });
 };
@@ -160,6 +198,7 @@ export const useDeletePosition = () => {
         mutationFn: ({ id }) => apiFetch(`/org/positions/${id}`, { method: 'DELETE' }),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['positions', variables.organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['positions'] });
         },
     });
 };
@@ -189,11 +228,15 @@ export interface RegisterOrganizationResponse {
 
 export const useRegisterOrganization = () => {
     const apiFetch = useApi();
+    const queryClient = useQueryClient();
 
     return useMutation<RegisterOrganizationResponse, Error, RegisterOrganizationRequest>({
         mutationFn: (data) => apiFetch('/org/orgs/register', {
             method: 'POST',
             body: JSON.stringify(data),
         }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['organizations'] });
+        },
     });
 };
