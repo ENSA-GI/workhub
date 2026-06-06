@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { 
   useOrganizations, useCreateOrganization, useUpdateOrganization, 
-  Organization, useOrganizationAdmin, useRegisterOrganization 
+  Organization, useOrganizationAdmin, useRegisterOrganization,
+  useOrganizationsStats
 } from '@/lib/useOrg';
 import { identityApi } from '@/lib/identityApi';
 import { toast } from 'sonner';
@@ -44,6 +45,8 @@ export default function OrganizationsView() {
   const [editForm, setEditForm] = useState<Partial<Organization>>({});
 
   const { data: orgsData, isLoading, refetch } = useOrganizations(page, 5);
+  const { data: statsData, isLoading: isLoadingStats } = useOrganizationsStats();
+  
   const createOrgMutation = useCreateOrganization();
   const registerOrgMutation = useRegisterOrganization();
   const updateOrgMutation = useUpdateOrganization();
@@ -185,8 +188,16 @@ export default function OrganizationsView() {
   };
 
   const organizations = orgsData?.content || [];
-  const totalElements = orgsData?.totalElements || 0;
-  const totalPages = orgsData?.totalPages || 1;
+  const allOrgs = statsData?.content || [];
+  
+  // Handle both old and new Spring Data pagination formats
+  const totalElements = orgsData?.page?.totalElements ?? orgsData?.totalElements ?? allOrgs.length;
+  const totalPages = orgsData?.page?.totalPages ?? orgsData?.totalPages ?? Math.ceil(totalElements / 5);
+
+  // Global KPIs calculation using allOrgs
+  const activeCount = allOrgs.filter(o => o.active).length;
+  const inactiveCount = allOrgs.filter(o => !o.active).length;
+  const totalEmployees = allOrgs.reduce((sum, org) => sum + (org.maxEmployees || 0), 0);
 
   return (
     <div className="p-6 bg-[#F5F7FA] min-h-screen">
@@ -213,7 +224,7 @@ export default function OrganizationsView() {
             </div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total</h3>
           </div>
-          {isLoading ? (
+          {isLoadingStats ? (
             <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
           ) : (
             <p className="text-3xl font-bold text-gray-900">{totalElements}</p>
@@ -227,11 +238,11 @@ export default function OrganizationsView() {
             </div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Employés</h3>
           </div>
-          {isLoading ? (
+          {isLoadingStats ? (
             <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
           ) : (
             <p className="text-3xl font-bold text-gray-900">
-              {organizations.reduce((sum, org) => sum + (org.maxEmployees || 0), 0)}
+              {totalEmployees}
             </p>
           )}
         </div>
@@ -243,11 +254,11 @@ export default function OrganizationsView() {
             </div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Actives</h3>
           </div>
-          {isLoading ? (
+          {isLoadingStats ? (
             <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
           ) : (
             <p className="text-3xl font-bold text-emerald-600">
-              {organizations.filter(o => o.active).length}
+              {activeCount}
             </p>
           )}
         </div>
@@ -259,11 +270,11 @@ export default function OrganizationsView() {
             </div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inactives</h3>
           </div>
-          {isLoading ? (
+          {isLoadingStats ? (
             <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
           ) : (
             <p className="text-3xl font-bold text-red-600">
-              {organizations.filter(o => !o.active).length}
+              {inactiveCount}
             </p>
           )}
         </div>

@@ -54,10 +54,18 @@ export interface Position {
 
 export interface PageResponse<T> {
     content: T[];
-    totalElements: number;
-    totalPages: number;
-    size: number;
-    number: number;
+    // Spring Data 2.x format
+    totalElements?: number;
+    totalPages?: number;
+    size?: number;
+    number?: number;
+    // Spring Data 3.x / VIA_DTO format
+    page?: {
+        size: number;
+        number: number;
+        totalElements: number;
+        totalPages: number;
+    };
 }
 
 // Organization Hooks
@@ -98,7 +106,16 @@ export const useUpdateOrganization = () => {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['organizations'] });
             queryClient.invalidateQueries({ queryKey: ['organization', variables.id] });
+            queryClient.invalidateQueries({ queryKey: ['organizations-stats'] });
         },
+    });
+};
+
+export const useOrganizationsStats = () => {
+    const apiFetch = useApi();
+    return useQuery<PageResponse<Organization>>({
+        queryKey: ['organizations-stats'],
+        queryFn: () => apiFetch(`/org/orgs?page=0&size=1000`),
     });
 };
 
