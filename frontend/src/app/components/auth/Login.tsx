@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { identityApi, saveAuthSession, type AuthResponse } from "@/lib/identityApi";
 import logo from '@/imports/Capture_d_écran_2026-04-20_183125-removebg-preview.png';
+import { motion } from "motion/react";
+import { Eye, EyeOff, Lock, Mail, ArrowRight } from "lucide-react";
 
 interface LoginProps {
   onLoginSuccess: (token: string, user: AuthResponse["user"]) => void;
@@ -15,7 +17,7 @@ export default function Login({ onLoginSuccess, onMfaRequired }: LoginProps) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // 👈 état pour l'icône
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -44,111 +46,161 @@ export default function Login({ onLoginSuccess, onMfaRequired }: LoginProps) {
       saveAuthSession(data);
       onLoginSuccess(data.token, data.user);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Une erreur est survenue");
+      setError(err instanceof Error ? err.message : "Une erreur est survenue lors de la connexion");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between h-20">
-            <Link to="/" className="flex items-center">
-              <img src={logo} alt="WorkHub" className="h-16" />
-            </Link>
-            <button
-              onClick={() => window.location.href = "/"}
-              className="text-sm text-[#0A6ED1] hover:underline"
+    <div className="min-h-screen relative overflow-hidden bg-[#0F172A] flex flex-col items-center justify-center p-4">
+      {/* Background Effects */}
+      <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-blue-600/30 rounded-full blur-[120px] mix-blend-screen pointer-events-none animate-blob" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[120px] mix-blend-screen pointer-events-none animate-blob animation-delay-4000" />
+      <div className="absolute top-[40%] left-[40%] w-[400px] h-[400px] bg-indigo-500/20 rounded-full blur-[100px] mix-blend-screen pointer-events-none animate-blob animation-delay-2000" />
+
+      {/* Header / Logo */}
+      <motion.div 
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="absolute top-8 left-8"
+      >
+        <Link to="/" className="flex items-center">
+          <img src={logo} alt="WorkHub" className="h-12 invert brightness-0" />
+        </Link>
+      </motion.div>
+
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+        className="w-full max-w-md"
+      >
+        <div className="bg-white/10 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-3xl p-10 relative overflow-hidden">
+          {/* Subtle inner highlight */}
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+          
+          <div className="text-center mb-8">
+            <motion.h2 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="text-3xl font-bold text-white mb-2"
             >
-              Retour à l'accueil
-            </button>
+              Bienvenue
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="text-blue-100/70"
+            >
+              Connectez-vous à votre espace WorkHub
+            </motion.p>
           </div>
-        </div>
-      </header>
-      <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA] p-4">
-        <div className="w-full max-w-md bg-white border border-gray-200 rounded-lg shadow-sm p-8">
-          <h2 className="text-2xl font-semibold text-center text-gray-900 mb-6">Se connecter</h2>
 
           {registrationSuccess && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded">
-              ✅ Organisation créée avec succès ! Vous pouvez maintenant vous connecter avec votre compte administrateur.
-            </div>
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="mb-6 p-4 bg-green-500/20 border border-green-500/30 text-green-200 text-sm rounded-xl backdrop-blur-md"
+            >
+              ✅ Organisation créée avec succès ! Vous pouvez maintenant vous connecter.
+            </motion.div>
           )}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded">
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="mb-6 p-4 bg-red-500/20 border border-red-500/30 text-red-200 text-sm rounded-xl backdrop-blur-md"
+            >
               {error}
-            </div>
+            </motion.div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1]"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-              <div className="relative">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <label className="block text-sm font-medium text-white/80 mb-1.5 ml-1">Adresse Email</label>
+              <div className="relative group">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="nom@entreprise.com"
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all backdrop-blur-sm"
+                />
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.7 }}
+            >
+              <div className="flex items-center justify-between mb-1.5 ml-1">
+                <label className="block text-sm font-medium text-white/80">Mot de passe</label>
+                <Link to="/forgot-password" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                  Oublié ?
+                </Link>
+              </div>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40 group-focus-within:text-blue-400 transition-colors" />
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] pr-10"
+                  className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all backdrop-blur-sm"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-700"
+                  className="absolute inset-y-0 right-4 flex items-center text-white/40 hover:text-white transition-colors"
                   tabIndex={-1}
-                  aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >
-                  {showPassword ? (
-                    // Œil barré (masquer)
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
-                    </svg>
-                  ) : (
-                    // Œil ouvert (afficher)
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  )}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-            </div>
-            <div className="text-right">
-              <Link to="/forgot-password" className="text-sm text-[#0A6ED1] hover:underline">
-                Mot de passe oublié ?
-              </Link>
-            </div>
-            <button
+            </motion.div>
+
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8 }}
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-[#0A6ED1] text-white font-medium rounded hover:bg-[#0959b0] disabled:opacity-50"
+              className="group relative w-full py-4 mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)] transition-all overflow-hidden"
             >
-              {loading ? "Connexion..." : "Se connecter"}
-            </button>
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-in-out" />
+              <span className="relative flex items-center justify-center space-x-2">
+                <span>{loading ? "Vérification..." : "Se connecter"}</span>
+                {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+              </span>
+            </motion.button>
           </form>
 
-          {/* Lien vers l'inscription */}
-          <div className="mt-4 text-center text-sm">
-            <span className="text-gray-600">Vous n'avez pas encore d'organisation ? </span>
-            <Link to="/register" className="text-[#0A6ED1] font-medium hover:underline">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
+            className="mt-8 text-center"
+          >
+            <span className="text-white/60 text-sm">Nouveau sur WorkHub ? </span>
+            <Link to="/register" className="text-blue-400 font-semibold text-sm hover:text-blue-300 transition-colors">
               Créer mon organisation
             </Link>
-          </div>
+          </motion.div>
         </div>
-      </div>
-    </>
+      </motion.div>
+    </div>
   );
 }

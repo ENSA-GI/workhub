@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Briefcase, Building, FileText, CheckCircle } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface JobPosting {
   id: number;
@@ -47,44 +49,59 @@ export default function JobPostingForm({ isOpen, onClose, onSave }: JobPostingFo
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded border border-gray-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Post New Job</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X className="w-5 h-5 text-gray-600" />
+  const inputClasses = "w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:border-[#0A6ED1] focus:ring-2 focus:ring-[#0A6ED1]/20 outline-none transition-all";
+
+  const modalContent = (
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4 sm:p-6">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+        className="bg-white max-w-2xl w-full max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-100"
+      >
+        <div className="bg-white border-b border-gray-100 px-6 py-5 flex items-center justify-between z-10 shadow-sm">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-gradient-to-tr from-[#0A6ED1] to-blue-400 rounded-xl shadow-md shadow-blue-500/20 flex items-center justify-center">
+              <Briefcase className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">Publier une offre</h2>
+              <p className="text-sm font-medium text-gray-500 mt-0.5">Créer une nouvelle offre d'emploi</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-gray-500 hover:text-gray-700">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 bg-slate-50/50 space-y-6">
+          <div className="space-y-5 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Job Title *
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-500" /> Titre du poste *
               </label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] focus:border-transparent"
-                placeholder="e.g., Senior Software Engineer"
+                className={inputClasses}
+                placeholder="ex: Senior Software Engineer"
                 required
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Department *
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
+                  <Building className="w-4 h-4 text-indigo-500" /> Département *
                 </label>
                 <select
                   value={formData.department}
                   onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] focus:border-transparent"
+                  className={inputClasses}
                   required
                 >
-                  <option value="">Select Department</option>
+                  <option value="">Sélectionner</option>
                   <option value="Engineering">Engineering</option>
                   <option value="Product">Product</option>
                   <option value="Design">Design</option>
@@ -97,66 +114,61 @@ export default function JobPostingForm({ isOpen, onClose, onSave }: JobPostingFo
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Number of Openings *
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Nombre de postes *
                 </label>
                 <input
                   type="number"
                   min="1"
                   value={formData.openings}
                   onChange={(e) => setFormData({ ...formData, openings: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] focus:border-transparent"
+                  className={inputClasses}
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Job Description *
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Description du poste *
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={5}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] focus:border-transparent"
-                placeholder="Describe the role, responsibilities, and what the ideal candidate will do..."
+                rows={4}
+                className={`${inputClasses} resize-none`}
+                placeholder="Décrivez le rôle, les responsabilités..."
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Requirements *
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Exigences (Requirements) *
               </label>
               <textarea
                 value={formData.requirements}
                 onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                rows={5}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#0A6ED1] focus:border-transparent"
-                placeholder="List required skills, experience, education, and qualifications..."
+                rows={4}
+                className={`${inputClasses} resize-none`}
+                placeholder="Liste des compétences, expériences, diplômes requis..."
                 required
               />
             </div>
           </div>
-
-          <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
-            >
-              Cancel
+          
+          <div className="flex justify-end space-x-3 pt-2">
+            <button type="button" onClick={onClose} className="px-6 py-2.5 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
+              Annuler
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-[#0A6ED1] text-white rounded hover:bg-[#0959b0]"
-            >
-              Post Job
+            <button type="submit" className="px-6 py-2.5 bg-gradient-to-r from-[#0A6ED1] to-blue-600 text-white font-medium rounded-xl hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md shadow-blue-500/20 active:scale-95 flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" /> Publier l'offre
             </button>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

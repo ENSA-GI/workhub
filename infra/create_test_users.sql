@@ -19,13 +19,13 @@ CREATE TABLE IF NOT EXISTS authorities (
 
 -- Test accounts (passwords are BCrypt hashes)
 INSERT INTO users (username, password, enabled) VALUES
-    ('admin',     '$2a$10$7G1E6xF0KYa8nL9eOIqVQeYcHnHQ/5v7p2Y1tRUV/6VF1z0Vb5TyW', TRUE),
+    ('aitjaakikemohamedamine@gmail.com',     '$2a$10$7G1E6xF0KYa8nL9eOIqVQeYcHnHQ/5v7p2Y1tRUV/6VF1z0Vb5TyW', TRUE),
     ('recruteur','$2a$10$K9jz5bGvUeZT4I6bG0aPqOSg6cV8ZQ5vvyM3nKzYz6w9JzU3LwzZK', TRUE),
     ('candidat',  '$2a$10$R8hM2lVxB6FQ7G9aX5Yd3eO0wPjC1aZrTg9uF2hLmK3n5sQ1vJzR5K', TRUE);
 
 INSERT INTO authorities (user_id, authority) VALUES
-    ((SELECT id FROM users WHERE username='admin'),     'ROLE_ADMIN'),
-    ((SELECT id FROM users WHERE username='admin'),     'ROLE_RECRUITER'),
-    ((SELECT id FROM users WHERE username='admin'),     'ROLE_CANDIDATE'),
+    ((SELECT id FROM users WHERE username='aitjaakikemohamedamine@gmail.com'),     'ROLE_ADMIN'),
+    ((SELECT id FROM users WHERE username='aitjaakikemohamedamine@gmail.com'),     'ROLE_RECRUITER'),
+    ((SELECT id FROM users WHERE username='aitjaakikemohamedamine@gmail.com'),     'ROLE_CANDIDATE'),
     ((SELECT id FROM users WHERE username='recruteur'),'ROLE_RECRUITER'),
     ((SELECT id FROM users WHERE username='candidat'),  'ROLE_CANDIDATE');

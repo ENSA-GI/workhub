@@ -1,5 +1,6 @@
-import { BookOpen, Award, TrendingUp, Users, AlertCircle } from 'lucide-react';
+import { BookOpen, Award, TrendingUp, AlertCircle, BarChart3, PieChart, LineChart } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { motion } from 'motion/react';
 
 export default function AnalyticsRHManager() {
   const competencesPresentes = [
@@ -79,152 +80,217 @@ export default function AnalyticsRHManager() {
   ];
 
   return (
-    <div className="p-6 bg-[#F5F7FA]">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Analytics & Formations</h1>
-        <p className="text-sm text-gray-600 mt-1">Analyses RH et recommandations de développement des compétences</p>
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="p-6 max-w-7xl mx-auto space-y-8"
+    >
+      <div className="flex items-center space-x-4 mb-6">
+        <motion.div 
+          initial={{ scale: 0.8, rotate: -10 }} 
+          animate={{ scale: 1, rotate: 0 }} 
+          className="w-14 h-14 bg-gradient-to-tr from-[#0A6ED1] to-purple-500 rounded-2xl shadow-lg shadow-blue-500/30 flex items-center justify-center text-white"
+        >
+          <BarChart3 className="w-7 h-7" />
+        </motion.div>
+        <div>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600">Analytics & Formations</h1>
+          <p className="text-sm text-gray-500 mt-1 font-medium">Analyses RH et recommandations de développement des compétences</p>
+        </div>
       </div>
 
       {/* Indicateurs RH Globaux */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {indicateursRH.map((indic, index) => (
-          <div key={index} className="bg-white border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-medium text-gray-500 uppercase">{indic.label}</h3>
-              {indic.trend === 'up' ? (
-                <TrendingUp className={`w-4 h-4 ${indic.color}`} />
-              ) : (
-                <div className="w-4 h-4"></div>
+          <motion.div 
+            key={index}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+            className="bg-white/80 backdrop-blur-xl border border-white/20 p-6 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(10,110,209,0.1)] transition-all hover:-translate-y-1 relative overflow-hidden group"
+          >
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+               {index % 2 === 0 ? <PieChart className="w-16 h-16" /> : <LineChart className="w-16 h-16" />}
+            </div>
+            <div className="flex items-center justify-between mb-4 relative z-10">
+              <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">{indic.label}</h3>
+              {indic.trend === 'up' && (
+                <div className="p-2 bg-green-50 rounded-lg">
+                  <TrendingUp className="w-4 h-4 text-green-600" />
+                </div>
               )}
             </div>
-            <p className="text-3xl font-semibold text-gray-900">{indic.value}</p>
-          </div>
+            <p className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-br from-gray-900 to-gray-600 relative z-10">{indic.value}</p>
+          </motion.div>
         ))}
       </div>
 
       {/* Compétences Présentes et Gap */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Compétences Présentes */}
-        <div className="bg-white border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-900">Compétences Présentes dans l'Équipe</h3>
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
+        >
+          <div className="p-6 border-b border-gray-50/50 bg-gray-50/30">
+            <h3 className="text-lg font-bold text-gray-900">Compétences Présentes dans l'Équipe</h3>
           </div>
           <div className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={320}>
               <BarChart data={competencesPresentes}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" key="grid-comp" />
-                <XAxis dataKey="competence" stroke="#6B7280" angle={-45} textAnchor="end" height={100} key="xaxis-comp" />
-                <YAxis stroke="#6B7280" key="yaxis-comp" />
-                <Tooltip key="tooltip-comp" />
-                <Legend key="legend-comp" />
-                <Bar dataKey="niveau" fill="#0A6ED1" name="Niveau moyen (%)" key="bar-comp" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <XAxis dataKey="competence" stroke="#9CA3AF" angle={-45} textAnchor="end" height={100} tick={{fontSize: 12}} />
+                <YAxis stroke="#9CA3AF" tick={{fontSize: 12}} />
+                <Tooltip cursor={{fill: '#f9fafb'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                <Legend wrapperStyle={{paddingTop: '20px'}} />
+                <Bar dataKey="niveau" fill="url(#colorNiveau)" name="Niveau moyen (%)" radius={[4, 4, 0, 0]} />
+                <defs>
+                  <linearGradient id="colorNiveau" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0A6ED1" stopOpacity={0.9}/>
+                    <stop offset="95%" stopColor="#0A6ED1" stopOpacity={0.4}/>
+                  </linearGradient>
+                </defs>
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
         {/* Gap de Compétences */}
-        <div className="bg-white border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="text-base font-semibold text-gray-900">Gap de Compétences</h3>
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
+        >
+          <div className="p-6 border-b border-gray-50/50 bg-gray-50/30">
+            <h3 className="text-lg font-bold text-gray-900">Analyse de Gap de Compétences</h3>
           </div>
           <div className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={320}>
               <BarChart data={gapCompetences}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" key="grid-gap" />
-                <XAxis dataKey="competence" stroke="#6B7280" angle={-45} textAnchor="end" height={100} key="xaxis-gap" />
-                <YAxis stroke="#6B7280" key="yaxis-gap" />
-                <Tooltip key="tooltip-gap" />
-                <Legend key="legend-gap" />
-                <Bar dataKey="present" fill="#10B981" name="Niveau actuel (%)" key="bar-present" />
-                <Bar dataKey="requis" fill="#F59E0B" name="Niveau requis (%)" key="bar-requis" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                <XAxis dataKey="competence" stroke="#9CA3AF" angle={-45} textAnchor="end" height={100} tick={{fontSize: 12}} />
+                <YAxis stroke="#9CA3AF" tick={{fontSize: 12}} />
+                <Tooltip cursor={{fill: '#f9fafb'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                <Legend wrapperStyle={{paddingTop: '20px'}} />
+                <Bar dataKey="present" fill="#10B981" name="Niveau actuel (%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="requis" fill="#F59E0B" name="Niveau requis (%)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Top Formations Recommandées */}
-      <div className="bg-white border border-gray-200">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden"
+      >
+        <div className="p-6 border-b border-gray-50/50 bg-gray-50/30 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Top Formations Recommandées</h3>
-            <p className="text-sm text-gray-600 mt-1">Basé sur l'analyse des gaps de compétences</p>
+            <h3 className="text-lg font-bold text-gray-900">Top Formations Recommandées</h3>
+            <p className="text-sm text-gray-500 mt-1">Basé sur l'analyse des gaps de compétences</p>
           </div>
-          <BookOpen className="w-6 h-6 text-[#0A6ED1]" />
+          <div className="p-3 bg-blue-50 rounded-xl">
+            <BookOpen className="w-6 h-6 text-[#0A6ED1]" />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-white border-b border-gray-100">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Formation</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Compétence Ciblée</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gap</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Durée</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Priorité</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cible</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Coût Estimé</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Formation</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Compétence Ciblée</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Gap</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Durée</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Priorité</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cible</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Coût Estimé</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {formationsRecommandees.map((formation) => (
-                <tr key={formation.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-start">
-                      <Award className="w-5 h-5 text-[#0A6ED1] mr-2 flex-shrink-0 mt-0.5" />
-                      <span className="text-sm font-medium text-gray-900">{formation.titre}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{formation.competence}</td>
+            <tbody className="divide-y divide-gray-50">
+              {formationsRecommandees.map((formation, idx) => (
+                <motion.tr 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.6 + (idx * 0.05) }}
+                  key={formation.id} 
+                  className="hover:bg-blue-50/30 transition-colors group"
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center">
-                      <div className="w-16 bg-gray-200 h-2 mr-2">
+                      <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors mr-3">
+                        <Award className="w-4 h-4 text-gray-400 group-hover:text-[#0A6ED1]" />
+                      </div>
+                      <span className="text-sm font-bold text-gray-800">{formation.titre}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-md">
+                      {formation.competence}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center">
+                      <div className="w-16 bg-gray-100 h-2 mr-2 rounded-full overflow-hidden">
                         <div
-                          className="bg-orange-600 h-2"
+                          className="bg-gradient-to-r from-orange-400 to-red-500 h-2 rounded-full"
                           style={{ width: `${formation.gap}%` }}
                         ></div>
                       </div>
-                      <span className="text-sm text-gray-900">{formation.gap}%</span>
+                      <span className="text-sm font-semibold text-gray-700">{formation.gap}%</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{formation.duree}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500 font-medium">{formation.duree}</td>
                   <td className="px-6 py-4">
                     <span
-                      className={`inline-flex px-2 py-1 text-xs ${
+                      className={`inline-flex px-3 py-1 text-xs font-bold rounded-full ${
                         formation.priorite === 'Haute'
-                          ? 'bg-red-100 text-red-800'
+                          ? 'bg-red-50 text-red-600 border border-red-100'
                           : formation.priorite === 'Moyenne'
-                          ? 'bg-orange-100 text-orange-800'
-                          : 'bg-blue-100 text-blue-800'
+                          ? 'bg-orange-50 text-orange-600 border border-orange-100'
+                          : 'bg-blue-50 text-blue-600 border border-blue-100'
                       }`}
                     >
                       {formation.priorite}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{formation.cible}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{formation.cout}</td>
-                </tr>
+                  <td className="px-6 py-4 text-sm text-gray-500 font-medium">{formation.cible}</td>
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">{formation.cout}</td>
+                </motion.tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
 
       {/* Info Box */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 p-4">
-        <div className="flex items-start">
-          <AlertCircle className="w-5 h-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.8 }}
+        className="mt-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/50 p-6 rounded-3xl shadow-sm relative overflow-hidden"
+      >
+        <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl"></div>
+        <div className="flex items-start relative z-10">
+          <div className="p-3 bg-white rounded-2xl shadow-sm mr-4">
+            <AlertCircle className="w-6 h-6 text-blue-600" />
+          </div>
           <div>
-            <h4 className="text-sm font-semibold text-blue-900 mb-2">Recommandations IA</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Prioriser les formations en Machine Learning et Cybersécurité pour combler les gaps critiques</li>
-              <li>• Planifier les sessions sur Q2-Q3 2026 pour maximiser l'impact opérationnel</li>
-              <li>• Considérer des formations certifiantes pour augmenter la rétention des talents</li>
-              <li>• Budget estimé total pour le top 5 formations : MAD 18,900</li>
+            <h4 className="text-base font-bold text-blue-900 mb-2">Recommandations IA (WorkHub AI)</h4>
+            <ul className="text-sm text-blue-800/80 space-y-2 font-medium">
+              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2"></span> Prioriser les formations en Machine Learning et Cybersécurité pour combler les gaps critiques</li>
+              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2"></span> Planifier les sessions sur Q2-Q3 2026 pour maximiser l'impact opérationnel</li>
+              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2"></span> Considérer des formations certifiantes pour augmenter la rétention des talents</li>
+              <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-blue-400 mr-2"></span> Budget estimé total pour le top 5 formations : <strong className="ml-1 text-blue-900">MAD 18,900</strong></li>
             </ul>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
