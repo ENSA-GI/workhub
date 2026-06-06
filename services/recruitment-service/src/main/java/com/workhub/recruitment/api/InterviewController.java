@@ -69,6 +69,7 @@ public class InterviewController {
                              java.time.LocalDate.ofInstant(req.getScheduledAt(), java.time.ZoneId.of("UTC")).toString() : "";
             RecruitmentNotificationEvent event = RecruitmentNotificationEvent.builder()
                     .candidateId(candidate.getId())
+                    .userId(candidate.getUserId())
                     .candidateEmail(candidate.getEmail())
                     .candidateName(candidate.getFirstName() + " " + candidate.getLastName())
                     .eventType("INTERVIEW_SCHEDULED")

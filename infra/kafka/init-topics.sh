@@ -21,5 +21,6 @@ create_topic "workhub.payroll.events.v1"
 create_topic "workhub.recruitment.events.v1"
 create_topic "workhub.ai.events.v1"
 create_topic "workhub.notification.events.v1"
+create_topic "workhub.recruitment.notifications.v1"
 
 echo "Kafka topics created."

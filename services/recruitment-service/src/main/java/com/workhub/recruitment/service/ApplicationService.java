@@ -39,10 +39,17 @@ public class ApplicationService {
                 .orElseThrow(() -> new OfferNotFoundException(req.getJobOfferId()));
 
         Candidate candidate = candidateRepo.findByEmail(req.getEmail())
+                .map(c -> {
+                    if (req.getUserId() != null && !req.getUserId().equals(c.getUserId())) {
+                        c.setUserId(req.getUserId());
+                        return candidateRepo.save(c);
+                    }
+                    return c;
+                })
                 .orElseGet(() -> {
                     Candidate newCandidate = Candidate.builder()
                             .id(UUID.randomUUID())
-                            .userId(UUID.randomUUID())
+                            .userId(req.getUserId() != null ? req.getUserId() : UUID.randomUUID())
                             .firstName(req.getFirstName())
                             .lastName(req.getLastName())
                             .email(req.getEmail())
@@ -150,6 +157,7 @@ public class ApplicationService {
         if (candidate != null && (status == ApplicationStatus.HIRED || status == ApplicationStatus.REJECTED)) {
             com.workhub.recruitment.dto.RecruitmentNotificationEvent event = com.workhub.recruitment.dto.RecruitmentNotificationEvent.builder()
                     .candidateId(candidate.getId())
+                    .userId(candidate.getUserId())
                     .candidateEmail(candidate.getEmail())
                     .candidateName(candidate.getFirstName() + " " + candidate.getLastName())
                     .eventType(status.name())
@@ -159,6 +167,16 @@ public class ApplicationService {
         }
 
         return mapToResponse(app, offer, candidate);
+    }
+
+    public void syncCandidateUserId(String email, UUID userId) {
+        candidateRepo.findByEmail(email).ifPresent(candidate -> {
+            if (!userId.equals(candidate.getUserId())) {
+                candidate.setUserId(userId);
+                candidateRepo.save(candidate);
+                log.info("Synchronized userId {} for candidate email {}", userId, email);
+            }
+        });
     }
 
     public String getPresignedCvUrl(UUID applicationId) {
