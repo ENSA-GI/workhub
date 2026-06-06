@@ -69,7 +69,12 @@ public class RecruitmentController {
     }
 
     @GetMapping("/applications/candidate/{email}")
-    public List<ApplicationResponse> getApplicationsByEmail(@PathVariable String email) {
+    public List<ApplicationResponse> getApplicationsByEmail(
+            @PathVariable String email,
+            @RequestParam(required = false) UUID userId) {
+        if (userId != null) {
+            applicationService.syncCandidateUserId(email, userId);
+        }
         return applicationService.getByCandidateEmail(email);
     }
 

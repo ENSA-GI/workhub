@@ -7,6 +7,8 @@ export default function MesCandidatures() {
   const [selectedCandidature, setSelectedCandidature] = useState<string | null>(null);
   const [candidatures, setCandidatures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [entretien, setEntretien] = useState<any>(null);
+  const [loadingEntretien, setLoadingEntretien] = useState(false);
 
   useEffect(() => {
     const fetchCandidatures = async () => {
@@ -14,7 +16,7 @@ export default function MesCandidatures() {
       
       try {
         const email = user.primaryEmailAddress.emailAddress;
-        const response = await fetch(`http://localhost:8085/api/applications/candidate/${email}`);
+        const response = await fetch(`http://localhost:8085/api/applications/candidate/${email}?userId=${user.id}`);
         const data = await response.json();
         
         const mappedApps = data.map((app: any) => ({
@@ -23,7 +25,11 @@ export default function MesCandidatures() {
           departement: "IT", // Info non présente dans le DTO pour l'instant
           localisation: "Casablanca", // Info non présente dans le DTO pour l'instant
           dateCandidature: app.appliedAt,
-          statut: app.status === 'NEW' ? 'En cours' : app.status,
+          statut: app.status === 'NEW' || app.status === 'IN_REVIEW' ? 'En cours' :
+                  app.status === 'PRESELECTED' ? 'Présélectionné' :
+                  app.status === 'INTERVIEW_SCHEDULED' ? 'Entretien planifié' :
+                  app.status === 'REJECTED' ? 'Non retenue' :
+                  app.status === 'HIRED' ? 'Accepté' : app.status,
           etape: app.aiScore ? `Analyse IA terminée (${app.aiScore}%)` : 'Analyse en cours...',
           aiScore: app.aiScore,
           historique: [
@@ -45,6 +51,36 @@ export default function MesCandidatures() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const fetchEntretien = async () => {
+      if (!selectedCandidature) {
+        setEntretien(null);
+        return;
+      }
+      setLoadingEntretien(true);
+      try {
+        const response = await fetch(`http://localhost:8085/api/interviews/application/${selectedCandidature}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            // Cherche un entretien planifié ou complété
+            const activeInterview = data.find((i: any) => i.status === 'SCHEDULED' || i.status === 'COMPLETED');
+            setEntretien(activeInterview || null);
+          } else {
+            setEntretien(null);
+          }
+        }
+      } catch (error) {
+        console.error("Erreur chargement entretien:", error);
+        setEntretien(null);
+      } finally {
+        setLoadingEntretien(false);
+      }
+    };
+
+    fetchEntretien();
+  }, [selectedCandidature]);
+
   const candidatureDetail = selectedCandidature
     ? candidatures.find((c) => c.id === selectedCandidature)
     : null;
@@ -53,9 +89,13 @@ export default function MesCandidatures() {
     switch (statut) {
       case 'En cours':
         return 'bg-blue-100 text-blue-800';
+      case 'Présélectionné':
+        return 'bg-purple-100 text-purple-800';
+      case 'Entretien planifié':
+        return 'bg-green-100 text-green-800';
       case 'Accepté':
         return 'bg-green-100 text-green-800';
-      case 'Refusé':
+      case 'Non retenue':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -66,9 +106,13 @@ export default function MesCandidatures() {
     switch (statut) {
       case 'En cours':
         return <Clock className="w-5 h-5 text-blue-600" />;
+      case 'Présélectionné':
+        return <CheckCircle className="w-5 h-5 text-purple-600" />;
+      case 'Entretien planifié':
+        return <Calendar className="w-5 h-5 text-green-600" />;
       case 'Accepté':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case 'Refusé':
+      case 'Non retenue':
         return <XCircle className="w-5 h-5 text-red-600" />;
       default:
         return <Briefcase className="w-5 h-5 text-gray-600" />;
@@ -97,7 +141,7 @@ export default function MesCandidatures() {
         <div className="bg-white border border-gray-200 p-6">
           <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Entretiens Planifiés</h3>
           <p className="text-3xl font-semibold text-green-600">
-            {candidatures.filter((c) => c.entretien).length}
+            {candidatures.filter((c) => c.statut === 'Entretien planifié').length}
           </p>
         </div>
       </div>
@@ -180,7 +224,7 @@ export default function MesCandidatures() {
               </div>
 
               {/* Entretien Planifié */}
-              {candidatureDetail.entretien && (
+              {entretien && (
                 <div className="p-6 bg-green-50 border-b border-green-200">
                   <h3 className="text-base font-semibold text-green-900 mb-3 flex items-center">
                     <Calendar className="w-5 h-5 mr-2" />
@@ -190,36 +234,28 @@ export default function MesCandidatures() {
                     <div>
                       <p className="text-xs text-green-700 mb-1">Date et Heure</p>
                       <p className="text-sm font-medium text-green-900">
-                        {new Date(candidatureDetail.entretien.date).toLocaleDateString('fr-FR')} à{' '}
-                        {candidatureDetail.entretien.heure}
+                        {new Date(entretien.scheduledAt).toLocaleDateString('fr-FR')} à{' '}
+                        {entretien.timeSlot}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-green-700 mb-1">Mode</p>
-                      <p className="text-sm font-medium text-green-900">{candidatureDetail.entretien.mode}</p>
+                      <p className="text-sm font-medium text-green-900">Visioconférence Teams</p>
                     </div>
-                    {candidatureDetail.entretien.lien && (
-                      <div className="md:col-span-2">
-                        <p className="text-xs text-green-700 mb-1">Lien de visio</p>
-                        <a
-                          href={candidatureDetail.entretien.lien}
-                          className="text-sm text-[#0A6ED1] hover:underline"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {candidatureDetail.entretien.lien}
-                        </a>
-                      </div>
-                    )}
-                    {candidatureDetail.entretien.adresse && (
-                      <div className="md:col-span-2">
-                        <p className="text-xs text-green-700 mb-1">Adresse</p>
-                        <p className="text-sm text-green-900">{candidatureDetail.entretien.adresse}</p>
-                      </div>
-                    )}
+                    <div className="md:col-span-2">
+                      <p className="text-xs text-green-700 mb-1">Lien de visio</p>
+                      <a
+                        href="https://teams.microsoft.com/l/meetup-join/workhub-interview"
+                        className="text-sm text-[#0A6ED1] hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Rejoindre l'entretien en ligne
+                      </a>
+                    </div>
                     <div className="md:col-span-2">
                       <p className="text-xs text-green-700 mb-1">Interviewers</p>
-                      <p className="text-sm text-green-900">{candidatureDetail.entretien.interviewers.join(', ')}</p>
+                      <p className="text-sm text-green-900">Responsable RH WorkHub</p>
                     </div>
                   </div>
                 </div>

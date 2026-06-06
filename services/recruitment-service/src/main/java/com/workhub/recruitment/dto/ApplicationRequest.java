@@ -28,4 +28,5 @@ public class ApplicationRequest {
     private String phone;
     private String linkedinUrl;
     private String coverLetter;
+    private UUID userId;
 }
