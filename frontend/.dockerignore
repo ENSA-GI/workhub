@@ -1,0 +1,11 @@
+build
+.git
+.vscode
+.idea
+Dockerfile
+Dockerfile.dev
+*.log
+.env
+.env.*
+
+node_modules

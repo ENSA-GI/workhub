@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+spacy
+PyPDF2
+python-dotenv
+requests
+aiokafka
+groq
+langchain-community
+langchain-openai
+minio

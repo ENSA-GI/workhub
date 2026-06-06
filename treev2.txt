@@ -1,0 +1,605 @@
+﻿
+|           ci-cd.yml
+|       Dockerfile
+|   |   Dockerfile
+|   |   pnpm-lock.yaml
+|   |   pnpm-workspace.yaml
+|   |   |   .modules.yaml
+|   |   |   |   lock.yaml
+|   |   |   |       |       .travis.yml
+|   |   |   |       |   |   .travis.yml
+|   |   |   |       |   |   |   |   class-names.tsx
+|   |   |   |       |   |   |   |   context.tsx
+|   |   |   |       |   |   |   |   emotion-element.tsx
+|   |   |   |       |   |   |   |   global.tsx
+|   |   |   |       |   |   |   |   theming.tsx
+|   |   |   |       |   |   |   |   class-names.tsx
+|   |   |   |       |   |   |   |   context.tsx
+|   |   |   |       |   |   |   |   emotion-element.tsx
+|   |   |   |       |   |   |   |   global.tsx
+|   |   |   |       |   |   |   |   theming.tsx
+|   |   |   |       |   |       |   base.tsx
+|   |   |   |       |   |   |   |   class-names.tsx
+|   |   |   |       |   |   |   |   context.tsx
+|   |   |   |       |   |   |   |   emotion-element.tsx
+|   |   |   |       |   |   |   |   global.tsx
+|   |   |   |       |   |   |   |   theming.tsx
+|   |   |   |       |           |   base.tsx
+|   |   |   |       |   |   |   |   class-names.tsx
+|   |   |   |       |   |   |   |   context.tsx
+|   |   |   |       |   |   |   |   emotion-element.tsx
+|   |   |   |       |   |   |   |   global.tsx
+|   |   |   |       |   |   |   |   theming.tsx
+|   |   |   |       |           |   base.tsx
+|   |   |   |       |   |   |   |   class-names.tsx
+|   |   |   |       |   |   |   |   context.tsx
+|   |   |   |       |   |   |   |   emotion-element.tsx
+|   |   |   |       |   |   |   |   global.tsx
+|   |   |   |       |   |   |   |   theming.tsx
+|   |   |   |       |           |   base.tsx
+|   |   |   |       |   |           alert-dialog.stories.tsx
+|   |   |   |       |   |           alert-dialog.test.tsx
+|   |   |   |       |   |           alert-dialog.tsx
+|   |   |   |       |               HydrationBoundary.tsx
+|   |   |   |       |               QueryClientProvider.tsx
+|   |   |   |       |               QueryErrorResetBoundary.tsx
+|   |   |   |       |               usePrefetchInfiniteQuery.tsx
+|   |   |   |       |               usePrefetchQuery.tsx
+|   |   |   |           |       FUNDING.yml
+|   |   |   |               .istanbul.yml
+|   |   |   |               .travis.yml
+|   |   |   |           |       FUNDING.yml
+|   |   |   |           |   .travis.yml
+|   |   |   |           |       FUNDING.yml
+|   |   |   |               .travis.yml
+|   |   |   |       |   |       FUNDING.yml
+|   |   |   |                   FUNDING.yml
+|   |   |   |               .istanbul.yml
+|   |   |   |               .travis.yml
+|   |   |   |       |           FUNDING.yml
+|   |   |   |   |   |       FUNDING.yml
+|   |   |   |   |   |   .travis.yml
+|   |   |   |   |   |       FUNDING.yml
+|   |   |   |   |       .travis.yml
+|   |   |   |   |           FUNDING.yml
+|   |   |   |   |       .istanbul.yml
+|   |   |   |   |       .travis.yml
+|   |   |   |   |   |       FUNDING.yml
+|   |   |   |   |   |       FUNDING.yml
+|   |   |   |               |   DayPicker.tsx
+|   |   |   |               |   |       Button.test.tsx
+|   |   |   |               |   |       Button.tsx
+|   |   |   |               |   |       Caption.test.tsx
+|   |   |   |               |   |       Caption.tsx
+|   |   |   |               |   |       CaptionDropdowns.test.tsx
+|   |   |   |               |   |       CaptionDropdowns.tsx
+|   |   |   |               |   |       CaptionLabel.test.tsx
+|   |   |   |               |   |       CaptionLabel.tsx
+|   |   |   |               |   |       CaptionNavigation.test.tsx
+|   |   |   |               |   |       CaptionNavigation.tsx
+|   |   |   |               |   |       Day.test.tsx
+|   |   |   |               |   |       Day.tsx
+|   |   |   |               |   |       DayContent.test.tsx
+|   |   |   |               |   |       DayContent.tsx
+|   |   |   |               |   |       Dropdown.test.tsx
+|   |   |   |               |   |       Dropdown.tsx
+|   |   |   |               |   |       Footer.test.tsx
+|   |   |   |               |   |       Footer.tsx
+|   |   |   |               |   |       Head.test.tsx
+|   |   |   |               |   |       Head.tsx
+|   |   |   |               |   |   |   HeadRow.test.tsx
+|   |   |   |               |   |   |   HeadRow.tsx
+|   |   |   |               |   |       IconDropdown.test.tsx
+|   |   |   |               |   |       IconDropdown.tsx
+|   |   |   |               |   |       IconLeft.test.tsx
+|   |   |   |               |   |       IconLeft.tsx
+|   |   |   |               |   |       IconRight.test.tsx
+|   |   |   |               |   |       IconRight.tsx
+|   |   |   |               |   |       Month.test.tsx
+|   |   |   |               |   |       Month.tsx
+|   |   |   |               |   |       Months.test.tsx
+|   |   |   |               |   |       Months.tsx
+|   |   |   |               |   |   |   MonthsDropdown.test.tsx
+|   |   |   |               |   |   |   MonthsDropdown.tsx
+|   |   |   |               |   |       Navigation.test.tsx
+|   |   |   |               |   |       Navigation.tsx
+|   |   |   |               |   |       Root.test.tsx
+|   |   |   |               |   |       Root.tsx
+|   |   |   |               |   |       Row.test.tsx
+|   |   |   |               |   |       Row.tsx
+|   |   |   |               |   |   |   Table.test.tsx
+|   |   |   |               |   |   |   Table.tsx
+|   |   |   |               |   |   |   WeekNumber.test.tsx
+|   |   |   |               |   |   |   WeekNumber.tsx
+|   |   |   |               |       |   YearsDropdown.test.tsx
+|   |   |   |               |       |   YearsDropdown.tsx
+|   |   |   |               |   |   RootProvider.tsx
+|   |   |   |               |   |   |   DayPickerContext.tsx
+|   |   |   |               |   |   |   FocusContext.tsx
+|   |   |   |               |   |   |   ModifiersContext.tsx
+|   |   |   |               |   |   |   NavigationContext.tsx
+|   |   |   |               |   |       SelectMultipleContext.tsx
+|   |   |   |               |   |   |   SelectRangeContext.tsx
+|   |   |   |               |           SelectSingleContext.tsx
+|   |   |   |               |   |       useActiveModifiers.test.tsx
+|   |   |   |               |   |       useActiveModifiers.tsx
+|   |   |   |               |   |       useDayEventHandlers.test.tsx
+|   |   |   |               |   |       useDayEventHandlers.tsx
+|   |   |   |               |   |   |   useDayRender.test.tsx
+|   |   |   |               |   |   |   useDayRender.tsx
+|   |   |   |               |   |           isValidDate.tsx
+|   |   |   |               |       DndProvider.tsx
+|   |   |   |       |   |       FUNDING.yml
+|   |   |   |       |   |       FUNDING.yml
+|   |   |   |           |       FUNDING.yml
+|   |   |   |           |       FUNDING.yml
+|   |   |   |   |   |   class-names.tsx
+|   |   |   |   |   |   context.tsx
+|   |   |   |   |   |   emotion-element.tsx
+|   |   |   |   |   |   global.tsx
+|   |   |   |   |   |   theming.tsx
+|   |   |   |       |   base.tsx
+|   |   |   |           alert-dialog.stories.tsx
+|   |   |   |           alert-dialog.test.tsx
+|   |   |   |           alert-dialog.tsx
+|   |   |               HydrationBoundary.tsx
+|   |   |               QueryClientProvider.tsx
+|   |   |               QueryErrorResetBoundary.tsx
+|   |   |               usePrefetchInfiniteQuery.tsx
+|   |   |               usePrefetchQuery.tsx
+|   |   |   |       FUNDING.yml
+|   |   |   |   .travis.yml
+|   |   |   |       FUNDING.yml
+|   |   |           FUNDING.yml
+|   |   |       .istanbul.yml
+|   |   |       .travis.yml
+|   |   |       |   DayPicker.tsx
+|   |   |       |   |       Button.test.tsx
+|   |   |       |   |       Button.tsx
+|   |   |       |   |       Caption.test.tsx
+|   |   |       |   |       Caption.tsx
+|   |   |       |   |       CaptionDropdowns.test.tsx
+|   |   |       |   |       CaptionDropdowns.tsx
+|   |   |       |   |       CaptionLabel.test.tsx
+|   |   |       |   |       CaptionLabel.tsx
+|   |   |       |   |       CaptionNavigation.test.tsx
+|   |   |       |   |       CaptionNavigation.tsx
+|   |   |       |   |       Day.test.tsx
+|   |   |       |   |       Day.tsx
+|   |   |       |   |       DayContent.test.tsx
+|   |   |       |   |       DayContent.tsx
+|   |   |       |   |       Dropdown.test.tsx
+|   |   |       |   |       Dropdown.tsx
+|   |   |       |   |       Footer.test.tsx
+|   |   |       |   |       Footer.tsx
+|   |   |       |   |       Head.test.tsx
+|   |   |       |   |       Head.tsx
+|   |   |       |   |   |   HeadRow.test.tsx
+|   |   |       |   |   |   HeadRow.tsx
+|   |   |       |   |       IconDropdown.test.tsx
+|   |   |       |   |       IconDropdown.tsx
+|   |   |       |   |       IconLeft.test.tsx
+|   |   |       |   |       IconLeft.tsx
+|   |   |       |   |       IconRight.test.tsx
+|   |   |       |   |       IconRight.tsx
+|   |   |       |   |       Month.test.tsx
+|   |   |       |   |       Month.tsx
+|   |   |       |   |       Months.test.tsx
+|   |   |       |   |       Months.tsx
+|   |   |       |   |   |   MonthsDropdown.test.tsx
+|   |   |       |   |   |   MonthsDropdown.tsx
+|   |   |       |   |       Navigation.test.tsx
+|   |   |       |   |       Navigation.tsx
+|   |   |       |   |       Root.test.tsx
+|   |   |       |   |       Root.tsx
+|   |   |       |   |       Row.test.tsx
+|   |   |       |   |       Row.tsx
+|   |   |       |   |   |   Table.test.tsx
+|   |   |       |   |   |   Table.tsx
+|   |   |       |   |   |   WeekNumber.test.tsx
+|   |   |       |   |   |   WeekNumber.tsx
+|   |   |       |       |   YearsDropdown.test.tsx
+|   |   |       |       |   YearsDropdown.tsx
+|   |   |       |   |   RootProvider.tsx
+|   |   |       |   |   |   DayPickerContext.tsx
+|   |   |       |   |   |   FocusContext.tsx
+|   |   |       |   |   |   ModifiersContext.tsx
+|   |   |       |   |   |   NavigationContext.tsx
+|   |   |       |   |       SelectMultipleContext.tsx
+|   |   |       |   |   |   SelectRangeContext.tsx
+|   |   |       |           SelectSingleContext.tsx
+|   |   |       |   |       useActiveModifiers.test.tsx
+|   |   |       |   |       useActiveModifiers.tsx
+|   |   |       |   |       useDayEventHandlers.test.tsx
+|   |   |       |   |       useDayEventHandlers.tsx
+|   |   |       |   |   |   useDayRender.test.tsx
+|   |   |       |   |   |   useDayRender.tsx
+|   |   |       |   |           isValidDate.tsx
+|   |   |       |       DndProvider.tsx
+|   |   |   |       FUNDING.yml
+|   |   |   |       FUNDING.yml
+|       |   |   App.tsx
+|       |   |   |   Dashboard.tsx
+|       |   |   |   EmployeeForm.tsx
+|       |   |   |   Employees.tsx
+|       |   |   |   EmployeesEnhanced.tsx
+|       |   |   |   JobPostingForm.tsx
+|       |   |   |   LandingPage.tsx
+|       |   |   |   Layout.tsx
+|       |   |   |   LeaveManagement.tsx
+|       |   |   |   LeaveManagementEnhanced.tsx
+|       |   |   |   LeaveRequestForm.tsx
+|       |   |   |   NotificationToast.tsx
+|       |   |   |   OrganizationRegistration.tsx
+|       |   |   |   Payroll.tsx
+|       |   |   |   PayrollEnhanced.tsx
+|       |   |   |   Recruitment.tsx
+|       |   |   |   RecruitmentEnhanced.tsx
+|       |   |   |       ActivateAccount.tsx
+|       |   |   |       ForgotPassword.tsx
+|       |   |   |       Login.tsx
+|       |   |   |       MfaVerify.tsx
+|       |   |   |       ProfilePage.tsx
+|       |   |   |       ResetPassword.tsx
+|       |   |   |       ImageWithFallback.tsx
+|       |   |   |   |   CandidateSpace.tsx
+|       |   |   |   |   EmployeeSpace.tsx
+|       |   |   |   |   ManagerSpace.tsx
+|       |   |   |   |   RecruiterSpace.tsx
+|       |   |   |   |       FormulairePostulation.tsx
+|       |   |   |   |       MesCandidatures.tsx
+|       |   |   |   |       MesDocumentsCandidat.tsx
+|       |   |   |   |       MonProfilCandidat.tsx
+|       |   |   |   |       NotificationsCandidat.tsx
+|       |   |   |   |       OffresPubliques.tsx
+|       |   |   |   |       DashboardEmployee.tsx
+|       |   |   |   |       MesBulletins.tsx
+|       |   |   |   |       MesCongesEmployee.tsx
+|       |   |   |   |       MesDocuments.tsx
+|       |   |   |   |       MonProfilEmployee.tsx
+|       |   |   |   |       NotificationsEmployee.tsx
+|       |   |   |   |       AnalyticsOrgAdmin.tsx
+|       |   |   |   |       AuditHistory.tsx
+|       |   |   |   |       ConfigurationOrg.tsx
+|       |   |   |   |       CongesAnalytics.tsx
+|       |   |   |   |       DashboardOrgAdmin.tsx
+|       |   |   |   |       EmployeesView.tsx
+|       |   |   |   |       ExportData.tsx
+|       |   |   |   |       PayrollAnalytics.tsx
+|       |   |   |   |       PayrollSettings.tsx
+|       |   |   |   |       RecruitmentAnalytics.tsx
+|       |   |   |   |       RHUsersManagement.tsx
+|       |   |   |   |       AnalyticsRHManager.tsx
+|       |   |   |   |       ArchiveEmployeeModal.tsx
+|       |   |   |   |       DashboardRHManager.tsx
+|       |   |   |   |       EmployeeDetailModal.tsx
+|       |   |   |   |       EmployeeFormModal.tsx
+|       |   |   |   |       EmployeesListRH.tsx
+|       |   |   |   |       PayrollDetailAdjustments.tsx
+|       |   |   |   |       PayrollGeneration.tsx
+|       |   |   |   |       PayrollHistory.tsx
+|       |   |   |   |       PayslipsManagement.tsx
+|       |   |   |           DashboardSuperAdmin.tsx
+|       |   |   |           OrganizationsView.tsx
+|       |   |   |           PlatformConfig.tsx
+|       |   |   |           Subscriptions.tsx
+|       |   |   |           SupportIncidents.tsx
+|       |   |   |           SystemLogs.tsx
+|       |   |   |           SystemMonitoringDashboard.tsx
+|       |   |           accordion.tsx
+|       |   |           alert-dialog.tsx
+|       |   |           alert.tsx
+|       |   |           aspect-ratio.tsx
+|       |   |           avatar.tsx
+|       |   |           badge.tsx
+|       |   |           breadcrumb.tsx
+|       |   |           button.tsx
+|       |   |           calendar.tsx
+|       |   |           card.tsx
+|       |   |           carousel.tsx
+|       |   |           chart.tsx
+|       |   |           checkbox.tsx
+|       |   |           collapsible.tsx
+|       |   |           command.tsx
+|       |   |           context-menu.tsx
+|       |   |           dialog.tsx
+|       |   |           drawer.tsx
+|       |   |           dropdown-menu.tsx
+|       |   |           form.tsx
+|       |   |           hover-card.tsx
+|       |   |           input-otp.tsx
+|       |   |           input.tsx
+|       |   |           label.tsx
+|       |   |           menubar.tsx
+|       |   |           navigation-menu.tsx
+|       |   |           pagination.tsx
+|       |   |           popover.tsx
+|       |   |           progress.tsx
+|       |   |           radio-group.tsx
+|       |   |           resizable.tsx
+|       |   |           scroll-area.tsx
+|       |   |           select.tsx
+|       |   |           separator.tsx
+|       |   |           sheet.tsx
+|       |   |           sidebar.tsx
+|       |   |           skeleton.tsx
+|       |   |           slider.tsx
+|       |   |           sonner.tsx
+|       |   |           switch.tsx
+|       |   |           table.tsx
+|       |   |           tabs.tsx
+|       |   |           textarea.tsx
+|       |   |           toggle-group.tsx
+|       |   |           toggle.tsx
+|       |   |           tooltip.tsx
+|   |   compose.apps.yml
+|   |   compose.infra.yml
+    |   |   Dockerfile
+    |   |   Dockerfile
+    |   |   pom.xml
+    |   |   |   |               |   ApiGatewayApplication.java
+    |   |   |   |               |       ProxyController.java
+    |   |   |   |                       JwtConfig.java
+    |   |   |   |                       SecurityConfig.java
+    |   |   |           application.yml
+    |   |                           ApiGatewayApplicationTests.java
+    |       |   |   application.yml
+    |   |   Dockerfile
+    |   |   pom.xml
+    |   |   |   |               |   AuditServiceApplication.java
+    |   |   |   |               |       AuditController.java
+    |   |   |   |               |       AuditLog.java
+    |   |   |   |                       AuditLogRepository.java
+    |   |   |       |   application.yml
+    |   |                           AuditServiceApplicationTests.java
+    |       |   |   application.yml
+    |   |   Dockerfile
+    |   |   pom.xml
+    |   |   |   |               |   DocumentServiceApplication.java
+    |   |   |   |               |       DocumentController.java
+    |   |   |   |               |       Document.java
+    |   |   |   |               |       DocumentType.java
+    |   |   |   |                       DocumentRepository.java
+    |   |   |       |   application.yml
+    |   |                           DocumentServiceApplicationTests.java
+    |       |   |   application.yml
+    |   |   Dockerfile
+    |   |   pom.xml
+    |   |   |   |               |   EmployeeServiceApplication.java
+    |   |   |   |               |       EmployeeController.java
+    |   |   |   |               |       KafkaProducerConfig.java
+    |   |   |   |               |       ContractType.java
+    |   |   |   |               |       DepartureReason.java
+    |   |   |   |               |       Employee.java
+    |   |   |   |               |       EmployeeArchive.java
+    |   |   |   |               |       EmployeeStatus.java
+    |   |   |   |               |       MaritalStatus.java
+    |   |   |   |               |       PositionHistory.java
+    |   |   |   |               |       ProfessionalCategory.java
+    |   |   |   |               |       SalaryHistory.java
+    |   |   |   |               |       ArchiveEmployeeRequest.java
+    |   |   |   |               |       CreateEmployeeRequest.java
+    |   |   |   |               |       EmployeeResponse.java
+    |   |   |   |               |       UpdateEmployeeRequest.java
+    |   |   |   |               |       BusinessRuleException.java
+    |   |   |   |               |       EmployeeNotFoundException.java
+    |   |   |   |               |       GlobalExceptionHandler.java
+    |   |   |   |               |   |   EmployeeEventsPublisher.java
+    |   |   |   |               |           EmployeeCreatedEvent.java
+    |   |   |   |               |       EmployeeArchiveRepository.java
+    |   |   |   |               |       EmployeeRepository.java
+    |   |   |   |               |       PositionHistoryRepository.java
+    |   |   |   |               |       SalaryHistoryRepository.java
+    |   |   |   |                       EmployeeService.java
+    |   |   |       |   application.yml
+    |   |                           EmployeeServiceApplicationTests.java
+    |       |   |   application.yml
+    |   |   Dockerfile
+    |   |   pom.xml
+    |   |   |   |               |   IdentityServiceApplication.java
+    |   |   |   |               |   |   AuthController.java
+    |   |   |   |               |   |   GlobalExceptionHandler.java
+    |   |   |   |               |   |   MfaController.java
+    |   |   |   |               |   |   UserController.java
+    |   |   |   |               |           UserDto.java
+    |   |   |   |               |       JacksonConfig.java
+    |   |   |   |               |       JwtConfig.java
+    |   |   |   |               |       SecurityConfig.java
+    |   |   |   |               |       AuditLog.java
+    |   |   |   |               |       MfaSecret.java
+    |   |   |   |               |       RefreshToken.java
+    |   |   |   |               |       Role.java
+    |   |   |   |               |       User.java
+    |   |   |   |               |   |   EmployeeEventsConsumer.java
+    |   |   |   |               |   |       KafkaConsumerConfig.java
+    |   |   |   |               |   |       KafkaProducerConfig.java
+    |   |   |   |               |           EmployeeCreatedEvent.java
+    |   |   |   |               |           UserCreatedEvent.java
+    |   |   |   |               |           UserDeactivatedEvent.java
+    |   |   |   |               |           UserEventsPublisher.java
+    |   |   |   |               |           UserUpdatedEvent.java
+    |   |   |   |               |       AuditLogRepository.java
+    |   |   |   |               |       MfaSecretRepository.java
+    |   |   |   |               |       RefreshTokenRepository.java
+    |   |   |   |               |       UserRepository.java
+    |   |   |   |               |       AuditService.java
+    |   |   |   |               |       AuthService.java
+    |   |   |   |               |       MfaService.java
+    |   |   |   |               |       RefreshTokenService.java
+    |   |   |   |               |       UserService.java
+    |   |   |   |                       PasswordValidator.java
+    |   |   |       |   application.yml
+    |   |                           IdentityServiceApplicationTests.java
+    |       |   |   application.yml
+    |   |   Dockerfile
+    |   |   pom.xml
+    |   |   |   |               |   LeaveServiceApplication.java
+    |   |   |   |               |       LeaveController.java
+    |   |   |   |               |       LeaveExceptionHandler.java
+    |   |   |   |               |       KafkaConsumerConfig.java
+    |   |   |   |               |       LeaveBalance.java
+    |   |   |   |               |       LeaveRequest.java
+    |   |   |   |               |       LeaveStatus.java
+    |   |   |   |               |       LeaveType.java
+    |   |   |   |               |       LeaveBalanceResponse.java
+    |   |   |   |               |       LeaveRequestDTO.java
+    |   |   |   |               |       LeaveRequestResponse.java
+    |   |   |   |               |       ReviewDTO.java
+    |   |   |   |               |       LeaveException.java
+    |   |   |   |               |   |   EmployeeEventsConsumer.java
+    |   |   |   |               |   |   LeaveEventProducer.java
+    |   |   |   |               |           EmployeeCreatedEvent.java
+    |   |   |   |               |           LeaveEvent.java
+    |   |   |   |               |       LeaveBalanceRepository.java
+    |   |   |   |               |       LeaveRequestRepository.java
+    |   |   |   |               |       LeaveTypeRepository.java
+    |   |   |   |                       LeaveService.java
+    |   |   |   |                       WorkingDaysCalculator.java
+    |   |   |       |   application.yml
+    |   |       |                   LeaveServiceApplicationTests.java
+    |   |               application.yml
+    |       |   |   application.yml
+    |           |   application.yml
+    |   |   Dockerfile
+    |   |   pom.xml
+    |   |   |   |               |   NotificationServiceApplication.java
+    |   |   |   |               |       NotificationController.java
+    |   |   |   |               |       JacksonConfig.java
+    |   |   |   |               |       KafkaConsumerConfig.java
+    |   |   |   |               |       Notification.java
+    |   |   |   |               |       NotificationType.java
+    |   |   |   |               |       LeaveEventConsumer.java
+    |   |   |   |                       NotificationRepository.java
+    |   |   |       |   application.yml
+    |   |                           NotificationServiceApplicationTests.java
+    |       |   |   application.yml
+    |   |   Dockerfile
+    |   |   pom.xml
+    |   |   |   |               |   OrgServiceApplication.java
+    |   |   |   |               |   |   InternalOrgController.java
+    |   |   |   |               |   |   OrgController.java
+    |   |   |   |               |           BusinessRuleException.java
+    |   |   |   |               |           DuplicateResourceException.java
+    |   |   |   |               |           GlobalExceptionHandler.java
+    |   |   |   |               |           ResourceNotFoundException.java
+    |   |   |   |               |       JpaConfig.java
+    |   |   |   |               |       JwtConfig.java
+    |   |   |   |               |       KafkaConfig.java
+    |   |   |   |               |       OpenApiConfig.java
+    |   |   |   |               |       SecurityConfig.java
+    |   |   |   |               |       Auditable.java
+    |   |   |   |               |       Department.java
+    |   |   |   |               |       Organization.java
+    |   |   |   |               |       OrganizationSettings.java
+    |   |   |   |               |       Position.java
+    |   |   |   |               |       ProfessionalCategory.java
+    |   |   |   |               |       CreateDepartmentRequest.java
+    |   |   |   |               |       CreateOrganizationRequest.java
+    |   |   |   |               |       CreatePositionRequest.java
+    |   |   |   |               |       DepartmentResponse.java
+    |   |   |   |               |       OrganizationResponse.java
+    |   |   |   |               |       OrganizationSettingsResponse.java
+    |   |   |   |               |       OrgDashboardResponse.java
+    |   |   |   |               |       PositionResponse.java
+    |   |   |   |               |       UpdateDepartmentRequest.java
+    |   |   |   |               |       UpdateOrganizationRequest.java
+    |   |   |   |               |       UpdateOrganizationSettingsRequest.java
+    |   |   |   |               |       UpdatePositionRequest.java
+    |   |   |   |               |       DepartmentEvent.java
+    |   |   |   |               |       OrganizationEvent.java
+    |   |   |   |               |       PositionEvent.java
+    |   |   |   |               |       DepartmentMapper.java
+    |   |   |   |               |       OrganizationMapper.java
+    |   |   |   |               |       PositionMapper.java
+    |   |   |   |               |       KafkaEventPublisher.java
+    |   |   |   |               |   |   DepartmentRepository.java
+    |   |   |   |               |   |   OrganizationRepository.java
+    |   |   |   |               |   |   OrganizationSettingsRepository.java
+    |   |   |   |               |   |   PositionRepository.java
+    |   |   |   |               |           DepartmentSpecifications.java
+    |   |   |   |               |           OrganizationSpecifications.java
+    |   |   |   |               |           PositionSpecifications.java
+    |   |   |   |               |       DepartmentService.java
+    |   |   |   |               |       OrganizationService.java
+    |   |   |   |               |       PositionService.java
+    |   |   |   |                       SecurityUtils.java
+    |   |   |       |   application.yml
+    |   |       |                   OrgServiceApplicationTests.java
+    |       |   |   application.yml
+    |       |                           DepartmentMapperImpl.java
+    |       |                           OrganizationMapperImpl.java
+    |       |                           PositionMapperImpl.java
+    |   |   Dockerfile
+    |   |   PayrollServiceApplication.java
+    |   |   pom.xml
+    |   |   |   |               |   PayrollServiceApplication.java
+    |   |   |   |               |       PayrollController.java
+    |   |   |   |               |       EmployeeClient.java
+    |   |   |   |               |       CorsConfig.java
+    |   |   |   |               |       MinioConfig.java
+    |   |   |   |               |       Payroll.java
+    |   |   |   |               |       PayrollAdjustment.java
+    |   |   |   |               |       PayrollBudget.java
+    |   |   |   |               |       PayrollItem.java
+    |   |   |   |               |       PayrollParameter.java
+    |   |   |   |               |       PayrollStatus.java
+    |   |   |   |               |       PayrollAdjustmentDTO.java
+    |   |   |   |               |       PayrollAnalyticsDTOs.java
+    |   |   |   |               |   |       EmployeeEventsConsumer.java
+    |   |   |   |               |   |       PayrollGeneratedEvent.java
+    |   |   |   |               |   |       PayslipGeneratedEvent.java
+    |   |   |   |               |           PayrollEventsPublisher.java
+    |   |   |   |               |       PayrollAdjustmentRepository.java
+    |   |   |   |               |       PayrollBudgetRepository.java
+    |   |   |   |               |       PayrollItemRepository.java
+    |   |   |   |               |       PayrollParameterRepository.java
+    |   |   |   |               |       PayrollRepository.java
+    |   |   |   |                       IrBracket.java
+    |   |   |   |                       PayrollEngine.java
+    |   |   |   |                       PayrollService.java
+    |   |   |   |                       PdfGenerator.java
+    |   |   |   |                       StorageService.java
+    |   |   |       |   application.yml
+    |   |                       |   PayrollServiceApplicationTests.java
+    |   |                               PayrollKafkaIntegrationTest.java
+    |       |   |   application.yml
+        |   Dockerfile
+        |   pom.xml
+        |   |   |               |   RecruitmentServiceApplication.java
+        |   |   |               |   |   InterviewController.java
+        |   |   |               |   |   RecruitmentAnalyticsController.java
+        |   |   |               |   |   RecruitmentController.java
+        |   |   |               |           DuplicateApplicationException.java
+        |   |   |               |           OfferNotFoundException.java
+        |   |   |               |       CorsConfig.java
+        |   |   |               |       KafkaConfig.java
+        |   |   |               |       Application.java
+        |   |   |               |       ApplicationStatus.java
+        |   |   |               |       Candidate.java
+        |   |   |               |       ContractType.java
+        |   |   |               |       Interview.java
+        |   |   |               |       InterviewStatus.java
+        |   |   |               |       JobOffer.java
+        |   |   |               |       JobOfferStatus.java
+        |   |   |               |       ApplicationRequest.java
+        |   |   |               |       ApplicationResponse.java
+        |   |   |               |       CvAnalysisRequest.java
+        |   |   |               |       CvAnalysisResult.java
+        |   |   |               |       JobOfferPublicResponse.java
+        |   |   |               |       RecruitmentAnalyticsResponse.java
+        |   |   |               |       RecruitmentNotificationEvent.java
+        |   |   |               |       ScheduleInterviewRequest.java
+        |   |   |               |       ApplicationRepository.java
+        |   |   |               |       CandidateRepository.java
+        |   |   |               |       InterviewRepository.java
+        |   |   |               |       JobOfferRepository.java
+        |   |   |                       ApplicationService.java
+        |   |   |                       KafkaConsumerService.java
+        |   |   |                       KafkaProducerService.java
+        |   |   |                       RecruitmentAnalyticsService.java
+        |   |   |                       StorageService.java
+        |   |       |   application.yml
+        |                           RecruitmentServiceApplicationTests.java
+            |   |   application.yml
+
+

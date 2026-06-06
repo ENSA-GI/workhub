@@ -1,0 +1,188 @@
+services:
+  api-gateway:
+    init: true
+    build: { context: ../services/api-gateway }
+    ports: [ "8888:8080" ]
+    environment:
+      SERVER_PORT: 8080
+
+      WORKHUB_GATEWAY_ORG: http://org-service:8081
+      WORKHUB_GATEWAY_EMPLOYEE: http://employee-service:8080
+      WORKHUB_GATEWAY_IDENTITY: http://identity-service:8088
+      WORKHUB_GATEWAY_LEAVE: http://leave-service:8080
+      WORKHUB_GATEWAY_NOTIFICATIONS: http://notification-service:8080
+      WORKHUB_GATEWAY_PAYROLL: http://payroll-service:8080
+      WORKHUB_GATEWAY_RECRUITMENT: http://recruitment-service:8080
+      WORKHUB_GATEWAY_DOCUMENTS: http://document-service:8080
+      WORKHUB_GATEWAY_AUDIT: http://audit-service:8080
+
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: https://feasible-vervet-9.clerk.accounts.dev/.well-known/jwks.json
+    depends_on:
+      - org-service
+      - employee-service
+      - identity-service
+      - leave-service
+      - notification-service
+    networks: [ workhub ]
+
+  org-service:
+    init: true
+    build: { context: ../services/org-service }
+    ports: [ "8081:8081" ]
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/org_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+      IDENTITY_SERVICE_URL: http://identity-service:8088
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [ postgres ]
+    networks: [ workhub ]
+
+  identity-service:
+    init: true
+    build: { context: ../services/identity-service }
+    ports: [ "8088:8088" ]
+    environment:
+      SERVER_PORT: 8088
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/identity_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+      CLERK_WEBHOOK_SECRET: ${CLERK_WEBHOOK_SECRET:-whsec_dGVzdF9zZWNyZXRfMTIz}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [ postgres, kafka ]
+    networks: [ workhub ]
+
+  employee-service:
+    init: true
+    build: { context: ../services/employee-service }
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/employee_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [ postgres, kafka ]
+    networks: [ workhub ]
+
+  leave-service:
+    init: true
+    build: { context: ../services/leave-service }
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/leave_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [ postgres, kafka ]
+    networks: [ workhub ]
+
+  payroll-service:
+    init: true
+    build: { context: ../services/payroll-service }
+    ports:
+      - "8084:8080"
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payroll_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+      MINIO_BUCKET_NAME: payslips
+      WORKHUB_GATEWAY_EMPLOYEE: http://employee-service:8080
+      WORKHUB_GATEWAY_IDENTITY: http://identity-service:8088
+    depends_on: [ postgres, kafka, minio ]
+    networks: [ workhub ]
+
+  recruitment-service:
+    init: true
+    build: { context: ../services/recruitment-service }
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/recruitment_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+    depends_on: [ postgres, kafka, minio ]
+    networks: [ workhub ]
+
+  document-service:
+    init: true
+    build: { context: ../services/document-service }
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/document_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+    depends_on: [ postgres ]
+    networks: [ workhub ]
+
+  notification-service:
+    init: true
+    build: { context: ../services/notification-service }
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-localhost}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-1025}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_AUTH: ${SPRING_MAIL_AUTH:-false}
+      SPRING_MAIL_STARTTLS: ${SPRING_MAIL_STARTTLS:-false}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadminpassword
+      MINIO_BUCKET_NAME: payslips
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+    depends_on: [ postgres, mailhog, kafka, minio ]
+    networks: [ workhub ]
+
+  audit-service:
+    init: true
+    build: { context: ../services/audit-service }
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/audit_db
+      SPRING_DATASOURCE_USERNAME: workhub
+      SPRING_DATASOURCE_PASSWORD: workhub
+    depends_on: [ postgres ]
+    networks: [ workhub ]
+
+  ai-service:
+    init: true
+    build: { context: ../services/ai-service }
+    ports: [ "8000:8080" ]
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:-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}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on: [ kafka, minio ]
+    networks: [ workhub ]
+
+  frontend:
+    init: true
+    build:
+      context: ../frontend
+      args:
+        - VITE_CLERK_PUBLISHABLE_KEY=pk_test_ZmVhc2libGUtdmVydmV0LTkuY2xlcmsuYWNjb3VudHMuZGV2JA
+        - VITE_API_BASE_URL=http://localhost:8888
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks: [ workhub ]
+
+networks:
+  workhub:
+    external: true
