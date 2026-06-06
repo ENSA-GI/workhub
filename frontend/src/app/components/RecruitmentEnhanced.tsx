@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, TrendingUp, User, FileText, Calendar, Star, Download, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Search, TrendingUp, User, FileText, Calendar, Star, Download, Trash2, RefreshCw, X } from 'lucide-react';
 import JobPostingForm from './JobPostingForm';
 import NotificationToast from './NotificationToast';
 import { exportToCSV } from '../utils/dataManager';
@@ -46,6 +46,10 @@ export default function RecruitmentEnhanced() {
     type: 'success',
     visible: false,
   });
+  const [isInterviewModalOpen, setIsInterviewModalOpen] = useState(false);
+  const [interviewDate, setInterviewDate] = useState('');
+  const [interviewTimeSlot, setInterviewTimeSlot] = useState('10:00 - 11:00');
+  const [submittingInterview, setSubmittingInterview] = useState(false);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type, visible: true });
@@ -193,8 +197,46 @@ export default function RecruitmentEnhanced() {
   const handleRejectCandidate = (applicationId: string) =>
     updateStatus(applicationId, 'REJECTED', 'Rejected');
 
-  const handleScheduleInterview = (applicationId: string) =>
-    updateStatus(applicationId, 'INTERVIEW_SCHEDULED', 'Interview');
+  const handleScheduleInterview = (applicationId: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    setInterviewDate(today);
+    setInterviewTimeSlot('10:00 - 11:00');
+    setIsInterviewModalOpen(true);
+  };
+
+  const handleConfirmScheduleInterview = async () => {
+    if (!selectedCand?.applicationId || !interviewDate || !interviewTimeSlot) {
+      showNotification('Veuillez remplir tous les champs.', 'error');
+      return;
+    }
+    setSubmittingInterview(true);
+    try {
+      const dateObj = new Date(interviewDate + 'T12:00:00Z');
+      const res = await fetch(`${API_BASE}/interviews/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: selectedCand.applicationId,
+          scheduledAt: dateObj.toISOString(),
+          timeSlot: interviewTimeSlot
+        })
+      });
+      if (!res.ok) throw new Error();
+      
+      // Update local state
+      setCandidates(prev => prev.map(c => 
+        c.applicationId === selectedCand.applicationId ? { ...c, status: 'Interview' } : c
+      ));
+      
+      setIsInterviewModalOpen(false);
+      showNotification('Entretien planifié et notifié au candidat !', 'success');
+    } catch (err) {
+      console.error(err);
+      showNotification("Erreur lors de la planification de l'entretien", 'error');
+    } finally {
+      setSubmittingInterview(false);
+    }
+  };
 
   // ─── Voir le CV ───────────────────────────────────────────────────────────────
   const handleViewCv = async (applicationId: string) => {
@@ -520,6 +562,85 @@ export default function RecruitmentEnhanced() {
         onClose={() => setIsJobFormOpen(false)}
         onSave={handleSaveJob}
       />
+
+      {/* Modal Planifier Entretien */}
+      {isInterviewModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-xl shadow-2xl overflow-hidden transform transition-all scale-100 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-700 to-[#0A6ED1] p-5 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold">Planifier un entretien</h3>
+                <p className="text-purple-100 text-xs mt-0.5">Pour {selectedCand?.name}</p>
+              </div>
+              <button 
+                onClick={() => setIsInterviewModalOpen(false)}
+                className="text-white/80 hover:text-white p-1 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Date de l'entretien *</label>
+                <input
+                  type="date"
+                  required
+                  min={new Date().toISOString().split('T')[0]}
+                  value={interviewDate}
+                  onChange={(e) => setInterviewDate(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0A6ED1] focus:border-transparent transition-all outline-none text-gray-900 font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Créneau horaire *</label>
+                <select
+                  value={interviewTimeSlot}
+                  onChange={(e) => setInterviewTimeSlot(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0A6ED1] focus:border-transparent transition-all outline-none text-gray-900 font-medium animate-none"
+                >
+                  <option value="09:00 - 10:00">09:00 - 10:00</option>
+                  <option value="10:00 - 11:00">10:00 - 11:00</option>
+                  <option value="11:00 - 12:00">11:00 - 12:00</option>
+                  <option value="14:00 - 15:00">14:00 - 15:00</option>
+                  <option value="15:00 - 16:00">15:00 - 16:00</option>
+                  <option value="16:00 - 17:00">16:00 - 17:00</option>
+                </select>
+              </div>
+
+              <div className="bg-purple-50 border-l-4 border-purple-500 p-4 text-xs text-purple-750 rounded-r-lg leading-relaxed font-medium">
+                Une notification sera immédiatement envoyée dans l'espace candidat et un e-mail de confirmation lui sera adressé.
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsInterviewModalOpen(false)}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmScheduleInterview}
+                  disabled={submittingInterview || !interviewDate}
+                  className={`flex-1 px-4 py-2 text-white font-semibold rounded-lg transition-all shadow-lg ${
+                    submittingInterview || !interviewDate
+                      ? 'bg-purple-400 cursor-not-allowed'
+                      : 'bg-purple-600 hover:bg-purple-700 hover:shadow-purple-500/25 active:scale-95'
+                  }`}
+                >
+                  {submittingInterview ? "Planification..." : "Planifier"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

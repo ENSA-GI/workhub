@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Upload, CheckCircle, AlertCircle } from 'lucide-react';
+import { useUser } from '@/lib/useUser';
 
 interface FormulairePostulationProps {
   jobOfferId: string;
@@ -9,6 +10,7 @@ interface FormulairePostulationProps {
 }
 
 export default function FormulairePostulation({ jobOfferId, jobTitle, onClose, onSuccess }: FormulairePostulationProps) {
+  const { user } = useUser();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -19,6 +21,17 @@ export default function FormulairePostulation({ jobOfferId, jobTitle, onClose, o
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.primaryEmailAddress?.emailAddress || '',
+      }));
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +51,8 @@ export default function FormulairePostulation({ jobOfferId, jobTitle, onClose, o
       lastName: formData.lastName,
       email: formData.email,
       phone: formData.phone,
-      coverLetter: formData.coverLetter
+      coverLetter: formData.coverLetter,
+      userId: user?.id || null
     };
 
     formDataToSubmit.append('data', JSON.stringify(applicationData));

@@ -9,6 +9,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class RecruitmentNotificationEvent {
     private UUID candidateId;
+    private UUID userId;
     private String candidateEmail;
     private String candidateName;
     private String eventType; // INTERVIEW_SCHEDULED, HIRED, REJECTED
