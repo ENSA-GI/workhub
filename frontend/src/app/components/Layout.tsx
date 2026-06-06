@@ -59,6 +59,7 @@ export default function Layout({ children, userRole, onBackToHome}: LayoutProps)
 
     const orgAdminNav = [
       { name: 'Tableau de bord', href: '/', icon: LayoutDashboard },
+      { name: 'Départements', href: '/departments', icon: Building2 },
       { name: 'Employés', href: '/employees', icon: Users },
       { name: 'Analytique Paie', href: '/payroll', icon: BarChart3 },
       { name: 'Paramètres de paie', href: '/payroll-settings', icon: Settings },

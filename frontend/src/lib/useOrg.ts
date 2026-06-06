@@ -173,6 +173,18 @@ export const useCreateDepartment = () => {
     });
 };
 
+export const useUpdateDepartment = () => {
+    const apiFetch = useApi();
+    const queryClient = useQueryClient();
+    return useMutation<Department, Error, { id: string; organizationId: string; data: { name: string; description?: string; active?: boolean } }>({
+        mutationFn: ({ id, data }) => apiFetch(`/org/departments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['departments', variables.organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['departments'] });
+        },
+    });
+};
+
 export const useDeleteDepartment = () => {
     const apiFetch = useApi();
     const queryClient = useQueryClient();

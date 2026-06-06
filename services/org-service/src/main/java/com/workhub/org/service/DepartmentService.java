@@ -87,12 +87,12 @@ public class DepartmentService {
     @Transactional
     public DepartmentResponse updateDepartment(UUID id, UpdateDepartmentRequest req) {
         Department dept = getDepartmentEntityById(id);
-        if (deptRepo.existsByOrganizationIdAndNameAndIdNot(dept.getOrganizationId(), req.name(), id)) {
+        if (req.name() != null && deptRepo.existsByOrganizationIdAndNameAndIdNot(dept.getOrganizationId(), req.name(), id)) {
             throw new DuplicateResourceException(
                     "Un departement '" + req.name() + "' existe deja dans cette organisation");
         }
-        dept.setName(req.name());
-        dept.setDescription(req.description());
+        if (req.name() != null) dept.setName(req.name());
+        if (req.description() != null) dept.setDescription(req.description());
         if (req.active() != null) {
             dept.setActive(req.active());
         }

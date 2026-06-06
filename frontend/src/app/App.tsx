@@ -32,6 +32,7 @@ import PayrollAnalytics from "./components/spaces/org-admin/PayrollAnalytics";
 import CongesAnalytics from "./components/spaces/org-admin/CongesAnalytics";
 import RecruitmentAnalytics from "./components/spaces/org-admin/RecruitmentAnalytics";
 import EmployeesView from "./components/spaces/org-admin/EmployeesView";
+import DepartmentsManagement from "./components/spaces/org-admin/DepartmentsManagement";
 import DashboardRHManager from "./components/spaces/rh-manager/DashboardRHManager";
 import AnalyticsRHManager from "./components/spaces/rh-manager/AnalyticsRHManager";
 import PayrollGeneration from "./components/spaces/rh-manager/PayrollGeneration";
@@ -242,6 +243,7 @@ function AppRoutes() {
                 <Layout userRole={selectedRole} onBackToHome={handleBackToHome}>
                     <Routes>
                         <Route path="/" element={<DashboardOrgAdmin />} />
+                        <Route path="/departments" element={<DepartmentsManagement />} />
                         <Route path="/employees" element={<EmployeesView />} />
                         <Route path="/payroll" element={<PayrollAnalytics />} />
                         <Route path="/payroll-settings" element={<PayrollSettings />} />
