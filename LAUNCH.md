@@ -1,6 +1,7 @@
 # Commandes de Lancement WorkHub
 docker-compose -f infra/compose.infra.yml -f infra/compose.apps.yml up -d --build
 docker-compose -f infra/compose.infra.yml -f infra/compose.apps.yml down -v
+docker-compose -f infra/compose.infra.yml -f infra/compose.apps.yml up -d --build identity-service
 
 
 # Arrêter les services et supprimer les volumes anonymes/liés
